@@ -8,17 +8,17 @@ Basic browser extension scaffolding and shell UI. No functional automation yet â
 
 ### Milestones
 
-- [ ] **Dev Tooling Setup**
+- [x] **Dev Tooling Setup**
   - Initialize Firefox extension project structure (`manifest.json`, background script, content script entry points).
   - Configure a development workflow with hot-reload (e.g., `web-ext` CLI).
 
-- [ ] **Detached Window & Side Panel**
+- [x] **Detached Window & Side Panel**
   - Implement toolbar icon click handler that opens the manager UI (defaults to Detached Window mode via `browser.windows.create()` with `type: "popup"`).
   - Add option to toggle/switch presentation modes between Detached Window (default) and a Side Panel docked on the right side of the browser.
   - Ensure the window/panel persists and has appropriate close/toggle buttons.
   - Prevent duplicates: re-focus/re-open the existing manager instance if already open.
 
-- [ ] **Basic Layout**
+- [x] **Basic Layout**
   - Implement the two-panel shell: fixed left sidebar navigation + right content area.
   - Add navigation items for all five modules: Context Transfer, Broadcast, Orchestrator, Skills, Connection.
   - Each nav item switches the content area to a placeholder view (name + "coming soon").

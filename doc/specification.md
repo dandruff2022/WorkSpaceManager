@@ -6,17 +6,13 @@ This document details the conceptualization, UI/UX structure, and technical requ
 
 ## 1. Manager Interface (Detached Window & Side Panel)
 
-The extension UI acts as the central control panel and supports two presentation modes, defaulting to a **Detached Window** to prevent auto-closure on focus loss, with the ability to switch to a **Side Panel** docked to the right of the browser window. A dedicated header control allows the user to toggle between these views.
+The extension UI acts as the central control panel and supports two presentation modes, defaulting to a **Detached Window** to prevent auto-closure on focus loss, with the ability to switch to a **Side Panel** docked to the right of the browser window. A dedicated selector control allows the user to toggle between these views.
 
 ### Layout Structure
 - **Container**: A modern, responsive interface using a clean, dark-mode/glassmorphism aesthetic that scales gracefully between the detached window format and the right side panel layout.
-- **Header Toolbar**: Contains a **View Mode Switcher** (to toggle between Detached Window and Side Panel views).
-- **Left Panel (Navigation Menu)**: A fixed vertical sidebar menu containing:
-  - **Context Transfer**: For bulk-transferring chat histories or prompts between different active AI sessions.
-  - **Broadcast**: For sending a single prompt simultaneously to multiple active AI tabs for parallel execution or side-by-side comparison.
-  - **Orchestrator**: A unified workflow workspace to coordinate, parse, format, and dispatch inputs/outputs with visual status tracking.
-  - **Skills**: A manager for custom system prompts, automation macros, or quick actions to inject into active AI sessions.
-  - **Connection**: Setup and management of AI website element bindings and active browser tabs.
+- **Left Panel (Navigation Menu & View Switcher)**: A fixed vertical sidebar menu containing:
+  - Menu navigation items for all five modules: Context Transfer, Broadcast, Orchestrator, Skills, Connection.
+  - **View Mode Switcher**: A segment control located at the bottom of the sidebar (repositioned dynamically to the top-right of the sidebar in narrow/side-panel views) to toggle between Detached Window and Side Panel modes.
 - **Right Panel (Content Area)**: Displays the view corresponding to the selected navigation item.
 
 ---
