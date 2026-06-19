@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workspace Manager</title>
+  <!-- Google Fonts: Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="manager.css">
+  <script src="manager.js" defer></script>
+</head>
+<body>
+  <!-- Ambient background glow elements -->
+  <div class="glow-bg">
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- Left Panel: Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <svg class="logo" viewBox="0 0 64 64">
+          <defs>
+            <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#6366f1;" />
+              <stop offset="100%" style="stop-color:#a855f7;" />
+            </linearGradient>
+          </defs>
+          <rect width="64" height="64" rx="16" fill="url(#logo-grad)" />
+          <circle cx="20" cy="20" r="4" fill="#ffffff" />
+          <circle cx="44" cy="20" r="4" fill="#ffffff" />
+          <circle cx="32" cy="44" r="6" fill="#ffffff" />
+          <line x1="20" y1="20" x2="32" y2="44" stroke="#ffffff" stroke-width="3" stroke-dasharray="2 2" />
+          <line x1="44" y1="20" x2="32" y2="44" stroke="#ffffff" stroke-width="3" stroke-dasharray="2 2" />
+        </svg>
+        <div class="brand">
+          <span class="brand-title">Workspace</span>
+          <span class="brand-subtitle">MANAGER</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-item active" data-target="context-transfer">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+            <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+          </svg>
+          <span class="nav-label">Context Transfer</span>
+        </button>
+
+        <button class="nav-item" data-target="broadcast">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+            <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+            <line x1="12" x2="12" y1="19" y2="22"></line>
+          </svg>
+          <span class="nav-label">Broadcast</span>
+        </button>
+
+        <button class="nav-item" data-target="orchestrator">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="9" rx="1"></rect>
+            <rect x="14" y="3" width="7" height="5" rx="1"></rect>
+            <rect x="14" y="12" width="7" height="9" rx="1"></rect>
+            <rect x="3" y="16" width="7" height="5" rx="1"></rect>
+          </svg>
+          <span class="nav-label">Orchestrator</span>
+        </button>
+
+        <button class="nav-item" data-target="skills">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+          </svg>
+          <span class="nav-label">Skills</span>
+        </button>
+
+        <button class="nav-item" data-target="connection">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+            <line x1="12" y1="2" x2="12" y2="12"></line>
+          </svg>
+          <span class="nav-label">Connection</span>
+        </button>
+      </nav>
+
+      <!-- View Switcher -->
+      <div class="view-mode-selector">
+        <span class="selector-title">VIEW MODE</span>
+        <div class="segment-control">
+          <button class="segment-btn active" id="btn-mode-window" data-mode="window">
+            Window
+          </button>
+          <button class="segment-btn" id="btn-mode-panel" data-mode="panel">
+            Side Panel
+          </button>
+          <div class="segment-slider"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right Panel: Dynamic Content View -->
+    <main class="content-area">
+
+      <!-- Context Transfer Module -->
+      <section id="view-context-transfer" class="module-view active">
+        <div class="view-header">
+          <div class="title-wrap">
+            <h1 class="view-title">Context Transfer</h1>
+            <p class="view-description">Migrate conversation history seamlessly from one AI chatbot tab to another.</p>
+          </div>
+          <span class="badge badge-indigo">Phase 3</span>
+        </div>
+
+        <div class="view-body">
+          <div class="placeholder-card">
+            <div class="placeholder-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+                <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+              </svg>
+            </div>
+            <h3>Context Transfer Interface</h3>
+            <p>Here you will be able to select source and target active tabs and automate full text and state extraction. Integration starts in Phase 3.</p>
+            <div class="mock-control-row">
+              <span class="mock-btn">Configure Selectors</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Broadcast Module -->
+      <section id="view-broadcast" class="module-view">
+        <div class="view-header">
+          <div class="title-wrap">
+            <h1 class="view-title">Broadcast</h1>
+            <p class="view-description">Send identical prompts to multiple tabs simultaneously for comparison or parallel execution.</p>
+          </div>
+          <span class="badge badge-purple">Phase 3</span>
+        </div>
+
+        <div class="view-body">
+          <div class="placeholder-card">
+            <div class="placeholder-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+                <line x1="12" x2="12" y1="19" y2="22"></line>
+              </svg>
+            </div>
+            <h3>Multi-Tab Broadcast Controls</h3>
+            <p>Write your prompt, select your target LLM instances, and trigger instant concurrent execution. Integration starts in Phase 3.</p>
+            <div class="mock-control-row">
+              <span class="mock-btn">Select Targets</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Orchestrator Module -->
+      <section id="view-orchestrator" class="module-view">
+        <div class="view-header">
+          <div class="title-wrap">
+            <h1 class="view-title">Orchestrator</h1>
+            <p class="view-description">Manage multi-agent workflows visually via an ephemeral tab-mapping node tree.</p>
+          </div>
+          <span class="badge badge-blue">Phase 4</span>
+        </div>
+
+        <div class="view-body">
+          <div class="placeholder-card">
+            <div class="placeholder-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="7" height="9" rx="1"></rect>
+                <rect x="14" y="3" width="7" height="5" rx="1"></rect>
+                <rect x="14" y="12" width="7" height="9" rx="1"></rect>
+                <rect x="3" y="16" width="7" height="5" rx="1"></rect>
+              </svg>
+            </div>
+            <h3>Visual Workflow Graph</h3>
+            <p>Map tabs 1:1, spawn children via task dispatches, and merge responses back up to your parent node. Build begins in Phase 4.</p>
+            <div class="mock-control-row">
+              <span class="mock-btn">Open Graph Canvas</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Skills Module -->
+      <section id="view-skills" class="module-view">
+        <div class="view-header">
+          <div class="title-wrap">
+            <h1 class="view-title">Skills Registry</h1>
+            <p class="view-description">Manage system prompts and automation keyword macros for quick insertion.</p>
+          </div>
+          <span class="badge badge-teal">Phase 2</span>
+        </div>
+
+        <div class="view-body">
+          <div class="placeholder-card">
+            <div class="placeholder-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+              </svg>
+            </div>
+            <h3>Prompt Macro Library</h3>
+            <p>Customize skills like <code>@redo</code>, <code>@breakdown</code>, or create custom prompts like <code>@summarize</code>. UI assembly starts in Phase 2.</p>
+            <div class="mock-control-row">
+              <span class="mock-btn">Add Custom Skill</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Connection Module -->
+      <section id="view-connection" class="module-view">
+        <div class="view-header">
+          <div class="title-wrap">
+            <h1 class="view-title">Connection & Selector Setup</h1>
+            <p class="view-description">Map webpage elements and configure active browser tab connections.</p>
+          </div>
+          <span class="badge badge-rose">Phase 2</span>
+        </div>
+
+        <div class="view-body">
+          <div class="placeholder-card">
+            <div class="placeholder-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                <line x1="12" y1="2" x2="12" y2="12"></line>
+              </svg>
+            </div>
+            <h3>Website Connection Manager</h3>
+            <p>Map Input textareas, Send buttons, and Copy actions using the visual picker or raw CSS selectors. System setup begins in Phase 1 & 2.</p>
+            <div class="mock-control-row">
+              <span class="mock-btn">New Site Connection</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Detached State Placeholder for Sidebar/Panel view -->
+  <div id="detached-placeholder" class="detached-placeholder">
+    <div class="placeholder-card">
+      <div class="placeholder-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="9" y1="3" x2="9" y2="21"></line>
+        </svg>
+      </div>
+      <h3>Manager is Detached</h3>
+      <p>The Workspace Manager is currently running in a separate popup window to prevent auto-closure on focus loss.</p>
+      <button id="btn-dock-here" class="dock-btn">Dock back to Side Panel</button>
+    </div>
+  </div>
+</body>
+</html>
