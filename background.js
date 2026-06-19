@@ -7,8 +7,79 @@ let managerWindowId = null;
 // Initialize the extension when installed or updated
 chromeAPI.runtime.onInstalled.addListener(() => {
   console.log("Workspace Manager Extension Installed.");
-  // Default preferredMode to 'window' (Detached Window)
-  chromeAPI.storage.local.set({ preferredMode: 'window' });
+  
+  const defaultProfiles = {
+    chatgpt: {
+      siteName: "ChatGPT",
+      domain: "chatgpt.com",
+      selectors: {
+        inputSelector: "#prompt-textarea",
+        sendButtonSelector: "button[data-testid=\"send-button\"]",
+        newChatButtonSelector: "a[href=\"/\"], button[aria-label=\"New chat\"]",
+        copyButtonSelector: "button[data-testid$=\"copy-turn-action-button\"], button[aria-label=\"Copy\"]",
+        userCopyButtonSelector: "button[aria-label=\"Copy message\"]",
+        stopButtonSelector: "button[data-testid=\"stop-button\"]",
+        messageTurnSelector: "article, [data-testid^=\"conversation-turn\"]"
+      },
+      flags: {
+        useEnterFallback: false
+      }
+    },
+    claude: {
+      siteName: "Claude",
+      domain: "claude.ai",
+      selectors: {
+        inputSelector: "div[contenteditable=\"true\"]",
+        sendButtonSelector: "button[aria-label=\"Send Message\"], button:has(svg polygon)",
+        newChatButtonSelector: "a[href=\"/new\"], [data-testid=\"new-chat-button\"]",
+        copyButtonSelector: "button[data-testid=\"action-bar-copy\"], button[aria-label=\"Copy\"]",
+        userCopyButtonSelector: "button[data-testid=\"action-bar-copy\"][aria-label=\"Copy\"]",
+        stopButtonSelector: "button[aria-label=\"Stop Generating\"], button:has(svg rect)",
+        messageTurnSelector: "div.font-claude-message, div[data-testid=\"chat-message\"], div.chat-and-document"
+      },
+      flags: {
+        useEnterFallback: true
+      }
+    },
+    gemini: {
+      siteName: "Gemini",
+      domain: "gemini.google.com",
+      selectors: {
+        inputSelector: "div[contenteditable=\"true\"]",
+        sendButtonSelector: "button[aria-label=\"Send message\"], button.send-button",
+        newChatButtonSelector: "a[href=\"/app\"], button.new-chat-button",
+        copyButtonSelector: "button[aria-label=\"Copy\"], button[aria-label=\"Copy response\"]",
+        userCopyButtonSelector: "button[aria-label=\"Copy prompt\"]",
+        stopButtonSelector: "button[aria-label=\"Stop\"]",
+        messageTurnSelector: "div.message-content, div.conversation-turn"
+      },
+      flags: {
+        useEnterFallback: false
+      }
+    },
+    copilot: {
+      siteName: "Copilot",
+      domain: "copilot.microsoft.com",
+      selectors: {
+        inputSelector: "textarea, #searchbar",
+        sendButtonSelector: "button[aria-label=\"Submit\"], button[aria-label=\"Send\"]",
+        newChatButtonSelector: "button[aria-label=\"New topic\"]",
+        copyButtonSelector: "button[aria-label=\"Copy\"]",
+        userCopyButtonSelector: "button[aria-label=\"Copy\"]",
+        stopButtonSelector: "button[aria-label=\"Stop response\"]",
+        messageTurnSelector: "div.chat-message, div.message-bubble"
+      },
+      flags: {
+        useEnterFallback: true
+      }
+    }
+  };
+
+  // Seed storage.local with default preferredMode and siteProfiles
+  chromeAPI.storage.local.set({ 
+    preferredMode: 'window',
+    siteProfiles: defaultProfiles
+  });
 
   // For Chrome: Configure default behavior for the side panel API if available
   if (chromeAPI.sidePanel && typeof chromeAPI.sidePanel.setPanelBehavior === 'function') {

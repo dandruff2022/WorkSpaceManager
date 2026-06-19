@@ -1,0 +1,16 @@
+{
+  "siteName": "Gemini",
+  "domain": "gemini.google.com",
+  "selectors": {
+    "inputSelector": "div[contenteditable=\"true\"]",
+    "sendButtonSelector": "button[aria-label=\"Send message\"], button.send-button",
+    "newChatButtonSelector": "a[href=\"/app\"], button.new-chat-button",
+    "copyButtonSelector": "button[aria-label=\"Copy\"], button[aria-label=\"Copy response\"]",
+    "userCopyButtonSelector": "button[aria-label=\"Copy prompt\"]",
+    "stopButtonSelector": "button[aria-label=\"Stop\"]",
+    "messageTurnSelector": "div.message-content, div.conversation-turn"
+  },
+  "flags": {
+    "useEnterFallback": false
+  }
+}

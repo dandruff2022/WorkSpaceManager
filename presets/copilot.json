@@ -1,0 +1,16 @@
+{
+  "siteName": "Copilot",
+  "domain": "copilot.microsoft.com",
+  "selectors": {
+    "inputSelector": "textarea, #searchbar",
+    "sendButtonSelector": "button[aria-label=\"Submit\"], button[aria-label=\"Send\"]",
+    "newChatButtonSelector": "button[aria-label=\"New topic\"]",
+    "copyButtonSelector": "button[aria-label=\"Copy\"]",
+    "userCopyButtonSelector": "button[aria-label=\"Copy\"]",
+    "stopButtonSelector": "button[aria-label=\"Stop response\"]",
+    "messageTurnSelector": "div.chat-message, div.message-bubble"
+  },
+  "flags": {
+    "useEnterFallback": true
+  }
+}

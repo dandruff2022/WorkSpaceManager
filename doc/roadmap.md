@@ -37,7 +37,7 @@ This phase focuses exclusively on **interfacing with the browser and AI websites
 
 Develop and validate a comprehensive, console-injectable test runner script (`test/sandbox_tester.js`) to discover and test DOM selectors directly inside target AI websites (ChatGPT, Claude, Gemini, Copilot).
 
-- [ ] **Milestone 1.1.1 — Test Script Planning & Comment-Only Blueprint**
+- [x] **Milestone 1.1.1 — Test Script Planning & Comment-Only Blueprint**
   - Create the skeleton structure of `test/sandbox_tester.js` composed entirely of detailed documentation comments detailing the complete test process.
   - Draft a thorough workflow that starts from a complete new chat, testing individual automation units (pasting/writing text, clicking send buttons, resetting chats, reading/copying text, reading ai status(empty, working, complete)) and chained interactions (sequential multi-turn copying).
   - Define strategies within the comments to handle tricky layout cases—such as inline code blocks(might have its own copy button and confuse the script), uploaded images/files, and collapsible segments—to ensure selectors correctly isolate main conversation text and buttons without timeline corruption.

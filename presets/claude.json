@@ -1,0 +1,16 @@
+{
+  "siteName": "Claude",
+  "domain": "claude.ai",
+  "selectors": {
+    "inputSelector": "div[contenteditable=\"true\"]",
+    "sendButtonSelector": "button[aria-label=\"Send Message\"], button:has(svg polygon)",
+    "newChatButtonSelector": "a[href=\"/new\"], [data-testid=\"new-chat-button\"]",
+    "copyButtonSelector": "button[data-testid=\"action-bar-copy\"], button[aria-label=\"Copy\"]",
+    "userCopyButtonSelector": "button[data-testid=\"action-bar-copy\"][aria-label=\"Copy\"]",
+    "stopButtonSelector": "button[aria-label=\"Stop Generating\"], button:has(svg rect)",
+    "messageTurnSelector": "div.font-claude-message, div[data-testid=\"chat-message\"], div.chat-and-document"
+  },
+  "flags": {
+    "useEnterFallback": true
+  }
+}
