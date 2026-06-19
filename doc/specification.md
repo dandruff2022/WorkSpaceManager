@@ -42,15 +42,17 @@ The interface consists of the following components:
 ### 2.3 Transfer Behavior & Automation Workflow
 When the user clicks the active paper plane icon, the extension executes the following workflow:
 
-1. **Switch Focus**: Switch the active browser tab to the target **"To"** tab.
-2. **Insert Transfer Prompt**: Write the saved **Transfer Prompt** into the target's input textbox, followed by a newline.
-3. **Iteratively Reconstruct Conversation**:
-   - Traverse the original conversation history in the source **"From"** tab.
+1. **Focus Source Tab**: Switch the active browser tab to the source **"From"** tab (if not already focused).
+2. **Reconstruct Conversation**:
+   - Traverse the conversation history in the **"From"** tab sequentially.
    - For each turn in the interleaving conversation sequence (User Input $\rightarrow$ AI Response $\rightarrow$ User Input ...):
-     - Programmatically copy the text content (using the mapped copy buttons).
-     - Paste/append it into the target tab's input textbox.
-     - Append a newline.
-4. **Send Merged Context**: Trigger the target website's send action to submit the entire merged context.
+     - Programmatically click the mapped copy button for that turn.
+     - Intercept and store the copied text in an in-memory queue.
+3. **Switch Focus**: Switch the active browser tab to the target **"To"** tab.
+4. **Insert Transfer Prompt & Context**:
+   - Write the saved **Transfer Prompt** into the target's input textbox, followed by a newline.
+   - Append the reconstructed conversation history from the in-memory queue, separating turns with newlines.
+5. **Send Merged Context**: Trigger the target website's send action to submit the entire merged context.
 
 ---
 
@@ -341,43 +343,40 @@ A list of registered web applications that the extension knows how to interact w
 
 * **List View**: Displays all registered profiles (e.g., `ChatGPT`, `Claude`, `Gemini`).
 * **Creation / Modification**:
-  - The list terminates with a **"New..."** list item.
-  - Selecting **"New..."** opens a configuration wizard to define a new website profile.
-  - Selecting an existing website profile loads its current element configuration for editing or deletion.
+  - The list terminates with an **"Import config"** button.
+  - Selecting **"Import config"** opens an import pane to paste or load a `.json` configuration file.
+  - Selecting an existing website profile loads its current element selectors for viewing, editing, or deletion.
 
-#### Element Mapping Requirements & Picker
-To interact with the website, the user maps the target elements. For each mapping, the configuration wizard supports two selection methods:
-* **Visual Picker**: Click a button to activate a point-and-click overlay on the target web page, hovering over and clicking the desired DOM element to automatically capture its selector.
-* **Manual Input**: Paste a CSS Selector or XPath directly copied from the browser's Developer Tools.
+#### Console-Based Selector Discovery & Testing Script
+Instead of using a visual element picker in the extension UI, site mapping is performed by executing a thorough sandbox testing script (`test/sandbox_tester.js`) manually in the target AI website's browser developer console.
 
-The required bindings are:
-1. **Input Textbox**: The textarea/div where prompts are typed.
-2. **Send Button**: The button that submits the prompt.
-3. **New Chat Button**: The button to start a fresh conversation (used by Orchestrator).
-4. **Response Copy Buttons**: Sample copy buttons (user maps the last 3 copy buttons from a conversation to infer matching paths for all responses).
-5. **User Input Copy Buttons**: Sample user copy buttons (user maps the last 3 copy buttons from a conversation).
+The script runs a detailed, step-by-step verification process to discover stable DOM selectors. It starts by simulating a complete "New Chat" operation and performs multiple test actions (such as text injection, button click simulations, and sequential copy chains). It also validates robustness against tricky layout cases, such as code blocks inside AI replies, uploaded/pasted files, and inline images in prompts/responses to ensure that selectors do not conflict or break the conversation timeline.
+
+Throughout the test run, the script prompts the user via popups (such as `alert` and `confirm` dialogs) to visually confirm the success of each interaction segment.
+
+##### JSON Settings Export & Import
+Upon a fully successful test execution, the script generates a `.json` configuration file containing the tested selector mappings and fallback flags, which the user can copy or download. The user then imports this JSON file into the extension's **Connection** module UI to register the website profile.
+
+##### Self-Correction Prompt Instructions
+If any part of the console script fails to locate an element (meaning a selector has drifted), the script logs a detailed error in the console. It includes pre-written prompt instructions urging the user to copy the script code and console error output and paste it into an AI tool (such as ChatGPT, Claude, Gemini, etc.) for correction. The comments in the script are structured as a thorough system prompt so that any AI model can instantly understand how to fix the broken selector logic and output a revised working script.
+
+The required selector mappings in the exported `.json` configuration are:
+1. **Input Textbox**: The CSS selector for the text input area (e.g. contenteditable or textarea).
+2. **Send Button**: The CSS selector for the message submit button.
+3. **New Chat Button**: The CSS selector for the button to reset the conversation.
+4. **Response Copy Buttons**: The CSS selector to locate main message copy buttons (automatically ignoring code block or file copy buttons).
+5. **User Input Copy Buttons**: The CSS selector for copying user-sent prompts.
+6. **Stop Generation Button**: The CSS selector for interrupting/stopping active responses.
+7. **Message Turn Container**: The CSS selector to count active conversation turns/bubbles.
 
 #### Interaction Method & Priority
-Once selectors are resolved, the extension interacts with the webpage using the following ordered strategy:
+Once selectors are imported, the extension interacts with the webpage using the following ordered strategy:
 
 1. **Primary — React Value Setter + Button Click** (used by default):
    - Text is written by calling the browser's native `HTMLTextAreaElement` prototype value setter, then dispatching a bubbling `input` event so the page's React/Vue state registers the change and enables the send button.
    - Submission is triggered by calling `.click()` directly on the mapped send button element.
 2. **Fallback — Enter Key Simulation** (used only if the primary click fails):
    - If the send button click does not trigger submission (e.g., the button selector drifted after a site update), the extension dispatches a synthetic `keydown` event with `key: "Enter"` on the input textbox as a secondary attempt.
-
-#### Connection Test Wizard
-After all selectors are mapped, the configuration wizard presents an **in-window step-by-step connection test** before saving the profile. The wizard runs entirely within the manager UI (window or panel) — no context switching required.
-
-Each step presents a description, a **"Run Test"** action button, and a **"✓ Confirmed"** button the user must click to proceed. Completing all steps saves and activates the site profile.
-
-| Step | Description | What the Extension Does | Confirmation |
-| :--- | :--- | :--- | :--- |
-| **1. Write Test** | Verify the extension can write text into the input box. | Injects the string `"[WorkspaceManager connection test]"` into the mapped input textbox using the React value setter. | User visually confirms the text appeared in the input box, then clicks **✓ Confirmed**. |
-| **2. Submit Test** | Verify the extension can submit a message. | Clicks the mapped send button (primary method). If the message is not sent within 3 seconds, automatically retries using the Enter key fallback and flags the fallback as active for this profile. | User visually confirms the message was sent and a response started generating, then clicks **✓ Confirmed**. |
-| **3. Copy Test** | Verify the extension can read AI responses. | Waits for the response to complete, then programmatically clicks the mapped response copy button and confirms clipboard content was captured. | User visually confirms a success indicator appears in the wizard, then clicks **✓ Confirmed**. |
-
-> **Completion**: Passing all three steps finalizes and saves the website connection profile. A failed step halts the wizard and highlights the problematic selector for the user to re-map.
 
 
 ### 6.2 Connected Tabs

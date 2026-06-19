@@ -33,23 +33,41 @@ This phase focuses exclusively on **interfacing with the browser and AI websites
 
 ---
 
-### Milestone 1.1 — Proof of Concept (Sandbox Testing)
+### Milestone 1.1 — AI Website Connection & Automation Testing Script
 
-Before any UI is built, validate each automation primitive in isolation using a standalone content script injected into a live AI tab. Document the result (pass / fail / caveat) for each test.
+Develop and validate a comprehensive, console-injectable test runner script (`test/sandbox_tester.js`) to discover and test DOM selectors directly inside target AI websites (ChatGPT, Claude, Gemini, Copilot).
 
-- [ ] **Write test** — inject text via React value setter + bubbling `input` event; confirm send button becomes enabled.
-- [ ] **Submit test (primary)** — call `.click()` on send button after write; confirm message is submitted.
-- [ ] **Submit test (fallback)** — dispatch synthetic `keydown Enter` on textarea; confirm message is submitted.
-- [ ] **Copy test** — programmatically `.click()` a mapped copy button; confirm clipboard is populated with clean text.
-- [ ] **Generation state detection** — attach `MutationObserver` to the response container; confirm it correctly signals `Working` (stop button appears) and `Complete` (copy button appears on latest response).
-- [ ] **Initial Empty state scan** — on content script injection, inspect the DOM to determine whether any conversation history exists; confirm the correct `Empty` vs `Complete` state is reported back for node initialization.
-- [ ] **SPA navigation detection** — hook `history.pushState` / `replaceState` overrides; confirm "New Chat" route change fires the detection callback and transitions the node to `Empty`.
-- [ ] **Tab activation capture** — confirm `tabs.onActivated` fires when the user manually clicks a browser tab; confirm the active manager UI (window or panel) receives the event and updates the selected Orchestrator node accordingly.
-- [ ] **Clipboard intercept** — mock `navigator.clipboard.writeText` inside the page context via an injected script; confirm the captured text matches the copy button output without touching the OS clipboard.
+- [ ] **Milestone 1.1.1 — Test Script Planning & Comment-Only Blueprint**
+  - Create the skeleton structure of `test/sandbox_tester.js` composed entirely of detailed documentation comments detailing the complete test process.
+  - Draft a thorough workflow that starts from a complete new chat, testing individual automation units (pasting/writing text, clicking send buttons, resetting chats, reading/copying text, reading ai status(empty, working, complete)) and chained interactions (sequential multi-turn copying).
+  - Define strategies within the comments to handle tricky layout cases—such as inline code blocks(might have its own copy button and confuse the script), uploaded images/files, and collapsible segments—to ensure selectors correctly isolate main conversation text and buttons without timeline corruption.
+
+- [ ] **Milestone 1.1.2 — Console Automation Test Script Implementation**
+  - Program the testing logic in `test/sandbox_tester.js` using raw JS execution.
+  - Prefix the script with a long, detailed system prompt block instructing any AI model how to modify and repair the script's selectors in case of layout drift.
+  - Implement browser popups (`alert` / `confirm` dialogs) for each unit test step to prompt user confirmation of successful interactions (writing, sending, resetting, copying).
+  - Implement successful-run JSON configuration file generation containing verified DOM selectors and flags.
+  - Log helpful debugging info and self-correction prompts: upon failure, print instructions directing the user to copy/paste the script and error log into an AI tool for auto-updating.
+
+- [ ] **Milestone 1.1.3 — Platform Verification & Default Config Export**
+  - Execute the script manually in developer consoles on four mainstream AI platforms: ChatGPT, Claude, Gemini, and Copilot.
+  - Refine selectors and rewrite rules until the script passes completely on all four sites.
+  - Export and save the four `.json` configurations inside the extension resources as built-in default settings.
 
 ---
 
-### Milestone 1.2 — Interaction Primitive Library
+### Milestone 1.2 — Browser APIs & Tab Status Integration (Sandbox Testing)
+
+Validate browser-level integration APIs in isolation using a temporary content/background script:
+
+- [ ] **Tab activation capture** — monitor `chrome.tabs.onActivated` events when manually switching browser tabs; confirm active manager UI receives tab IDs.
+- [ ] **Tab lifecycle tracking** — hook `chrome.tabs.onCreated`, `onRemoved`, and `onUpdated` to track tab openings, closures, and title changes (syncing nodes live).
+- [ ] **Clipboard interception mechanism** — verify that `navigator.clipboard.writeText` can be overridden/intercepted inside the page context without corrupting the OS clipboard.
+- [ ] **SPA navigation detection** — override `history.pushState` and `replaceState` to detect when a single-page application routes to a new conversation (New Chat detection).
+
+---
+
+### Milestone 1.3 — Interaction Primitive Library (bridge.js)
 
 Implement a shared module (`bridge.js`) exposing typed, reusable functions. Every module in the project must use these functions — no module should re-implement raw DOM automation.
 
@@ -67,7 +85,6 @@ Implement a shared module (`bridge.js`) exposing typed, reusable functions. Ever
 | `observeGenerationState(onChange)` | Orchestrator | Attaches a `MutationObserver` to the response container. Calls `onChange("working")` when the stop button appears; calls `onChange("complete")` when a copy button appears on the latest response. |
 | `scanInitialState()` | Orchestrator | Called once on content script injection. Inspects the DOM for existing conversation history. Returns `"empty"` if no messages exist, or `"complete"` if a conversation is already present. Used to set the correct node state when the extension first connects to a tab. |
 | `observeNavigation(onChange)` | Orchestrator | Hooks `history.pushState` / `replaceState`. Calls `onChange("new-chat")` when the URL changes to a new session, triggering node → Empty transition and edge cleanup. |
-| `injectPickerOverlay(onSelect)` | Connection (Visual Picker) | Injects a hover-highlight overlay over the entire page. On element click, captures and returns the best stable CSS selector for that element, then removes the overlay. |
 | `interceptClipboard(onWrite)` | All read operations | Injects a script into the page context that wraps `navigator.clipboard.writeText`. Calls `onWrite(text)` with the intercepted value before it reaches the OS clipboard. |
 
 #### Browser API Interactions (Background Script — extension runtime)
@@ -85,6 +102,7 @@ Implement a shared module (`bridge.js`) exposing typed, reusable functions. Ever
 | `storage.local.get/set` | Connection, Skills, Context Transfer | Persists site profiles, user preferences (including preferred view mode: window vs side panel), custom skills, and the saved Transfer Prompt. |
 | `windows.create()` / `windows.update()` / `sidebarAction` | Phase 0.5 (already done) | Opens/focuses the detached window or opens/toggles the side panel on the right. |
 | `scripting.executeScript()` | All modules | Dynamically injects content scripts into a target tab on demand when automation is needed. |
+| `ensureContentScript(tabId)` | All modules | Pings the target tab to verify the content script is active; dynamically injects `content.js` using `scripting.executeScript()` if the handshake fails. |
 
 #### Message Protocol
 
@@ -94,11 +112,11 @@ All communication between the manager UI (detached window or side panel) and con
 { action: string, tabId: number, payload: object }
 ```
 
-Document every `action` string used across all modules (e.g., `"write"`, `"send"`, `"copy"`, `"newChat"`, `"observeState"`, `"stopObserving"`, `"injectPicker"`).
+Document every `action` string used across all modules (e.g., `"write"`, `"send"`, `"copy"`, `"newChat"`, `"observeState"`, `"stopObserving"`).
 
 ---
 
-### Milestone 1.3 — Interactive Module Placeholders & API Integration Examples
+### Milestone 1.4 — Interactive Module Placeholders & API Integration Examples
 
 Using the working scaffolding UI implemented and interfaces designed in Phase 0.5, add functional layout placeholders to each module. These placeholders should feature interactive controls (like buttons and inputs) bound to example implementations of the browser/tab automation interfaces that will be used in the corresponding modules, demonstrating real-world usage.
 
@@ -113,7 +131,7 @@ Using the working scaffolding UI implemented and interfaces designed in Phase 0.
   - Implement buttons for testing task breakdown generation, node renaming, and mock tab activation sync.
 - [ ] **Skills & Connection Module Placeholders**
   - Include placeholder lists for Custom/System skills and registered profiles.
-  - Include buttons to trigger demo interactions with local extension storage.
+  - For the Connection module, provide a JSON input textarea field to paste or load generated `.json` website configurations to register website DOM selector profiles manually, showing a mock validation result.
 
 ---
 
@@ -133,7 +151,7 @@ Design and implement the logic for managing application state using the availabl
   - **Lifecycle & Management**: Persisted in `storage.local`. System skills are bootstrapped on install/update. Custom skills undergo CRUD operations through the UI and are immediately synced to local storage to persist across extension restarts.
 - [ ] **Site Profiles & Connection State**
   - **Structure**: **Site Profiles** persist DOM element selectors (Input, Send, New Chat, Copy buttons) and fallback flags (e.g., Enter key simulation). **Active Connections** is an in-memory list tracking which open browser tabs match these profiles and whether the user has toggled them "on" for the current session.
-  - **Lifecycle & Management**: Site profiles persist in `storage.local` and are modified only via the Connection Wizard. The Active Connections list is dynamically synchronized in real-time with browser events (`tabs.onCreated`, `tabs.onRemoved`, `tabs.onUpdated`).
+  - **Lifecycle & Management**: Site profiles persist in `storage.local` and are imported/updated via JSON config files. The Active Connections list is dynamically synchronized in real-time with browser events (`tabs.onCreated`, `tabs.onRemoved`, `tabs.onUpdated`).
 - [ ] **Module-Specific Drafts & Configurations**
   - **Structure & Management**:
     - **Context Transfer**: The overarching *Transfer Prompt* buffer is saved on-edit to `storage.local` to survive closures. The "From" / "To" active selections are ephemeral memory states.
@@ -150,11 +168,10 @@ Build the UI for the Skills module over the newly implemented state management.
 
 With state management solidified and primitives validated, implement the full Connection Module UI.
 
-- [ ] **Connected Websites list** — CRUD list of registered site profiles; "New..." entry to launch wizard.
-- [ ] **Visual Picker overlay** — "Pick Element" button activates `injectPickerOverlay()` in the target tab; captured selector auto-fills the mapping field.
-- [ ] **Manual selector input** — text field accepting CSS Selector or XPath for each required binding.
-- [ ] **Interaction method auto-detection** — during the Submit Test, if primary click fails within 3 seconds, silently retry with Enter fallback and record the fallback flag in the profile.
-- [ ] **Connection Test Wizard** — three-step in-window wizard (Write → Submit → Copy), each step with a "Run Test" button and a "✓ Confirmed" gate; passing all three saves the profile.
+- [ ] **Connected Websites list** — CRUD list of registered site profiles; "Import Config" button to load JSON settings.
+- [ ] **JSON Import Interface** — Text area/file input to paste/load the `.json` config generated by the sandbox test script.
+- [ ] **Manual configuration editor** — View and manually edit the CSS selectors (Input, Send, New Chat, Copy buttons) for any profile.
+- [ ] **Config validation & status indicator** — Basic validator to check if imported JSON matches the required schema.
 - [ ] **Connected Tabs panel** — lists open tabs matching registered domains; checkbox per tab to toggle connection status; updates live via `tabs.onCreated` / `tabs.onRemoved`.
 
 ---
