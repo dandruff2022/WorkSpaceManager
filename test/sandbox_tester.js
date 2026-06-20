@@ -2,7 +2,7 @@
  * ================================================================================================
  * WORKSPACE MANAGER - DOM AUTOMATION SANDBOX TEST SCRIPT
  * File: test/sandbox_tester.js
- * Version: 1.1.2 (Full JS Implementation)
+ * Version: 1.2.0 (Cleaned & Restructured)
  * Target Platforms: ChatGPT, Claude, Gemini, Copilot
  * ================================================================================================
  * 
@@ -247,7 +247,7 @@
     document.body.appendChild(overlay);
   }
 
-  // 4. Test Class Logic
+  // 4. Sandbox Test Execution & Logic Controller
   class SandboxTester {
     constructor() {
       this.config = null;
@@ -255,6 +255,7 @@
       this.detectPlatform();
     }
 
+    // 4A. Match hostname to DOM Configuration schema
     detectPlatform() {
       const host = window.location.hostname;
       for (const key in siteConfigs) {
@@ -287,20 +288,88 @@
       }
     }
 
+    // 4B. Global state lookup and DOM utilities
+    getValidCopyButtons(container = document) {
+      const copyButtons = container.querySelectorAll(this.config.selectors.copyButtonSelector);
+      return Array.from(copyButtons).filter(btn => {
+        return !btn.closest('pre') && !btn.closest('.code-block') && !btn.closest('code');
+      });
+    }
+
+    getValidCopyButtonCount() {
+      return this.getValidCopyButtons().length;
+    }
+
+    findParentTurn(element) {
+      if (!element) return null;
+
+      // 1. Try standard closest matching first
+      let turn = element.closest(this.config.selectors.messageTurnSelector);
+      const turnClassName = turn && typeof turn.className === 'string' ? turn.className : '';
+      const isReactions = turn && (turnClassName.includes('reactions') || turn.getAttribute('data-testid')?.includes('reactions'));
+
+      if (turn && !isReactions) {
+        return turn;
+      }
+
+      // 2. Fallback walk-up supporting Shadow DOM boundaries and skipping utility bars
+      let current = element;
+      while (current) {
+        const className = typeof current.className === 'string' ? current.className : '';
+        const dataTestId = current.getAttribute ? current.getAttribute('data-testid') : null;
+        const skip = className.includes('reactions') || className.includes('actions') || className.includes('controls') || (dataTestId && (dataTestId.includes('reactions') || dataTestId.includes('actions') || dataTestId.includes('controls')));
+
+        if (!skip) {
+          if (className.includes('message') || className.includes('turn')) {
+            return current;
+          }
+          if (dataTestId && (dataTestId.includes('message') || dataTestId.includes('turn'))) {
+            return current;
+          }
+        }
+        current = current.parentElement || (current.parentNode && current.parentNode.host) || null;
+      }
+
+      // 3. Last resort parent element
+      return element.parentElement || (element.parentNode && element.parentNode.host) || element;
+    }
+
+    hydrateInputValue(input, value) {
+      input.focus();
+      if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
+        const prototype = input.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
+        if (descriptor && descriptor.set) {
+          descriptor.set.call(input, value); // Bypasses React's internal value intercept
+        } else {
+          input.value = value;
+        }
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      } else if (input.getAttribute('contenteditable') === 'true') {
+        document.execCommand('selectAll', false, null);
+        document.execCommand('insertText', false, value);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+
+    // 4C. Main orchestrator run-loop
     async runAll(mode = 'basic') {
       const isComplex = mode === 'complex' || mode === 'full';
       console.log(`[SandboxTester] Starting automated DOM validation suite (${isComplex ? 'COMPLEX' : 'BASIC'} mode)...`);
       this.interceptedBuffer = [];
       injectMainWorldWrappers();
 
-      // Hook intercepted event from main world
-      window.addEventListener('WM_INTERCEPTED_COPY', (e) => {
+      // Hook intercepted copy events
+      const copyInterceptListener = (e) => {
         this.interceptedBuffer.push(e.detail);
         console.log("%c[SandboxTester] Captured Response Copy:", "color: #10b981;", e.detail);
-      });
+      };
+      window.addEventListener('WM_INTERCEPTED_COPY', copyInterceptListener);
 
       try {
-        // Step 1: Scan for initial clean slate
+        // Step 1: Scan for initial clear slate
         await this.stepScanInitial();
 
         // Step 2: Test New Chat trigger
@@ -316,7 +385,7 @@
         const initialCount1 = this.getValidCopyButtonCount();
         await this.stepSendTrigger();
 
-        // Step 5: Wait for Generation (MutationObserver simulation)
+        // Step 5: Wait for Generation (uses dynamic copy buttons increments)
         await this.stepWaitForGeneration(initialCount1 + 1);
 
         // Step 6: Test Copy extraction
@@ -338,15 +407,18 @@
         // Step 9: Sequential chain copy (Context Transfer simulation)
         await this.stepVerifyChainCopy();
 
-        // Finalize Config
+        // Finalize config display
         console.log("%c[SandboxTester] ALL VERIFICATIONS PASSED!", "color: #10b981; font-size: 16px; font-weight: bold;");
         displayConfigModal(this.config);
 
       } catch (err) {
         this.handleFailure(err);
+      } finally {
+        window.removeEventListener('WM_INTERCEPTED_COPY', copyInterceptListener);
       }
     }
 
+    // 4D. Automated check stages
     async stepScanInitial() {
       console.log("[Step 1] Scanning for conversation state...");
       const turns = document.querySelectorAll(this.config.selectors.messageTurnSelector);
@@ -383,30 +455,9 @@
         throw new Error(`Input textbox not found using selector: ${this.config.selectors.inputSelector}`);
       }
 
-      // Write text using the framework insertion standard
-      input.focus();
-      if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
-        const prototype = input.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-        const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
-        if (descriptor && descriptor.set) {
-          descriptor.set.call(input, text);
-        } else {
-          input.value = text;
-        }
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-      } else if (input.getAttribute('contenteditable') === 'true') {
-        document.execCommand('selectAll', false, null);
-        document.execCommand('insertText', false, text);
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-
+      this.hydrateInputValue(input, text);
       await new Promise(r => setTimeout(r, 600));
 
-      const sendBtn = document.querySelector(this.config.selectors.sendButtonSelector);
-      const isEnabled = sendBtn && !sendBtn.disabled;
-      
       const userConfirm = confirm(`Step 3: Can you see the test text injected in the input box, and is the Send button highlighted/active?`);
       if (!userConfirm) {
         throw new Error("Text Injection verification failed: Input box failed to hydrate state.");
@@ -419,7 +470,6 @@
       const sendBtn = document.querySelector(this.config.selectors.sendButtonSelector);
 
       if (useFallback) {
-        // Dispatch synthetic Enter keydown
         this.config.flags.useEnterFallback = true;
         const enterDown = new KeyboardEvent('keydown', {
           key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true
@@ -434,30 +484,22 @@
       console.log("[Step 4] Prompt submitted. Proceeding to generation monitoring...");
     }
 
-    getValidCopyButtonCount() {
-      const copyButtons = document.querySelectorAll(this.config.selectors.copyButtonSelector);
-      const validButtons = Array.from(copyButtons).filter(btn => {
-        return !btn.closest('pre') && !btn.closest('.code-block') && !btn.closest('code');
-      });
-      return validButtons.length;
-    }
-
     async stepWaitForGeneration(expectedCopyButtons = 0) {
       console.log(`[Step 5] Monitoring generation state (waiting for ${expectedCopyButtons} copy buttons)...`);
       let elapsed = 0;
       const timeout = 30000; // 30s timeout
 
-      // Wait a moment for the UI to transition to generating state (where stop button is shown)
       await new Promise(r => setTimeout(r, 1500));
 
       return new Promise((resolve, reject) => {
         const interval = setInterval(() => {
           elapsed += 1000;
-          const stopBtn = document.querySelector(this.config.selectors.stopButtonSelector);
+          const stopBtns = document.querySelectorAll(this.config.selectors.stopButtonSelector);
+          const activeStopBtn = Array.from(stopBtns).find(btn => btn.offsetWidth > 0 || btn.offsetHeight > 0);
           const currentCount = this.getValidCopyButtonCount();
 
-          // Done generating if stop button is absent, and the count of copy buttons matches/exceeds expectedCount
-          const isDone = !stopBtn && (expectedCopyButtons > 0 ? (currentCount >= expectedCopyButtons) : true);
+          // Done generating if no active/visible stop button is present, and the count of copy buttons matches/exceeds expectedCount
+          const isDone = !activeStopBtn && (expectedCopyButtons > 0 ? (currentCount >= expectedCopyButtons) : true);
 
           if (isDone) {
             clearInterval(interval);
@@ -475,55 +517,19 @@
 
     async stepCopyExtraction(turn) {
       console.log(`[Step 6] Extracting response copy for Turn ${turn}...`);
-      const copyButtons = document.querySelectorAll(this.config.selectors.copyButtonSelector);
-      if (copyButtons.length === 0) {
-        throw new Error("Response Copy buttons not found using selector: " + this.config.selectors.copyButtonSelector);
-      }
-
-      // Filter out code block copies (elements containing parent <pre> or .code-block elements)
-      const validButtons = Array.from(copyButtons).filter(btn => {
-        return !btn.closest('pre') && !btn.closest('.code-block') && !btn.closest('code');
-      });
+      const validButtons = this.getValidCopyButtons();
 
       if (validButtons.length === 0) {
         throw new Error("No copy buttons found outside code blocks.");
       }
 
       const prevCount = this.interceptedBuffer.length;
-      // Click the latest message's copy button
       const targetBtn = validButtons[validButtons.length - 1];
 
-      // Resolve the parent turn container BEFORE clicking the button
-      let targetTurn = targetBtn.closest(this.config.selectors.messageTurnSelector);
-      const turnClassName = targetTurn && typeof targetTurn.className === 'string' ? targetTurn.className : '';
-      if (!targetTurn || turnClassName.includes('reactions') || targetTurn.getAttribute('data-testid')?.includes('reactions')) {
-        // Fallback parent search before click, supporting shadow boundaries and avoiding reactions blocks
-        let current = targetBtn;
-        while (current) {
-          const className = typeof current.className === 'string' ? current.className : '';
-          const dataTestId = current.getAttribute ? current.getAttribute('data-testid') : null;
-          const isReactions = className.includes('reactions') || className.includes('actions') || className.includes('controls') || (dataTestId && (dataTestId.includes('reactions') || dataTestId.includes('actions') || dataTestId.includes('controls')));
-          
-          if (!isReactions) {
-            if (className.includes('message') || className.includes('turn')) {
-              targetTurn = current;
-              break;
-            }
-            if (dataTestId && (dataTestId.includes('message') || dataTestId.includes('turn'))) {
-              targetTurn = current;
-              break;
-            }
-          }
-          current = current.parentElement || (current.parentNode && current.parentNode.host) || null;
-        }
-        if (!targetTurn) {
-          targetTurn = targetBtn.parentElement || (targetBtn.parentNode && targetBtn.parentNode.host) || targetBtn;
-        }
-      }
+      // Resolve the parent turn container BEFORE clicking the button to prevent detachment issues
+      const targetTurn = this.findParentTurn(targetBtn);
 
       targetBtn.click();
-
-      // Wait for async execution
       await new Promise(r => setTimeout(r, 1000));
 
       if (this.interceptedBuffer.length === prevCount) {
@@ -541,7 +547,7 @@
         }
         
         console.log("%c[SandboxTester] WARN: Clipboard write missed. Attempting DOM fallback...", "color: #ea580c; font-weight: bold;");
-        // Fallback to using the pre-resolved targetTurn container
+        
         if (targetTurn) {
           const contentEl = targetTurn.querySelector('.markdown, .message-content, [class*="markdown" i], [class*="message" i]') || targetTurn;
           const text = contentEl.innerText || contentEl.textContent || "";
@@ -562,7 +568,7 @@
     async stepVerifyTrickyLayout(isComplex) {
       console.log("[Step 8] Verifying copy separation from tricky elements (pre, code, images)...");
       
-      // 1. Check for code blocks / pre / code elements on the page
+      // 1. Check for code blocks
       const codeBlocks = document.querySelectorAll("pre, code, .code-block");
       console.log(`Found ${codeBlocks.length} code/pre blocks on the page.`);
       if (isComplex && codeBlocks.length === 0) {
@@ -574,24 +580,21 @@
       console.log(`Found ${codeBlockCopies.length} secondary code block copy controls.`);
 
       // 3. Verify copy buttons filtering
+      const validButtons = this.getValidCopyButtons();
       const allCopyButtons = document.querySelectorAll(this.config.selectors.copyButtonSelector);
-      const validButtons = Array.from(allCopyButtons).filter(btn => {
-        return !btn.closest('pre') && !btn.closest('.code-block') && !btn.closest('code');
-      });
-
       console.log(`Copy Buttons: Total = ${allCopyButtons.length}, Main (Filtered) = ${validButtons.length}`);
       
       if (validButtons.length === 0) {
         throw new Error("Validation failed: Zero main copy buttons found after filtering out code blocks.");
       }
       
-      // Verify that main copy buttons do not contain any buttons that belong to code blocks
+      // Verify no code block copies leaked
       const leakedButtons = validButtons.filter(btn => btn.closest('pre') || btn.closest('.code-block') || btn.closest('code'));
       if (leakedButtons.length > 0) {
         throw new Error(`Validation failed: ${leakedButtons.length} code-block copy buttons leaked into main copy buttons registry.`);
       }
 
-      // 4. Verify images/SVGs are rendered
+      // 4. Verify images/SVGs
       const images = document.querySelectorAll("img, svg, picture");
       console.log(`Found ${images.length} image/svg/picture elements in the conversation DOM.`);
       if (isComplex && images.length === 0) {
@@ -603,45 +606,18 @@
 
     async stepVerifyChainCopy() {
       console.log("[Step 9] Executing sequential chain copy (Context Transfer simulation)...");
-      let turns = document.querySelectorAll(this.config.selectors.messageTurnSelector);
-      console.log(`Found ${turns.length} total turns in the DOM.`);
       
-      if (turns.length === 0) {
-        console.log("%c[SandboxTester] DEBUG: Analyzing copy button parents...", "color: #e11d48;");
-        const copyBtns = document.querySelectorAll(this.config.selectors.copyButtonSelector);
-        copyBtns.forEach((btn, i) => {
-          if (!btn.closest('pre') && !btn.closest('.code-block') && !btn.closest('code')) {
-            console.log(`Copy Button ${i} (${btn.getAttribute('aria-label') || 'no label'}):`, btn);
-            let parent = btn.parentElement;
-            let depth = 0;
-            while (parent && depth < 5) {
-              console.log(`  Parent L${depth}: <${parent.tagName.toLowerCase()}> class="${parent.className}" data-testid="${parent.getAttribute('data-testid')}"`);
-              parent = parent.parentElement;
-              depth++;
-            }
-          }
-        });
-
-        // Fallback to parents of main copy buttons so the test runner doesn't fail
-        const uniqueParents = new Set();
-        copyBtns.forEach(btn => {
-          if (!btn.closest('pre') && !btn.closest('.code-block') && !btn.closest('code')) {
-            const turnCandidate = btn.closest('div[class*="message" i]') || btn.closest('div[data-testid*="message" i]') || btn.closest('div');
-            if (turnCandidate) {
-              uniqueParents.add(turnCandidate);
-            }
-          }
-        });
-        turns = Array.from(uniqueParents);
-        console.log(`Fallback: Resolved to ${turns.length} turn containers.`);
-      }
+      const copyBtns = this.getValidCopyButtons();
+      console.log(`Found ${copyBtns.length} valid copy buttons in the DOM.`);
 
       const aiTurns = [];
-      turns.forEach((turn, idx) => {
-        const btns = Array.from(turn.querySelectorAll(this.config.selectors.copyButtonSelector));
-        const mainBtn = btns.find(btn => !btn.closest('pre') && !btn.closest('.code-block') && !btn.closest('code'));
-        if (mainBtn) {
-          aiTurns.push({ element: turn, index: idx, copyButton: mainBtn });
+      const seenTurns = new Set();
+
+      copyBtns.forEach((btn, idx) => {
+        const turnEl = this.findParentTurn(btn);
+        if (turnEl && !seenTurns.has(turnEl)) {
+          seenTurns.add(turnEl);
+          aiTurns.push({ element: turnEl, copyButton: btn, index: idx });
         }
       });
 
@@ -663,10 +639,9 @@
           
           const prevCount = chainBuffer.length;
           item.copyButton.click();
-          
-          // Wait for async intercept
           await new Promise(r => setTimeout(r, 800));
           
+          // Apply same DOM fallback for missing sequential intercepts
           if (chainBuffer.length === prevCount) {
             console.log(`%c[SandboxTester] Clipboard intercept missed Turn ${i + 1}. Attempting DOM fallback...`, "color: #ea580c;");
             const contentEl = item.element.querySelector('.markdown, .message-content, [class*="markdown" i], [class*="message" i]') || item.element;
@@ -688,7 +663,6 @@
         console.log(text.substring(0, 150) + (text.length > 150 ? "..." : ""));
       });
 
-      // Verify that contents are different and not duplicated/corrupted
       if (chainBuffer[0] === chainBuffer[1]) {
         throw new Error("Validation failed: Turn 1 and Turn 2 copies are identical.");
       }
