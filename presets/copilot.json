@@ -3,11 +3,11 @@
   "domain": "copilot.microsoft.com",
   "selectors": {
     "inputSelector": "textarea, #searchbar",
-    "sendButtonSelector": "button[aria-label=\"Submit\"], button[aria-label=\"Send\"]",
-    "newChatButtonSelector": "button[aria-label=\"New topic\"]",
-    "copyButtonSelector": "button[aria-label=\"Copy\"]",
-    "userCopyButtonSelector": "button[aria-label=\"Copy\"]",
-    "stopButtonSelector": "button[aria-label=\"Stop response\"]",
+    "sendButtonSelector": "button[aria-label*=\"submit\" i], button[aria-label*=\"send\" i]",
+    "newChatButtonSelector": "button[aria-label*=\"new\" i]",
+    "copyButtonSelector": "button[aria-label*=\"copy\" i]",
+    "userCopyButtonSelector": "button[aria-label*=\"copy\" i]",
+    "stopButtonSelector": "button[aria-label*=\"stop\" i]",
     "messageTurnSelector": "div.chat-message, div.message-bubble"
   },
   "flags": {

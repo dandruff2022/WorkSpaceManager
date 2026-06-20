@@ -3,11 +3,11 @@
   "domain": "claude.ai",
   "selectors": {
     "inputSelector": "div[contenteditable=\"true\"]",
-    "sendButtonSelector": "button[aria-label=\"Send Message\"], button:has(svg polygon)",
-    "newChatButtonSelector": "a[href=\"/new\"], [data-testid=\"new-chat-button\"]",
-    "copyButtonSelector": "button[data-testid=\"action-bar-copy\"], button[aria-label=\"Copy\"]",
-    "userCopyButtonSelector": "button[data-testid=\"action-bar-copy\"][aria-label=\"Copy\"]",
-    "stopButtonSelector": "button[aria-label=\"Stop Generating\"], button:has(svg rect)",
+    "sendButtonSelector": "button[aria-label*=\"send\" i], button[data-testid*=\"send\" i], button:has(svg polygon)",
+    "newChatButtonSelector": "a[href*=\"/new\" i], [data-testid*=\"new-chat\" i]",
+    "copyButtonSelector": "button[data-testid*=\"copy\" i], button[aria-label*=\"copy\" i]",
+    "userCopyButtonSelector": "button[data-testid*=\"copy\" i][aria-label*=\"copy\" i], button[aria-label*=\"copy\" i]",
+    "stopButtonSelector": "button[aria-label*=\"stop\" i]",
     "messageTurnSelector": "div.font-claude-message, div[data-testid=\"chat-message\"], div.chat-and-document"
   },
   "flags": {

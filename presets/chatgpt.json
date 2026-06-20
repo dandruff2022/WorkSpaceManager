@@ -3,11 +3,11 @@
   "domain": "chatgpt.com",
   "selectors": {
     "inputSelector": "#prompt-textarea",
-    "sendButtonSelector": "button[data-testid=\"send-button\"]",
-    "newChatButtonSelector": "a[href=\"/\"], button[aria-label=\"New chat\"]",
-    "copyButtonSelector": "button[data-testid$=\"copy-turn-action-button\"], button[aria-label=\"Copy\"]",
-    "userCopyButtonSelector": "button[aria-label=\"Copy message\"]",
-    "stopButtonSelector": "button[data-testid=\"stop-button\"]",
+    "sendButtonSelector": "button[data-testid*=\"send\" i], button[aria-label*=\"send\" i]",
+    "newChatButtonSelector": "a[href=\"/\"], button[aria-label*=\"new chat\" i]",
+    "copyButtonSelector": "button[data-testid$=\"copy-turn-action-button\"], button[aria-label*=\"copy\" i]",
+    "userCopyButtonSelector": "button[aria-label*=\"copy message\" i]",
+    "stopButtonSelector": "button[data-testid*=\"stop\" i], button[aria-label*=\"stop\" i]",
     "messageTurnSelector": "article, [data-testid^=\"conversation-turn\"]"
   },
   "flags": {

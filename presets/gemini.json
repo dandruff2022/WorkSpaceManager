@@ -3,11 +3,11 @@
   "domain": "gemini.google.com",
   "selectors": {
     "inputSelector": "div[contenteditable=\"true\"]",
-    "sendButtonSelector": "button[aria-label=\"Send message\"], button.send-button",
-    "newChatButtonSelector": "a[href=\"/app\"], button.new-chat-button",
-    "copyButtonSelector": "button[aria-label=\"Copy\"], button[aria-label=\"Copy response\"]",
-    "userCopyButtonSelector": "button[aria-label=\"Copy prompt\"]",
-    "stopButtonSelector": "button[aria-label=\"Stop\"]",
+    "sendButtonSelector": "button[aria-label*=\"send\" i], button.send-button",
+    "newChatButtonSelector": "a[href*=\"/app\" i], button.new-chat-button",
+    "copyButtonSelector": "button[aria-label*=\"copy\" i]",
+    "userCopyButtonSelector": "button[aria-label*=\"copy prompt\" i]",
+    "stopButtonSelector": "button[aria-label*=\"stop\" i]",
     "messageTurnSelector": "div.message-content, div.conversation-turn"
   },
   "flags": {

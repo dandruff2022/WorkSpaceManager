@@ -14,11 +14,11 @@ chromeAPI.runtime.onInstalled.addListener(() => {
       domain: "chatgpt.com",
       selectors: {
         inputSelector: "#prompt-textarea",
-        sendButtonSelector: "button[data-testid=\"send-button\"]",
-        newChatButtonSelector: "a[href=\"/\"], button[aria-label=\"New chat\"]",
-        copyButtonSelector: "button[data-testid$=\"copy-turn-action-button\"], button[aria-label=\"Copy\"]",
-        userCopyButtonSelector: "button[aria-label=\"Copy message\"]",
-        stopButtonSelector: "button[data-testid=\"stop-button\"]",
+        sendButtonSelector: "button[data-testid*=\"send\" i], button[aria-label*=\"send\" i]",
+        newChatButtonSelector: "a[href=\"/\"], button[aria-label*=\"new chat\" i]",
+        copyButtonSelector: "button[data-testid$=\"copy-turn-action-button\"], button[aria-label*=\"copy\" i]",
+        userCopyButtonSelector: "button[aria-label*=\"copy message\" i]",
+        stopButtonSelector: "button[data-testid*=\"stop\" i], button[aria-label*=\"stop\" i]",
         messageTurnSelector: "article, [data-testid^=\"conversation-turn\"]"
       },
       flags: {
@@ -30,11 +30,11 @@ chromeAPI.runtime.onInstalled.addListener(() => {
       domain: "claude.ai",
       selectors: {
         inputSelector: "div[contenteditable=\"true\"]",
-        sendButtonSelector: "button[aria-label=\"Send Message\"], button:has(svg polygon)",
-        newChatButtonSelector: "a[href=\"/new\"], [data-testid=\"new-chat-button\"]",
-        copyButtonSelector: "button[data-testid=\"action-bar-copy\"], button[aria-label=\"Copy\"]",
-        userCopyButtonSelector: "button[data-testid=\"action-bar-copy\"][aria-label=\"Copy\"]",
-        stopButtonSelector: "button[aria-label=\"Stop Generating\"], button:has(svg rect)",
+        sendButtonSelector: "button[aria-label*=\"send\" i], button[data-testid*=\"send\" i], button:has(svg polygon)",
+        newChatButtonSelector: "a[href*=\"/new\" i], [data-testid*=\"new-chat\" i]",
+        copyButtonSelector: "button[data-testid*=\"copy\" i], button[aria-label*=\"copy\" i]",
+        userCopyButtonSelector: "button[data-testid*=\"copy\" i][aria-label*=\"copy\" i], button[aria-label*=\"copy\" i]",
+        stopButtonSelector: "button[aria-label*=\"stop\" i]",
         messageTurnSelector: "div.font-claude-message, div[data-testid=\"chat-message\"], div.chat-and-document"
       },
       flags: {
@@ -46,11 +46,11 @@ chromeAPI.runtime.onInstalled.addListener(() => {
       domain: "gemini.google.com",
       selectors: {
         inputSelector: "div[contenteditable=\"true\"]",
-        sendButtonSelector: "button[aria-label=\"Send message\"], button.send-button",
-        newChatButtonSelector: "a[href=\"/app\"], button.new-chat-button",
-        copyButtonSelector: "button[aria-label=\"Copy\"], button[aria-label=\"Copy response\"]",
-        userCopyButtonSelector: "button[aria-label=\"Copy prompt\"]",
-        stopButtonSelector: "button[aria-label=\"Stop\"]",
+        sendButtonSelector: "button[aria-label*=\"send\" i], button.send-button",
+        newChatButtonSelector: "a[href*=\"/app\" i], button.new-chat-button",
+        copyButtonSelector: "button[aria-label*=\"copy\" i]",
+        userCopyButtonSelector: "button[aria-label*=\"copy prompt\" i]",
+        stopButtonSelector: "button[aria-label*=\"stop\" i]",
         messageTurnSelector: "div.message-content, div.conversation-turn"
       },
       flags: {
@@ -62,11 +62,11 @@ chromeAPI.runtime.onInstalled.addListener(() => {
       domain: "copilot.microsoft.com",
       selectors: {
         inputSelector: "textarea, #searchbar",
-        sendButtonSelector: "button[aria-label=\"Submit\"], button[aria-label=\"Send\"]",
-        newChatButtonSelector: "button[aria-label=\"New topic\"]",
-        copyButtonSelector: "button[aria-label=\"Copy\"]",
-        userCopyButtonSelector: "button[aria-label=\"Copy\"]",
-        stopButtonSelector: "button[aria-label=\"Stop response\"]",
+        sendButtonSelector: "button[aria-label*=\"submit\" i], button[aria-label*=\"send\" i]",
+        newChatButtonSelector: "button[aria-label*=\"new\" i]",
+        copyButtonSelector: "button[aria-label*=\"copy\" i]",
+        userCopyButtonSelector: "button[aria-label*=\"copy\" i]",
+        stopButtonSelector: "button[aria-label*=\"stop\" i]",
         messageTurnSelector: "div.chat-message, div.message-bubble"
       },
       flags: {
