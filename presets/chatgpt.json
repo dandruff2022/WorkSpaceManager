@@ -7,7 +7,7 @@
     "newChatButtonSelector": "a[href=\"/\"], button[aria-label*=\"new chat\" i]",
     "copyButtonSelector": "button[data-testid$=\"copy-turn-action-button\"], button[aria-label*=\"copy\" i]",
     "userCopyButtonSelector": "button[aria-label*=\"copy message\" i]",
-    "stopButtonSelector": "button[data-testid*=\"stop\" i], button[aria-label*=\"stop\" i]",
+    "stopButtonSelector": "button[data-testid*=\"stop-button\" i], button[aria-label*=\"stop generating\" i]",
     "messageTurnSelector": "article, [data-testid^=\"conversation-turn\"]"
   },
   "flags": {

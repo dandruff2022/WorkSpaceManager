@@ -18,7 +18,7 @@ chromeAPI.runtime.onInstalled.addListener(() => {
         newChatButtonSelector: "a[href=\"/\"], button[aria-label*=\"new chat\" i]",
         copyButtonSelector: "button[data-testid$=\"copy-turn-action-button\"], button[aria-label*=\"copy\" i]",
         userCopyButtonSelector: "button[aria-label*=\"copy message\" i]",
-        stopButtonSelector: "button[data-testid*=\"stop\" i], button[aria-label*=\"stop\" i]",
+        stopButtonSelector: "button[data-testid*=\"stop-button\" i], button[aria-label*=\"stop generating\" i]",
         messageTurnSelector: "article, [data-testid^=\"conversation-turn\"]"
       },
       flags: {
@@ -35,7 +35,7 @@ chromeAPI.runtime.onInstalled.addListener(() => {
         copyButtonSelector: "button[data-testid*=\"copy\" i], button[aria-label*=\"copy\" i]",
         userCopyButtonSelector: "button[data-testid*=\"copy\" i][aria-label*=\"copy\" i], button[aria-label*=\"copy\" i]",
         stopButtonSelector: "button[aria-label*=\"stop\" i]",
-        messageTurnSelector: "div.font-claude-message, div[data-testid=\"chat-message\"], div.chat-and-document"
+        messageTurnSelector: "div.font-claude-message, div[data-testid*=\"message\" i], div.chat-and-document, [class*=\"conversation-turn\" i]"
       },
       flags: {
         useEnterFallback: true
@@ -47,7 +47,7 @@ chromeAPI.runtime.onInstalled.addListener(() => {
       selectors: {
         inputSelector: "div[contenteditable=\"true\"]",
         sendButtonSelector: "button[aria-label*=\"send\" i], button.send-button",
-        newChatButtonSelector: "a[href*=\"/app\" i], button.new-chat-button",
+        newChatButtonSelector: "a[href*=\"/app\" i][aria-label*=\"new\" i], [aria-label*=\"new chat\" i], [data-testid*=\"new-chat\" i], button.new-chat-button",
         copyButtonSelector: "button[aria-label*=\"copy\" i]",
         userCopyButtonSelector: "button[aria-label*=\"copy prompt\" i]",
         stopButtonSelector: "button[aria-label*=\"stop\" i]",
@@ -66,8 +66,8 @@ chromeAPI.runtime.onInstalled.addListener(() => {
         newChatButtonSelector: "button[aria-label*=\"new\" i]",
         copyButtonSelector: "button[aria-label*=\"copy\" i]",
         userCopyButtonSelector: "button[aria-label*=\"copy\" i]",
-        stopButtonSelector: "button[aria-label*=\"stop\" i]",
-        messageTurnSelector: "div.chat-message, div.message-bubble"
+        stopButtonSelector: "button#stop-responding-button, button[id*=\"stop\" i], button[aria-label*=\"stop\" i]",
+        messageTurnSelector: "div.chat-message, div.message-bubble, div.group\\/ai-message, div.group\\/user-message, [data-testid=\"ai-message\" i], [data-testid=\"user-message\" i]"
       },
       flags: {
         useEnterFallback: true

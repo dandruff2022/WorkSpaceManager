@@ -7,8 +7,8 @@
     "newChatButtonSelector": "button[aria-label*=\"new\" i]",
     "copyButtonSelector": "button[aria-label*=\"copy\" i]",
     "userCopyButtonSelector": "button[aria-label*=\"copy\" i]",
-    "stopButtonSelector": "button[aria-label*=\"stop\" i]",
-    "messageTurnSelector": "div.chat-message, div.message-bubble"
+    "stopButtonSelector": "button#stop-responding-button, button[id*=\"stop\" i], button[aria-label*=\"stop\" i]",
+    "messageTurnSelector": "div.chat-message, div.message-bubble, div.group\\/ai-message, div.group\\/user-message, [data-testid=\"ai-message\" i], [data-testid=\"user-message\" i]"
   },
   "flags": {
     "useEnterFallback": true

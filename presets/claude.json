@@ -8,7 +8,7 @@
     "copyButtonSelector": "button[data-testid*=\"copy\" i], button[aria-label*=\"copy\" i]",
     "userCopyButtonSelector": "button[data-testid*=\"copy\" i][aria-label*=\"copy\" i], button[aria-label*=\"copy\" i]",
     "stopButtonSelector": "button[aria-label*=\"stop\" i]",
-    "messageTurnSelector": "div.font-claude-message, div[data-testid=\"chat-message\"], div.chat-and-document"
+    "messageTurnSelector": "div.font-claude-message, div[data-testid*=\"message\" i], div.chat-and-document, [class*=\"conversation-turn\" i]"
   },
   "flags": {
     "useEnterFallback": true
