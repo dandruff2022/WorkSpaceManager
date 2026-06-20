@@ -4,9 +4,78 @@
 const chromeAPI = typeof chrome !== 'undefined' ? chrome : browser;
 let managerWindowId = null;
 
+// Milestone 1.2: Ephemeral Tab Registry
+const tabTracker = {
+  activeTabs: new Map(), // tabId -> { url, title, windowId }
+  lastCreatedTabId: null,
+  eventsLog: {
+    activatedCount: 0,
+    lifecycleCount: 0
+  }
+};
+
+// Startup Tab Scan
+function runStartupTabScan() {
+  chromeAPI.tabs.query({}, (tabs) => {
+    if (chromeAPI.runtime.lastError || !tabs) return;
+    tabTracker.activeTabs.clear();
+    for (const tab of tabs) {
+      if (tab.id) {
+        tabTracker.activeTabs.set(tab.id, {
+          url: tab.url || "",
+          title: tab.title || "",
+          windowId: tab.windowId
+        });
+      }
+    }
+    console.log(`[Background] Startup tab scan complete. Registered ${tabTracker.activeTabs.size} tabs.`);
+  });
+}
+
+// Run immediately on background start
+runStartupTabScan();
+
+// Tab lifecycle listeners
+chromeAPI.tabs.onCreated.addListener((tab) => {
+  if (!tab.id) return;
+  tabTracker.activeTabs.set(tab.id, {
+    url: tab.url || "",
+    title: tab.title || "",
+    windowId: tab.windowId
+  });
+  tabTracker.lastCreatedTabId = tab.id;
+  tabTracker.eventsLog.lifecycleCount++;
+  console.log(`[Background] Tab created: ${tab.id}. Lifecycle count: ${tabTracker.eventsLog.lifecycleCount}`);
+});
+
+chromeAPI.tabs.onRemoved.addListener((tabId) => {
+  if (tabTracker.activeTabs.has(tabId)) {
+    tabTracker.activeTabs.delete(tabId);
+    tabTracker.eventsLog.lifecycleCount++;
+    console.log(`[Background] Tab removed: ${tabId}. Lifecycle count: ${tabTracker.eventsLog.lifecycleCount}`);
+  }
+});
+
+chromeAPI.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (!tabId) return;
+  tabTracker.activeTabs.set(tabId, {
+    url: tab.url || "",
+    title: tab.title || "",
+    windowId: tab.windowId
+  });
+  tabTracker.eventsLog.lifecycleCount++;
+  console.log(`[Background] Tab updated: ${tabId}. Lifecycle count: ${tabTracker.eventsLog.lifecycleCount}`);
+});
+
+chromeAPI.tabs.onActivated.addListener((activeInfo) => {
+  tabTracker.eventsLog.activatedCount++;
+  console.log(`[Background] Tab activated: ${activeInfo.tabId}. Activated count: ${tabTracker.eventsLog.activatedCount}`);
+});
+
 // Initialize the extension when installed or updated
 chromeAPI.runtime.onInstalled.addListener(() => {
   console.log("Workspace Manager Extension Installed.");
+  runStartupTabScan();
   
   const defaultProfiles = {
     chatgpt: {
@@ -184,6 +253,31 @@ function closeDetachedWindow() {
 // Message Bus Dispatcher
 chromeAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log("Background received message:", message);
+
+  // Milestone 1.2 testing actions
+  if (message.action === 'getTestTrackerLogs') {
+    sendResponse({
+      activatedCount: tabTracker.eventsLog.activatedCount,
+      lifecycleCount: tabTracker.eventsLog.lifecycleCount,
+      lastCreatedTabId: tabTracker.lastCreatedTabId,
+      callerTabId: sender.tab ? sender.tab.id : null
+    });
+    return true;
+  }
+
+  if (message.action === 'switchTab') {
+    const { tabId } = message.payload;
+    chromeAPI.tabs.update(tabId, { active: true }, (tab) => {
+      if (chromeAPI.runtime.lastError || !tab) {
+        sendResponse({ status: "error", error: chromeAPI.runtime.lastError?.message });
+        return;
+      }
+      chromeAPI.windows.update(tab.windowId, { focused: true }, () => {
+        sendResponse({ status: "success" });
+      });
+    });
+    return true;
+  }
 
   if (message.action === 'switchViewMode') {
     const targetMode = message.payload.mode;
