@@ -21,11 +21,16 @@
     return new Promise((resolve) => {
       const id = Math.random().toString(36).substring(2, 9);
       const responseHandler = (e) => {
-        resolve(e.detail);
+        try {
+          resolve(JSON.parse(e.detail));
+        } catch (err) {
+          console.error("Error parsing response:", err);
+          resolve({ error: "Parse error" });
+        }
       };
       document.addEventListener("agyTestResponse_" + id, responseHandler, { once: true });
       document.dispatchEvent(new CustomEvent("agyTestRequest", {
-        detail: { id, action, payload }
+        detail: JSON.stringify({ id, action, payload })
       }));
     });
   }
@@ -98,13 +103,14 @@
 
   try {
     await navigator.clipboard.writeText("Hello OS Clipboard");
-    await delay(100);
-    if (copyData === "Hello OS Clipboard") {
-      results.clipboardIntercepted = true;
-      console.log("✓ Clipboard copy captured successfully.");
-    }
   } catch (e) {
-    console.error("Clipboard test failed:", e);
+    console.warn("Native clipboard write blocked by browser gesture rules, checking event capture anyway...", e);
+  }
+
+  await delay(100);
+  if (copyData === "Hello OS Clipboard") {
+    results.clipboardIntercepted = true;
+    console.log("✓ Clipboard copy captured successfully.");
   }
 
   // --- Step 3: Clipboard Interception (Bypass) ---

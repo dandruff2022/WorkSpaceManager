@@ -68,14 +68,23 @@ document.addEventListener("agyNavigation", (e) => {
 
 // Relay testing requests from Main World to Background via Isolated World
 document.addEventListener("agyTestRequest", (e) => {
-  const { id, action, payload } = e.detail;
-  chromeAPI.runtime.sendMessage({ action, payload })
-    .then(response => {
-      document.dispatchEvent(new CustomEvent("agyTestResponse_" + id, { detail: response }));
-    })
-    .catch(err => {
-      document.dispatchEvent(new CustomEvent("agyTestResponse_" + id, { detail: { error: err.message } }));
-    });
+  try {
+    const data = JSON.parse(e.detail);
+    const { id, action, payload } = data;
+    chromeAPI.runtime.sendMessage({ action, payload })
+      .then(response => {
+        document.dispatchEvent(new CustomEvent("agyTestResponse_" + id, { 
+          detail: JSON.stringify(response || {}) 
+        }));
+      })
+      .catch(err => {
+        document.dispatchEvent(new CustomEvent("agyTestResponse_" + id, { 
+          detail: JSON.stringify({ error: err.message }) 
+        }));
+      });
+  } catch (err) {
+    console.error("[Workspace Manager] Error parsing agyTestRequest:", err);
+  }
 });
 
 // Basic message receiver for automation handshakes
