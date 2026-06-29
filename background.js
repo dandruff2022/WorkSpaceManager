@@ -128,7 +128,7 @@ chromeAPI.runtime.onInstalled.addListener(() => {
         messageTurnSelector: "div.message-content, div.conversation-turn"
       },
       flags: {
-        useEnterFallback: false,
+        useEnterFallback: true,
         postSubmitDelayMs: 0
       }
     },

@@ -93,7 +93,8 @@
     if (!activeProfile) return [];
     const copyButtons = container.querySelectorAll(activeProfile.selectors.copyButtonSelector);
     return Array.from(copyButtons).filter(btn => {
-      return !btn.closest('pre') && !btn.closest('.code-block') && !btn.closest('code');
+      const isUser = activeProfile.selectors.userCopyButtonSelector && btn.matches(activeProfile.selectors.userCopyButtonSelector);
+      return !isUser && !btn.closest('pre') && !btn.closest('.code-block') && !btn.closest('code');
     });
   }
 
@@ -105,43 +106,91 @@
     });
   }
 
-  function getCopyButtonsList() {
-    const aiBtns = getValidCopyButtons();
-    const userBtns = getValidUserCopyButtons();
-    
-    const buttons = [];
-    
-    aiBtns.forEach((btn, index) => {
-      buttons.push({
-        element: btn,
-        type: 'ai',
-        index: index,
-        label: `AI Response #${index + 1}`
+  async function forceDisplayAllContent(actionCallback) {
+    let container = null;
+    const selectors = ['.overflow-y-auto', '[class*="scroll" i]', 'main', 'body'];
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el && (el.scrollHeight > el.clientHeight)) {
+        container = el;
+        break;
+      }
+    }
+    if (!container) container = document.documentElement || document.body;
+
+    const originalHeight = container.style.height;
+    const originalMaxHeight = container.style.maxHeight;
+    const originalMinHeight = container.style.minHeight;
+    const originalOverflow = container.style.overflow;
+
+    const style = document.createElement('style');
+    style.id = 'agy-force-render-style';
+    style.textContent = `
+      * {
+        content-visibility: visible !important;
+        contain-intrinsic-size: auto !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    container.style.height = 'auto';
+    container.style.minHeight = '100%';
+    container.style.maxHeight = 'none';
+    container.style.overflow = 'visible';
+
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    try {
+      return await actionCallback();
+    } finally {
+      container.style.height = originalHeight;
+      container.style.minHeight = originalMinHeight;
+      container.style.maxHeight = originalMaxHeight;
+      container.style.overflow = originalOverflow;
+      const injectedStyle = document.getElementById('agy-force-render-style');
+      if (injectedStyle) injectedStyle.remove();
+    }
+  }
+
+  async function getCopyButtonsList() {
+    return forceDisplayAllContent(() => {
+      const aiBtns = getValidCopyButtons();
+      const userBtns = getValidUserCopyButtons();
+      
+      const buttons = [];
+      
+      aiBtns.forEach((btn, index) => {
+        buttons.push({
+          element: btn,
+          type: 'ai',
+          index: index,
+          label: `AI Response #${index + 1}`
+        });
       });
-    });
-    
-    userBtns.forEach((btn, index) => {
-      buttons.push({
-        element: btn,
-        type: 'user',
-        index: index,
-        label: `User Input #${index + 1}`
+      
+      userBtns.forEach((btn, index) => {
+        buttons.push({
+          element: btn,
+          type: 'user',
+          index: index,
+          label: `User Input #${index + 1}`
+        });
       });
+      
+      // Sort by their DOM appearance order (top-down)
+      buttons.sort((a, b) => {
+        const pos = a.element.compareDocumentPosition(b.element);
+        if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+        if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+        return 0;
+      });
+      
+      return buttons.map(b => ({
+        type: b.type,
+        index: b.index,
+        label: b.label
+      }));
     });
-    
-    // Sort by their DOM appearance order (top-down)
-    buttons.sort((a, b) => {
-      const pos = a.element.compareDocumentPosition(b.element);
-      if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
-      if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
-      return 0;
-    });
-    
-    return buttons.map(b => ({
-      type: b.type,
-      index: b.index,
-      label: b.label
-    }));
   }
 
   // 3. Web Interaction Implementation
@@ -213,54 +262,56 @@
 
   async function clickCopyButton(type = 'ai', index = -1) {
     if (!activeProfile) return null;
-    const isUser = type === 'user';
-    const buttons = isUser ? getValidUserCopyButtons() : getValidCopyButtons();
-    
-    if (buttons.length === 0) {
-      throw new Error(`No copy buttons of type ${type} found outside code blocks.`);
-    }
+    return forceDisplayAllContent(async () => {
+      const isUser = type === 'user';
+      const buttons = isUser ? getValidUserCopyButtons() : getValidCopyButtons();
+      
+      if (buttons.length === 0) {
+        throw new Error(`No copy buttons of type ${type} found outside code blocks.`);
+      }
 
-    // Use latest turn if index is negative or out of bounds
-    const targetIdx = (index < 0 || index >= buttons.length) ? (buttons.length - 1) : index;
-    const targetBtn = buttons[targetIdx];
+      // Use latest turn if index is negative or out of bounds
+      const targetIdx = (index < 0 || index >= buttons.length) ? (buttons.length - 1) : index;
+      const targetBtn = buttons[targetIdx];
 
-    // Pre-resolve parent turn element before clicking
-    const targetTurn = findParentTurn(targetBtn);
+      // Pre-resolve parent turn element before clicking
+      const targetTurn = findParentTurn(targetBtn);
 
-    return new Promise((resolve, reject) => {
-      let copyInterceptionHandled = false;
+      return new Promise((resolve, reject) => {
+        let copyInterceptionHandled = false;
 
-      // Event listener for main-world custom clipboard relay event
-      const onCopyEvent = (e) => {
-        copyInterceptionHandled = true;
-        document.removeEventListener('agyCopyCaptured', onCopyEvent);
-        resolve(e.detail);
-      };
-      document.addEventListener('agyCopyCaptured', onCopyEvent);
-
-      // Perform action click
-      targetBtn.click();
-
-      // Fallback scraper after 1000ms delay
-      setTimeout(() => {
-        if (!copyInterceptionHandled) {
+        // Event listener for main-world custom clipboard relay event
+        const onCopyEvent = (e) => {
+          copyInterceptionHandled = true;
           document.removeEventListener('agyCopyCaptured', onCopyEvent);
-          console.log("[Workspace Manager Bridge] Clipboard capture timed out. Using DOM fallback Scraper...");
-          
-          if (targetTurn) {
-            // Find inner markdown or message text container
-            const contentEl = targetTurn.querySelector('.markdown, .message-content, [class*="markdown" i], [class*="message" i]') || targetTurn;
-            const text = contentEl.innerText || contentEl.textContent || "";
-            if (text) {
-              resolve(text);
+          resolve(e.detail);
+        };
+        document.addEventListener('agyCopyCaptured', onCopyEvent);
+
+        // Perform action click
+        targetBtn.click();
+
+        // Fallback scraper after 1000ms delay
+        setTimeout(() => {
+          if (!copyInterceptionHandled) {
+            document.removeEventListener('agyCopyCaptured', onCopyEvent);
+            console.log("[Workspace Manager Bridge] Clipboard capture timed out. Using DOM fallback Scraper...");
+            
+            if (targetTurn) {
+              // Find inner markdown or message text container
+              const contentEl = targetTurn.querySelector('.markdown, .message-content, [class*="markdown" i], [class*="message" i]') || targetTurn;
+              const text = contentEl.innerText || contentEl.textContent || "";
+              if (text) {
+                resolve(text);
+              } else {
+                reject(new Error("Copy Intercept fallback: DOM scraping returned empty text."));
+              }
             } else {
-              reject(new Error("Copy Intercept fallback: DOM scraping returned empty text."));
+              reject(new Error("Copy Intercept failed: No clipboard event caught, and parent message turn could not be resolved."));
             }
-          } else {
-            reject(new Error("Copy Intercept failed: No clipboard event caught, and parent message turn could not be resolved."));
           }
-        }
-      }, 1000);
+        }, 1000);
+      });
     });
   }
 
@@ -401,7 +452,7 @@
           sendResponse({ status: "success", text });
           break;
         case "getCopyButtonsList":
-          const list = getCopyButtonsList();
+          const list = await getCopyButtonsList();
           sendResponse({ status: "success", list });
           break;
         case "scanInitialState":
