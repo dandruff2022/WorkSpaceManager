@@ -47,7 +47,7 @@
         sendButtonSelector: "button[aria-label*=\"send\" i], button[data-testid*=\"send\" i], button:has(svg polygon)",
         newChatButtonSelector: "a[href*=\"/new\" i], [data-testid*=\"new-chat\" i]",
         copyButtonSelector: "button[data-testid*=\"copy\" i], button[aria-label*=\"copy\" i]",
-        userCopyButtonSelector: "button[data-testid*=\"copy\" i][aria-label*=\"copy\" i], button[aria-label*=\"copy\" i]",
+        userCopyButtonSelector: "div.items-end button[data-testid=\"action-bar-copy\"], div.items-end button[aria-label*=\"copy\" i]",
         stopButtonSelector: "button[aria-label*=\"stop\" i]",
         messageTurnSelector: "div.font-claude-message, div[data-testid*=\"message\" i], div.chat-and-document, [class*=\"conversation-turn\" i]"
       },
@@ -65,10 +65,10 @@
         copyButtonSelector: "button[aria-label*=\"copy\" i]",
         userCopyButtonSelector: "button[aria-label*=\"copy prompt\" i]",
         stopButtonSelector: "button[aria-label*=\"stop\" i]",
-        messageTurnSelector: "div.message-content, div.conversation-turn"
+        messageTurnSelector: "response-container, .response-container, .query-container, message-content, div.conversation-turn"
       },
       flags: {
-        useEnterFallback: false
+        useEnterFallback: true
       }
     },
     copilot: {

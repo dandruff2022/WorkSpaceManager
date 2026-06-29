@@ -357,7 +357,10 @@
           <div class="debug-console">
             <div class="console-header">
               <span>Test Console Logs</span>
-              <button id="btn-dbg-clear-logs" class="clear-btn">Clear</button>
+              <div class="console-actions">
+                <button id="btn-dbg-copy-logs" class="clear-btn" style="margin-right: 12px; color: var(--accent-teal);">Copy Logs</button>
+                <button id="btn-dbg-clear-logs" class="clear-btn">Clear</button>
+              </div>
             </div>
             <div id="debug-log-output" class="console-body">Ready for command. Select a tab in the main window and trigger a handshake.</div>
           </div>

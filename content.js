@@ -53,11 +53,21 @@ injectMainWorldInterceptors();
 
 // Listen to CustomEvents relayed from Main World to Isolated World
 document.addEventListener("agyCopyCaptured", (e) => {
-  console.log("[Workspace Manager] Clipboard write intercepted: " + e.detail);
+  const logMsg = `[ContentScript] Clipboard write intercepted: "${e.detail.substring(0, 100)}..."`;
+  console.log(logMsg);
+  chromeAPI.runtime.sendMessage({ action: "bridge_log", payload: { text: logMsg, type: "success" } }).catch(() => {});
   chromeAPI.runtime.sendMessage({ action: "clipboardCaptured", payload: { text: e.detail } }).catch(err => {
-    // Suppress unhandled promise rejection error if extension does not have background receiver active
+    // Suppress error
   });
 });
+
+// Intercept native copy event in capture phase
+document.addEventListener("copy", (e) => {
+  const selectionText = window.getSelection().toString();
+  const logMsg = `[ContentScript] Native 'copy' event fired. Selected: "${selectionText.substring(0, 100)}"`;
+  console.log(logMsg);
+  chromeAPI.runtime.sendMessage({ action: "bridge_log", payload: { text: logMsg, type: "info" } }).catch(() => {});
+}, true);
 
 document.addEventListener("agyNavigation", (e) => {
   console.log("[Workspace Manager] SPA navigation detected: " + e.detail);

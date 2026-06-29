@@ -8,9 +8,9 @@
     "copyButtonSelector": "button[aria-label*=\"copy\" i]",
     "userCopyButtonSelector": "button[aria-label*=\"copy prompt\" i]",
     "stopButtonSelector": "button[aria-label*=\"stop\" i]",
-    "messageTurnSelector": "div.message-content, div.conversation-turn"
+    "messageTurnSelector": "response-container, .response-container, .query-container, message-content, div.conversation-turn"
   },
   "flags": {
-    "useEnterFallback": false
+    "useEnterFallback": true
   }
 }

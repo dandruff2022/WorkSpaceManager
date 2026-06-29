@@ -89,20 +89,42 @@
     return element.parentElement || (element.parentNode && element.parentNode.host) || element;
   }
 
+  function relayLog(text, type = 'info') {
+    console.log(`[Bridge Log] ${text}`);
+    chromeAPI.runtime.sendMessage({
+      action: "bridge_log",
+      payload: { text: `[Bridge] ${text}`, type }
+    }).catch(() => {});
+  }
+
   function getValidCopyButtons(container = document) {
     if (!activeProfile) return [];
-    const copyButtons = container.querySelectorAll(activeProfile.selectors.copyButtonSelector);
-    return Array.from(copyButtons).filter(btn => {
+    const selector = activeProfile.selectors.copyButtonSelector;
+    const copyButtons = container.querySelectorAll(selector);
+    relayLog(`[Selector] Querying copyButtonSelector "${selector}". Found: ${copyButtons.length} raw matches.`);
+    
+    return Array.from(copyButtons).filter((btn, idx) => {
       const isUser = activeProfile.selectors.userCopyButtonSelector && btn.matches(activeProfile.selectors.userCopyButtonSelector);
-      return !isUser && !btn.closest('pre') && !btn.closest('.code-block') && !btn.closest('code');
+      const inCode = btn.closest('pre') || btn.closest('.code-block') || btn.closest('code');
+      
+      relayLog(`[Selector-AI-Filter] Button #${idx} matchesUserSelector: ${!!isUser}, inCodeBlock: ${!!inCode}. outerHTML: "${btn.outerHTML.substring(0, 100)}"`);
+      
+      return !isUser && !inCode;
     });
   }
 
   function getValidUserCopyButtons(container = document) {
     if (!activeProfile || !activeProfile.selectors.userCopyButtonSelector) return [];
-    const copyButtons = container.querySelectorAll(activeProfile.selectors.userCopyButtonSelector);
-    return Array.from(copyButtons).filter(btn => {
-      return !btn.closest('pre') && !btn.closest('.code-block') && !btn.closest('code');
+    const selector = activeProfile.selectors.userCopyButtonSelector;
+    const copyButtons = container.querySelectorAll(selector);
+    relayLog(`[Selector] Querying userCopyButtonSelector "${selector}". Found: ${copyButtons.length} raw matches.`);
+    
+    return Array.from(copyButtons).filter((btn, idx) => {
+      const inCode = btn.closest('pre') || btn.closest('.code-block') || btn.closest('code');
+      
+      relayLog(`[Selector-User-Filter] User Button #${idx} inCodeBlock: ${!!inCode}. outerHTML: "${btn.outerHTML.substring(0, 100)}"`);
+      
+      return !inCode;
     });
   }
 
@@ -157,6 +179,36 @@
       const aiBtns = getValidCopyButtons();
       const userBtns = getValidUserCopyButtons();
       
+      if (activeProfile && activeProfile.siteName === "Claude") {
+        relayLog(`[ClaudeDebug] Initiating copy button path trace...`);
+        const copyBtns = document.querySelectorAll('button[data-testid="action-bar-copy"]');
+        relayLog(`[ClaudeDebug] Found ${copyBtns.length} action-bar-copy buttons.`);
+        
+        copyBtns.forEach((btn, idx) => {
+          const pathParts = [];
+          let curr = btn;
+          let d = 0;
+          while (curr && d < 12) {
+            const tagName = curr.tagName.toLowerCase();
+            const id = curr.id ? `#${curr.id}` : '';
+            // Clean class name list to avoid Tailwind spacing issues
+            const classes = curr.className && typeof curr.className === 'string' 
+              ? `.${curr.className.trim().replace(/\s+/g, '.')}` 
+              : '';
+            const testId = curr.getAttribute ? curr.getAttribute('data-testid') : null;
+            const testIdAttr = testId ? `[data-testid="${testId}"]` : '';
+            
+            const isFocus = classes.includes('message') || classes.includes('turn') || classes.includes('user') || classes.includes('assistant') || testIdAttr;
+            const marker = isFocus ? '🔥' : '';
+            
+            pathParts.push(`${marker}${tagName}${id}${classes}${testIdAttr}`);
+            curr = curr.parentElement || (curr.parentNode && curr.parentNode.host) || null;
+            d++;
+          }
+          relayLog(`[ClaudeDebug] Button #${idx} Path: ${pathParts.reverse().join(' -> ')}`);
+        });
+      }
+
       const buttons = [];
       
       aiBtns.forEach((btn, index) => {
@@ -184,6 +236,8 @@
         if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
         return 0;
       });
+      
+      relayLog(`[Scan Summary] Scanned all buttons. AI buttons: ${aiBtns.length}, User buttons: ${userBtns.length}, Total: ${buttons.length}`);
       
       return buttons.map(b => ({
         type: b.type,
@@ -263,8 +317,10 @@
   async function clickCopyButton(type = 'ai', index = -1) {
     if (!activeProfile) return null;
     return forceDisplayAllContent(async () => {
+      relayLog(`[CopyAction] Requested copy type: "${type}" index: ${index}`);
       const isUser = type === 'user';
       const buttons = isUser ? getValidUserCopyButtons() : getValidCopyButtons();
+      relayLog(`[CopyAction] Candidate buttons list size: ${buttons.length}`);
       
       if (buttons.length === 0) {
         throw new Error(`No copy buttons of type ${type} found outside code blocks.`);
@@ -273,9 +329,15 @@
       // Use latest turn if index is negative or out of bounds
       const targetIdx = (index < 0 || index >= buttons.length) ? (buttons.length - 1) : index;
       const targetBtn = buttons[targetIdx];
+      relayLog(`[CopyAction] Target button resolved. outerHTML: "${targetBtn.outerHTML.substring(0, 120)}"`);
 
       // Pre-resolve parent turn element before clicking
       const targetTurn = findParentTurn(targetBtn);
+      if (targetTurn) {
+        relayLog(`[CopyAction] Target parent turn resolved: <${targetTurn.tagName} class="${targetTurn.className}">. InnerText (first 100 chars): "${targetTurn.innerText?.substring(0, 100)}"`);
+      } else {
+        relayLog(`[CopyAction] Warning: Target parent turn element could NOT be resolved.`, 'error');
+      }
 
       return new Promise((resolve, reject) => {
         let copyInterceptionHandled = false;
@@ -284,30 +346,70 @@
         const onCopyEvent = (e) => {
           copyInterceptionHandled = true;
           document.removeEventListener('agyCopyCaptured', onCopyEvent);
+          relayLog(`[CopyAction] Successful intercept! Detail text (first 100 chars): "${e.detail.substring(0, 100)}"`, 'success');
           resolve(e.detail);
         };
         document.addEventListener('agyCopyCaptured', onCopyEvent);
 
         // Perform action click
+        relayLog(`[CopyAction] Executing click() on target button element...`);
         targetBtn.click();
 
         // Fallback scraper after 1000ms delay
         setTimeout(() => {
           if (!copyInterceptionHandled) {
             document.removeEventListener('agyCopyCaptured', onCopyEvent);
-            console.log("[Workspace Manager Bridge] Clipboard capture timed out. Using DOM fallback Scraper...");
+            relayLog(`[CopyAction] Clipboard capture event timed out (1s). Running DOM scraper fallback...`, 'error');
             
             if (targetTurn) {
-              // Find inner markdown or message text container
-              const contentEl = targetTurn.querySelector('.markdown, .message-content, [class*="markdown" i], [class*="message" i]') || targetTurn;
+              const contentEl = targetTurn.querySelector('.markdown, message-content, .message-content, [class*="markdown" i], [class*="message-content" i], [class*="message_content" i]') || targetTurn;
+              relayLog(`[ScraperFallback] Selected content element: <${contentEl.tagName} class="${contentEl.className}">`);
               const text = contentEl.innerText || contentEl.textContent || "";
+              relayLog(`[ScraperFallback] Extracted text (first 120 chars): "${text.substring(0, 120)}"`);
               if (text) {
                 resolve(text);
               } else {
-                reject(new Error("Copy Intercept fallback: DOM scraping returned empty text."));
+                let parentChain = "";
+                let curr = targetBtn;
+                let d = 0;
+                while (curr && d < 10) {
+                  parentChain += `    L${d}: <${curr.tagName.toLowerCase()}> class="${curr.className}"\n`;
+                  curr = curr.parentElement || (curr.parentNode && curr.parentNode.host) || null;
+                  d++;
+                }
+                const report = `
+### GEMINI DIAGNOSTIC REPORT
+* **Tab URL**: ${window.location.href}
+* **Target Button**: \`${targetBtn.outerHTML.substring(0, 150)}\`
+* **Resolved Turn**: \`<${targetTurn.tagName} class="${targetTurn.className}">\`
+* **Turn text (first 100)**: "${targetTurn.innerText?.substring(0, 100).replace(/\n/g, ' ')}"
+* **Scraper element**: \`<${contentEl.tagName} class="${contentEl.className}">\`
+* **Scraped text**: "${text}"
+* **Total buttons count**: ${buttons.length}
+* **Parent Chain**:
+${parentChain}
+`;
+                reject(new Error(report));
               }
             } else {
-              reject(new Error("Copy Intercept failed: No clipboard event caught, and parent message turn could not be resolved."));
+              let parentChain = "";
+              let curr = targetBtn;
+              let d = 0;
+              while (curr && d < 10) {
+                parentChain += `    L${d}: <${curr.tagName.toLowerCase()}> class="${curr.className}"\n`;
+                curr = curr.parentElement || (curr.parentNode && curr.parentNode.host) || null;
+                d++;
+              }
+              const report = `
+### GEMINI DIAGNOSTIC REPORT
+* **Tab URL**: ${window.location.href}
+* **Target Button**: \`${targetBtn.outerHTML.substring(0, 150)}\`
+* **Resolved Turn**: NULL (Parent turn resolution failed)
+* **Total buttons count**: ${buttons.length}
+* **Parent Chain**:
+${parentChain}
+`;
+              reject(new Error(report));
             }
           }
         }, 1000);

@@ -124,6 +124,21 @@
       const btnClear = container.querySelector('#btn-dbg-clear-logs');
       if (btnClear) btnClear.addEventListener('click', clearLogs);
 
+      // Bind Copy Logs Button
+      const btnCopyLogs = container.querySelector('#btn-dbg-copy-logs');
+      if (btnCopyLogs) {
+        btnCopyLogs.addEventListener('click', () => {
+          const entries = Array.from(logOutput.querySelectorAll('.console-log-entry'))
+            .map(el => el.textContent)
+            .join('\n');
+          navigator.clipboard.writeText(entries || logOutput.textContent).then(() => {
+            const oldText = btnCopyLogs.textContent;
+            btnCopyLogs.textContent = "Copied!";
+            setTimeout(() => { btnCopyLogs.textContent = oldText; }, 1000);
+          });
+        });
+      }
+
       // ================= PART A: Website Test (DOM Automation) =================
       
       // Ping Handshake
@@ -371,6 +386,8 @@
         if (message.action === "bridge_state_change") {
           log(`[Notification] Generation Observer reported: "${message.payload.state}"`, "success");
           setTrafficLight(message.payload.state);
+        } else if (message.action === "bridge_log") {
+          log(message.payload.text, message.payload.type || "info");
         }
       });
     }
