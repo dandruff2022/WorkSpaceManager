@@ -867,6 +867,11 @@ body.state-detached-placeholder .app-container {
   box-shadow: 0 0 12px #10b981;
 }
 
+.light-newchat {
+  background-color: #a855f7;
+  box-shadow: 0 0 12px #a855f7;
+}
+
 .traffic-text {
   font-size: 11px;
   font-weight: 500;

@@ -142,7 +142,7 @@ chromeAPI.runtime.onInstalled.addListener(() => {
         newChatButtonSelector: "button[aria-label*=\"new\" i]",
         copyButtonSelector: ".group\\/ai-message button[aria-label*=\"copy\" i], [data-testid=\"ai-message\" i] button[aria-label*=\"copy\" i]",
         userCopyButtonSelector: ".group\\/user-message button[aria-label*=\"copy\" i], [data-testid=\"user-message\" i] button[aria-label*=\"copy\" i]",
-        stopButtonSelector: "button#stop-responding-button, button[id*=\"stop\" i], button[aria-label*=\"stop\" i]",
+        stopButtonSelector: "button[data-testid*=\"stop\" i], button[aria-label*=\"interrupt\" i], button#stop-responding-button, button[id*=\"stop\" i], button[aria-label*=\"stop\" i]",
         messageTurnSelector: "div.chat-message, div.message-bubble, div.group\\/ai-message, div.group\\/user-message, [data-testid=\"ai-message\" i], [data-testid=\"user-message\" i]"
       },
       flags: {

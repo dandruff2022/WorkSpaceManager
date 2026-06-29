@@ -494,21 +494,60 @@ ${parentChain}
     let baseCount = getValidCopyButtons().length;
     const delay = activeProfile.flags ? (activeProfile.flags.postSubmitDelayMs || 0) : 0;
 
+    // Helper to check if we are in a new/empty chat state
+    function checkNewChatState() {
+      if (!activeProfile) return false;
+      const turns = document.querySelectorAll(activeProfile.selectors.messageTurnSelector);
+      const url = window.location.href;
+      const isNewChatUrl = activeProfile.newChatUrl && 
+        (url === activeProfile.newChatUrl || url.endsWith('/new') || url.endsWith('/app') || url.includes('/chats/new'));
+      return turns.length === 0 || isNewChatUrl;
+    }
+
+    // Trigger initial state check immediately on start
+    if (checkNewChatState()) {
+      setTimeout(() => onChange("newchat"), 10);
+    } else {
+      setTimeout(() => onChange("complete"), 10);
+    }
+
     activeObserver = new MutationObserver(() => {
       // Delay observation checks to allow frontend state updates (important for Claude)
       setTimeout(() => {
         if (!activeProfile) return;
+
+        // Check for new chat state first
+        if (checkNewChatState()) {
+          if (baseCount !== 0 || isGenerating) {
+            isGenerating = false;
+            baseCount = 0;
+            onChange("newchat");
+          }
+          return;
+        }
+
         const stopBtns = document.querySelectorAll(activeProfile.selectors.stopButtonSelector);
         const hasStopBtn = Array.from(stopBtns).some(btn => btn.offsetWidth > 0 || btn.offsetHeight > 0);
         const currentCount = getValidCopyButtons().length;
 
-        if (hasStopBtn && !isGenerating) {
-          isGenerating = true;
-          onChange("working");
-        } else if (!hasStopBtn && isGenerating && currentCount > baseCount) {
-          isGenerating = false;
-          baseCount = currentCount;
-          onChange("complete");
+        if (hasStopBtn) {
+          if (!isGenerating) {
+            isGenerating = true;
+            onChange("working");
+          }
+        } else {
+          // If no stop button is visible
+          if (isGenerating && currentCount > baseCount) {
+            // Normal generation finished path
+            isGenerating = false;
+            baseCount = currentCount;
+            onChange("complete");
+          } else if (currentCount !== baseCount) {
+            // Thread switched, navigated from empty back to list, or chat history changed
+            isGenerating = false;
+            baseCount = currentCount;
+            onChange("complete");
+          }
         }
       }, delay);
     });

@@ -51,6 +51,9 @@
         } else if (state === 'working' || state === 'generating') {
           light.className = 'traffic-light light-working';
           textEl.textContent = 'Generating...';
+        } else if (state === 'newchat') {
+          light.className = 'traffic-light light-newchat';
+          textEl.textContent = 'New Chat (Empty)';
         }
       }
 
