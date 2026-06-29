@@ -159,7 +159,7 @@ The sandbox tester has **proven every interaction primitive** that bridge.js nee
 ### 1.1 Manifest Registration
 `bridge.js` will be registered as a content script loaded into all pages before `content.js`. This allows `bridge.js` to define automation primitives, which are then consumed by message dispatcher hooks.
 
-In [manifest.json](file:///E:/WorkSpace/CodeBase/WorkSpaceManager/manifest.json):
+In [manifest.json](../../manifest.json):
 ```json
   "content_scripts": [
     {
@@ -268,7 +268,7 @@ sequenceDiagram
 ## 3.0 Background Dispatcher & Health check
 
 ### 3.1 Background Command Forwarder
-In [background.js](file:///E:/WorkSpace/CodeBase/WorkSpaceManager/background.js), extend the message receiver to forward manager UI commands to content scripts:
+In [background.js](../../background.js), extend the message receiver to forward manager UI commands to content scripts:
 - If a message action matches `"bridgeCommand"`, retrieve `tabId` and `command`.
 - Call `ensureContentScript(tabId)` to verify the script is active.
 - Forward the command: `chrome.tabs.sendMessage(tabId, { action: command, payload: message.payload }, (response) => { ... })`.
@@ -300,13 +300,13 @@ In [background.js](file:///E:/WorkSpace/CodeBase/WorkSpaceManager/background.js)
 ## 4.0 Modular UI Architecture & Debug Mode
 
 ### 4.1 Splitting Extension Modules
-To keep codebases clean and maintainable, each view/module inside the manager UI will be separated into its own script located in `ui/modules/`. These scripts will be loaded dynamically or declared in [ui/manager.html](file:///E:/WorkSpace/CodeBase/WorkSpaceManager/ui/manager.html):
+To keep codebases clean and maintainable, each view/module inside the manager UI will be separated into its own script located in `ui/modules/`. These scripts will be loaded dynamically or declared in [ui/manager.html](../../ui/manager.html):
 
-1. **Context Transfer**: [ui/modules/context_transfer.js](file:///E:/WorkSpace/CodeBase/WorkSpaceManager/ui/modules/context_transfer.js) - Handles multi-tab conversation migration.
-2. **Broadcast**: [ui/modules/broadcast.js](file:///E:/WorkSpace/CodeBase/WorkSpaceManager/ui/modules/broadcast.js) - Handles concurrent prompt dispatching.
-3. **Orchestrator**: [ui/modules/orchestrator.js](file:///E:/WorkSpace/CodeBase/WorkSpaceManager/ui/modules/orchestrator.js) - Manages the multi-tab tree graph layout.
-4. **Skills**: [ui/modules/skills.js](file:///E:/WorkSpace/CodeBase/WorkSpaceManager/ui/modules/skills.js) - Manages custom prompts CRUD registry.
-5. **Connection**: [ui/modules/connection.js](file:///E:/WorkSpace/CodeBase/WorkSpaceManager/ui/modules/connection.js) - Manages registered site profiles import and manual selectors.
+1. **Context Transfer**: [ui/modules/context_transfer.js](../../ui/modules/context_transfer.js) - Handles multi-tab conversation migration.
+2. **Broadcast**: [ui/modules/broadcast.js](../../ui/modules/broadcast.js) - Handles concurrent prompt dispatching.
+3. **Orchestrator**: [ui/modules/orchestrator.js](../../ui/modules/orchestrator.js) - Manages the multi-tab tree graph layout.
+4. **Skills**: [ui/modules/skills.js](../../ui/modules/skills.js) - Manages custom prompts CRUD registry.
+5. **Connection**: [ui/modules/connection.js](../../ui/modules/connection.js) - Manages registered site profiles import and manual selectors.
 
 ### 4.2 Module Initialization Protocol
 Each module script will export or define a standard initializer block:
@@ -319,7 +319,7 @@ window.ContextTransferModule = {
   }
 };
 ```
-During page load, [ui/manager.js](file:///E:/WorkSpace/CodeBase/WorkSpaceManager/ui/manager.js) will import/load each module and call `init(document.getElementById("view-[module-id]"))`.
+During page load, [ui/manager.js](../../ui/manager.js) will import/load each module and call `init(document.getElementById("view-[module-id]"))`.
 
 ### 4.3 Temporary Module Debug Test Panel (Interactive Verification Suite)
 To bridge the gap between design and final implementation, a dedicated **Debug Test** view will be integrated into the sidebar layout:
@@ -340,7 +340,7 @@ To bridge the gap between design and final implementation, a dedicated **Debug T
      - *SPA Router Navigation*: Trigger `pushState` routing path overrides and capture navigation events.
 3. **Visibility & Release Gate**:
    - Class designation: Styled with `.debug-mode-only` in CSS.
-   - Release configuration: Set `window.__agy_debug_mode = true` in development to render it in the sidebar. In the production release step, setting this flag to `false` or applying a `.debug-hidden { display: none; }` rule inside [ui/manager.css](file:///E:/WorkSpace/CodeBase/WorkSpaceManager/ui/manager.css) will automatically hide the menu item and testing panel from standard users.
+   - Release configuration: Set `window.__agy_debug_mode = true` in development to render it in the sidebar. In the production release step, setting this flag to `false` or applying a `.debug-hidden { display: none; }` rule inside [ui/manager.css](../../ui/manager.css) will automatically hide the menu item and testing panel from standard users.
 
 
 

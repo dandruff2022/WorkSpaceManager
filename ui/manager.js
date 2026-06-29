@@ -6,6 +6,7 @@ const chromeAPI = typeof chrome !== 'undefined' ? chrome : (typeof browser !== '
 document.addEventListener('DOMContentLoaded', async () => {
   setupNavigation();
   await setupViewMode();
+  initializeModules();
 });
 
 // 1. Sidebar Tab Navigation Logic
@@ -158,4 +159,48 @@ function switchViewMode(newMode) {
       window.close();
     }
   }
+}
+
+// 3. Module Loader and Debug Mode Gate
+function initializeModules() {
+  console.log("[Workspace Manager] Initializing modules...");
+  
+  const modules = {
+    'context-transfer': window.ContextTransferModule,
+    'broadcast': window.BroadcastModule,
+    'orchestrator': window.OrchestratorModule,
+    'skills': window.SkillsModule,
+    'connection': window.ConnectionModule,
+    'debug-test': window.DebugTestModule
+  };
+
+  for (const key in modules) {
+    const viewContainer = document.getElementById(`view-${key}`);
+    const moduleScript = modules[key];
+    if (viewContainer && moduleScript && typeof moduleScript.init === 'function') {
+      try {
+        moduleScript.init(viewContainer);
+        console.log(`[Workspace Manager] Initialized module: ${key}`);
+      } catch (e) {
+        console.error(`[Workspace Manager] Failed to initialize module: ${key}`, e);
+      }
+    }
+  }
+
+  setupDebugModeVisibility();
+}
+
+function setupDebugModeVisibility() {
+  if (typeof window.__agy_debug_mode === 'undefined') {
+    window.__agy_debug_mode = true; // default true for development
+  }
+
+  const debugElements = document.querySelectorAll('.debug-mode-only');
+  debugElements.forEach(el => {
+    if (window.__agy_debug_mode) {
+      el.classList.remove('debug-hidden');
+    } else {
+      el.classList.add('debug-hidden');
+    }
+  });
 }

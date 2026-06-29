@@ -9,6 +9,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="manager.css">
+  <script src="modules/context_transfer.js" defer></script>
+  <script src="modules/broadcast.js" defer></script>
+  <script src="modules/orchestrator.js" defer></script>
+  <script src="modules/skills.js" defer></script>
+  <script src="modules/connection.js" defer></script>
+  <script src="modules/debug_test.js" defer></script>
   <script src="manager.js" defer></script>
 </head>
 <body>
@@ -83,6 +89,18 @@
             <line x1="12" y1="2" x2="12" y2="12"></line>
           </svg>
           <span class="nav-label">Connection</span>
+        </button>
+
+        <button class="nav-item debug-mode-only" data-target="debug-test">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+            <path d="M8 21V7a4 4 0 0 1 8 0v14"></path>
+            <circle cx="12" cy="14" r="2"></circle>
+            <line x1="6" y1="14" x2="8" y2="14"></line>
+            <line x1="16" y1="14" x2="18" y2="14"></line>
+            <line x1="12" y1="9" x2="12" y2="10"></line>
+          </svg>
+          <span class="nav-label">Debug Test</span>
         </button>
       </nav>
 
@@ -237,6 +255,111 @@
             <div class="mock-control-row">
               <span class="mock-btn">New Site Connection</span>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Debug Test Module -->
+      <section id="view-debug-test" class="module-view debug-mode-only">
+        <div class="view-header">
+          <div class="title-wrap">
+            <h1 class="view-title">Debug Test Suite</h1>
+            <p class="view-description">Run Website DOM automation tests and Browser extension API tests.</p>
+          </div>
+          <span class="badge badge-indigo">Milestone 1.3</span>
+        </div>
+        <div class="view-body">
+          <div class="debug-grid">
+            <!-- Part A: Website Test (DOM Automation) -->
+            <div class="debug-card">
+              <h3>Part A: Website Test (DOM Automation)</h3>
+              <p class="card-desc">Interact with the active AI page tab via bridge.js primitives.</p>
+              <div class="debug-controls">
+                <div class="dbg-control-row">
+                  <button id="btn-dbg-ping" class="dbg-btn">Handshake Ping</button>
+                  <span id="dbg-ping-status" class="dbg-status-badge"></span>
+                </div>
+                
+                <div class="dbg-control-row">
+                  <div class="dbg-input-group">
+                    <input type="text" id="input-dbg-text" placeholder="Prompt text to inject..." class="dbg-text-input">
+                    <button id="btn-dbg-write" class="dbg-btn">Write Input</button>
+                  </div>
+                  <span id="dbg-write-status" class="dbg-status-badge"></span>
+                </div>
+                
+                <div class="dbg-control-row">
+                  <button id="btn-dbg-send" class="dbg-btn">Submit Trigger</button>
+                  <span id="dbg-send-status" class="dbg-status-badge"></span>
+                </div>
+
+                <div class="dbg-control-row">
+                  <button id="btn-dbg-observe" class="dbg-btn">Start Observe State</button>
+                  <div class="dbg-status-traffic">
+                    <div id="dbg-traffic-light" class="traffic-light light-inactive"></div>
+                    <span id="dbg-traffic-text" class="traffic-text">Inactive</span>
+                  </div>
+                </div>
+                
+                <div class="dbg-control-row dbg-col">
+                  <div class="dbg-input-group">
+                    <button id="btn-dbg-scan-buttons" class="dbg-btn" title="Scan copy buttons on page">Scan Buttons</button>
+                    <select id="select-dbg-copy-button" class="dbg-select">
+                      <option value="">Scan page first...</option>
+                    </select>
+                    <button id="btn-dbg-copy" class="dbg-btn">Copy Turn</button>
+                  </div>
+                  <pre id="dbg-copy-preview" class="dbg-preview-box dbg-hidden"></pre>
+                </div>
+                
+                <div class="dbg-control-row">
+                  <button id="btn-dbg-reset" class="dbg-btn">Reset Tab</button>
+                  <span id="dbg-reset-status" class="dbg-status-badge"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Part B: Browser Test (Background APIs) -->
+            <div class="debug-card">
+              <h3>Part B: Browser Test (Background APIs)</h3>
+              <p class="card-desc">Verify tab status metrics and messaging channels.</p>
+              <div class="debug-controls">
+                <div class="dbg-control-row dbg-col">
+                  <button id="btn-dbg-fetch-tabs" class="dbg-btn">Fetch Active Tabs</button>
+                  <pre id="dbg-tabs-status" class="dbg-preview-box dbg-hidden"></pre>
+                </div>
+                
+                <div class="dbg-control-row">
+                  <div class="dbg-input-group">
+                    <button id="btn-dbg-scan-tabs" class="dbg-btn" title="Scan browser tabs">Scan Tabs</button>
+                    <select id="select-dbg-switch-tab" class="dbg-select">
+                      <option value="">Scan tabs first...</option>
+                    </select>
+                    <button id="btn-dbg-switch-tab" class="dbg-btn">Switch Focus</button>
+                  </div>
+                  <span id="dbg-switch-status" class="dbg-status-badge"></span>
+                </div>
+                
+                <div class="dbg-control-row">
+                  <button id="btn-dbg-clip-bypass" class="dbg-btn">Test Clipboard OS Bypass</button>
+                  <span id="dbg-clip-bypass-status" class="dbg-status-badge"></span>
+                </div>
+                
+                <div class="dbg-control-row">
+                  <button id="btn-dbg-router" class="dbg-btn">Test Router Navigation</button>
+                  <span id="dbg-router-status" class="dbg-status-badge"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Debug Logs Console -->
+          <div class="debug-console">
+            <div class="console-header">
+              <span>Test Console Logs</span>
+              <button id="btn-dbg-clear-logs" class="clear-btn">Clear</button>
+            </div>
+            <div id="debug-log-output" class="console-body">Ready for command. Select a tab in the main window and trigger a handshake.</div>
           </div>
         </div>
       </section>

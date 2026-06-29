@@ -640,3 +640,246 @@ body.state-detached-placeholder .app-container {
   outline: none;
   pointer-events: none; /* Make button pass through clicks so parent handles click anywhere */
 }
+
+/* Debug Test Panel CSS styling tokens */
+.debug-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.debug-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  backdrop-filter: blur(var(--blur-val));
+  display: flex;
+  flex-direction: column;
+}
+
+.debug-card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  background: var(--grad-text);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.debug-card .card-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.debug-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-grow: 1;
+}
+
+.dbg-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  outline: none;
+}
+
+.dbg-btn:hover {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.3);
+  transform: translateY(-1px);
+}
+
+.dbg-btn:active {
+  transform: translateY(0);
+}
+
+.dbg-input-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.dbg-text-input, .dbg-num-input, .dbg-select {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-family: var(--font-family);
+  font-size: 12px;
+  outline: none;
+  flex-grow: 1;
+  min-width: 60px;
+}
+
+.dbg-text-input:focus, .dbg-num-input:focus, .dbg-select:focus {
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+.dbg-select option {
+  background: var(--bg-base);
+  color: var(--text-primary);
+}
+
+.debug-console {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  height: 220px;
+  overflow: hidden;
+}
+
+.console-header {
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+}
+
+.clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-family: var(--font-family);
+}
+
+.clear-btn:hover {
+  color: var(--accent-rose);
+}
+
+.console-body {
+  padding: 12px 16px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  color: #38bdf8;
+  overflow-y: auto;
+  flex-grow: 1;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.console-log-entry {
+  margin-bottom: 6px;
+}
+
+.console-log-error {
+  color: var(--accent-rose);
+}
+
+.console-log-success {
+  color: var(--accent-teal);
+}
+
+/* Debug Mode Visibility Gate */
+.debug-hidden {
+  display: none !important;
+}
+
+/* Status Badge and Traffic Light Animations */
+.dbg-status-badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-block;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+}
+.dbg-status-badge.success {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #10b981 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+.dbg-status-badge.error {
+  background: rgba(244, 63, 94, 0.15) !important;
+  color: #f43f5e !important;
+  border: 1px solid rgba(244, 63, 94, 0.3) !important;
+}
+.dbg-status-badge.working {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #f59e0b !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+.dbg-control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.dbg-control-row.dbg-col {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.dbg-status-traffic {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.traffic-light {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.light-inactive {
+  background-color: #64748b;
+  box-shadow: 0 0 6px #64748b;
+}
+
+.light-working {
+  background-color: #f59e0b;
+  box-shadow: 0 0 12px #f59e0b;
+  animation: blinkLight 1s infinite alternate ease-in-out;
+}
+
+.light-complete {
+  background-color: #10b981;
+  box-shadow: 0 0 12px #10b981;
+}
+
+.traffic-text {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+@keyframes blinkLight {
+  0% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+.dbg-preview-box.dbg-hidden {
+  display: none !important;
+}
+
+

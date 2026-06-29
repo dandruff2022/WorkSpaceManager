@@ -105,6 +105,45 @@
     });
   }
 
+  function getCopyButtonsList() {
+    const aiBtns = getValidCopyButtons();
+    const userBtns = getValidUserCopyButtons();
+    
+    const buttons = [];
+    
+    aiBtns.forEach((btn, index) => {
+      buttons.push({
+        element: btn,
+        type: 'ai',
+        index: index,
+        label: `AI Response #${index + 1}`
+      });
+    });
+    
+    userBtns.forEach((btn, index) => {
+      buttons.push({
+        element: btn,
+        type: 'user',
+        index: index,
+        label: `User Input #${index + 1}`
+      });
+    });
+    
+    // Sort by their DOM appearance order (top-down)
+    buttons.sort((a, b) => {
+      const pos = a.element.compareDocumentPosition(b.element);
+      if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+      if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+      return 0;
+    });
+    
+    return buttons.map(b => ({
+      type: b.type,
+      index: b.index,
+      label: b.label
+    }));
+  }
+
   // 3. Web Interaction Implementation
   function writeToInput(text) {
     if (!activeProfile) return false;
@@ -360,6 +399,10 @@
         case "clickCopyButton":
           const text = await clickCopyButton(payload.type, payload.index);
           sendResponse({ status: "success", text });
+          break;
+        case "getCopyButtonsList":
+          const list = getCopyButtonsList();
+          sendResponse({ status: "success", list });
           break;
         case "scanInitialState":
           const state = scanInitialState();
