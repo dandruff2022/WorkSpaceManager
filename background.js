@@ -81,6 +81,7 @@ chromeAPI.runtime.onInstalled.addListener(() => {
     chatgpt: {
       siteName: "ChatGPT",
       domain: "chatgpt.com",
+      newChatUrl: "https://chatgpt.com/",
       selectors: {
         inputSelector: "#prompt-textarea",
         sendButtonSelector: "button[data-testid*=\"send\" i], button[aria-label*=\"send\" i]",
@@ -91,12 +92,14 @@ chromeAPI.runtime.onInstalled.addListener(() => {
         messageTurnSelector: "article, [data-testid^=\"conversation-turn\"]"
       },
       flags: {
-        useEnterFallback: false
+        useEnterFallback: false,
+        postSubmitDelayMs: 0
       }
     },
     claude: {
       siteName: "Claude",
       domain: "claude.ai",
+      newChatUrl: "https://claude.ai/new",
       selectors: {
         inputSelector: "div[contenteditable=\"true\"]",
         sendButtonSelector: "button[aria-label*=\"send\" i], button[data-testid*=\"send\" i], button:has(svg polygon)",
@@ -107,12 +110,14 @@ chromeAPI.runtime.onInstalled.addListener(() => {
         messageTurnSelector: "div.font-claude-message, div[data-testid*=\"message\" i], div.chat-and-document, [class*=\"conversation-turn\" i]"
       },
       flags: {
-        useEnterFallback: true
+        useEnterFallback: true,
+        postSubmitDelayMs: 1500
       }
     },
     gemini: {
       siteName: "Gemini",
       domain: "gemini.google.com",
+      newChatUrl: "https://gemini.google.com/app",
       selectors: {
         inputSelector: "div[contenteditable=\"true\"]",
         sendButtonSelector: "button[aria-label*=\"send\" i], button.send-button",
@@ -123,12 +128,14 @@ chromeAPI.runtime.onInstalled.addListener(() => {
         messageTurnSelector: "div.message-content, div.conversation-turn"
       },
       flags: {
-        useEnterFallback: false
+        useEnterFallback: false,
+        postSubmitDelayMs: 0
       }
     },
     copilot: {
       siteName: "Copilot",
       domain: "copilot.microsoft.com",
+      newChatUrl: "https://copilot.microsoft.com/",
       selectors: {
         inputSelector: "textarea, #searchbar",
         sendButtonSelector: "button[aria-label*=\"submit\" i], button[aria-label*=\"send\" i]",
@@ -139,7 +146,8 @@ chromeAPI.runtime.onInstalled.addListener(() => {
         messageTurnSelector: "div.chat-message, div.message-bubble, div.group\\/ai-message, div.group\\/user-message, [data-testid=\"ai-message\" i], [data-testid=\"user-message\" i]"
       },
       flags: {
-        useEnterFallback: true
+        useEnterFallback: true,
+        postSubmitDelayMs: 0
       }
     }
   };
@@ -321,5 +329,53 @@ chromeAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.action === 'bridgeCommand') {
+    const { tabId, command, payload } = message.payload;
+    ensureContentScript(tabId).then(() => {
+      chromeAPI.tabs.sendMessage(tabId, { action: `bridge_${command}`, payload }, (response) => {
+        if (chromeAPI.runtime.lastError) {
+          sendResponse({ status: "error", error: chromeAPI.runtime.lastError.message });
+        } else {
+          sendResponse(response);
+        }
+      });
+    }).catch(err => {
+      sendResponse({ status: "error", error: err.message });
+    });
+    return true; // Keep channel open
+  }
+
+  // Forward observation state changes back to manager UI
+  if (message.action === 'bridge_state_change') {
+    chromeAPI.runtime.sendMessage(message).catch(() => {});
+    return false;
+  }
+
   return false;
 });
+
+// Dynamic content script loader validation helper
+async function ensureContentScript(tabId) {
+  try {
+    const response = await new Promise((resolve, reject) => {
+      chromeAPI.tabs.sendMessage(tabId, { action: "bridge_ping" }, (res) => {
+        if (chromeAPI.runtime.lastError || !res) {
+          reject(chromeAPI.runtime.lastError);
+        } else {
+          resolve(res);
+        }
+      });
+    });
+    if (response && response.status === "pong") return true;
+  } catch (e) {
+    // Content script not loaded or handshake failed
+  }
+  
+  // Inject scripts dynamically
+  await chromeAPI.scripting.executeScript({
+    target: { tabId },
+    files: ["bridge.js", "content.js"]
+  });
+  console.log(`[Background] Dynamically injected content scripts into tab ${tabId}.`);
+  return true;
+}
