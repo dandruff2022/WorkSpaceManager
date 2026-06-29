@@ -244,3 +244,26 @@ Build the Orchestrator module, the crown jewel of the extension, to coordinate c
 - [ ] **Non-Intrusive Error Recovery** — Build the fallback UX for `@format` parsing failures (e.g., 0 tasks extracted) or limit excesses (>3 tasks). Display a visual warning and highlight the **Redo** and **Continue** buttons.
 - [ ] **Undo / Rollback Actions** — Ensure that triggering `Redo` clears the parent cache to restart, while triggering `Continue` abandons the dispatch, clears pending child caches, and removes staged lines.
 - [ ] **Pattern Validation** — Conduct final end-to-end testing against the three primary workflows defined in the spec: Single-tab skill injection, Two-tab side exploration (with manual merge), and Full orchestration cascading.
+
+---
+
+## Future Goals
+
+### Future Plan 1 — "Get-Help" Code Assistant & Auto-Patching
+
+Extend the Workspace Manager with a contextual developer assistant module that leverages open AI tabs in the background to automatically get coding help and patch files directly in the user's workspace.
+
+#### **Design & Workflow**
+1. **Background Relay Chat**: A chat interface in the extension popup/sidepanel redirects user prompts to active AI tabs (ChatGPT/Claude/Gemini/Copilot) running in the background.
+2. **Context Aggregator**: The extension scans the local workspace file system via the Node/Python sidecar, bundles relevant file contents as code context, and prepends it to the prompt.
+3. **Structured Prompt Format**: Injects strict formatting rules (e.g. asking for unified diffs or JSON blocks) to ensure the AI's response is structured.
+4. **Scraper & Parser**: Scrapes the final AI response, extracts the code diffs, and feeds them to the sidecar.
+5. **Interactive Staging**: Displays a side-by-side Git-style diff in the extension UI, letting the user inspect and approve proposed patches before they are written to disk.
+
+#### **Concerns & Mitigations**
+* **Security Sandboxing (Manifest V3)**: Extension context cannot execute dynamically fetched code (`eval` is blocked).
+  * *Mitigation*: The extension's execution code remains static. It acts only as an orchestrator and UI. All file operations and system-level edits are performed on localhost by the sidecar process, keeping the browser sandbox fully secure.
+* **Parsing Fragility**: LLMs may fail to follow formatting instructions, returning loose explanations or corrupted diffs.
+  * *Mitigation*: Fall back to a fuzzy patch parser, or provide a "Repair Prompt" action that tells the AI exactly which part of its output failed to parse so it can correct itself.
+* **Overwriting Safety**: Direct file writes can cause data loss.
+  * *Mitigation*: Never write directly to disk without user approval. Force a mandatory human-in-the-loop preview step before executing any patch write.
