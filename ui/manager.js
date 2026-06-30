@@ -6,6 +6,7 @@ const chromeAPI = typeof chrome !== 'undefined' ? chrome : (typeof browser !== '
 document.addEventListener('DOMContentLoaded', async () => {
   setupNavigation();
   await setupViewMode();
+  await queryInitialTabStates();
   initializeModules();
 });
 
@@ -201,6 +202,60 @@ function setupDebugModeVisibility() {
       el.classList.remove('debug-hidden');
     } else {
       el.classList.add('debug-hidden');
+    }
+  });
+}
+
+// 4. Global Tab States Cache & Synchronization
+window.__agy_tab_states = {};
+
+const SUPPORTED_DOMAINS = [
+  "chatgpt.com",
+  "claude.ai",
+  "gemini.google.com",
+  "copilot.microsoft.com"
+];
+
+function isSupportedAiTab(tab) {
+  if (!tab.url) return false;
+  try {
+    const url = new URL(tab.url);
+    return SUPPORTED_DOMAINS.some(domain => url.hostname.includes(domain));
+  } catch (e) {
+    return false;
+  }
+}
+
+async function queryInitialTabStates() {
+  if (!chromeAPI || !chromeAPI.tabs) return;
+  try {
+    const tabs = await chromeAPI.tabs.query({});
+    const aiTabs = tabs.filter(isSupportedAiTab);
+    for (const tab of aiTabs) {
+      chromeAPI.runtime.sendMessage({
+        action: "bridgeCommand",
+        payload: { tabId: tab.id, command: "scanInitialState" }
+      }, (res) => {
+        if (res && res.status === "success" && res.state) {
+          window.__agy_tab_states[tab.id] = res.state;
+          console.log(`[Workspace Manager] Initialized state for Tab ${tab.id}: ${res.state}`);
+          document.dispatchEvent(new CustomEvent('agyTabStatesHydrated'));
+        }
+      });
+    }
+  } catch (e) {
+    console.error("Failed to query initial tab states:", e);
+  }
+}
+
+// Listen for real-time state changes globally
+if (chromeAPI && chromeAPI.runtime && chromeAPI.runtime.onMessage) {
+  chromeAPI.runtime.onMessage.addListener((message) => {
+    if (message.action === 'bridge_state_change' && message.payload) {
+      const { tabId, state } = message.payload;
+      window.__agy_tab_states[tabId] = state;
+      console.log(`[Workspace Manager Global] Tab ${tabId} state changed to: ${state}`);
+      document.dispatchEvent(new CustomEvent('agyTabStatesHydrated'));
     }
   });
 }

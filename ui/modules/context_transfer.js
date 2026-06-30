@@ -1,5 +1,5 @@
 // Workspace Manager - Context Transfer Module
-// Handles copying the last AI response from a Source tab and transferring it to a Target tab
+// Handles copying the last AI response from a Complete source tab and transferring it to an Empty target tab
 
 (() => {
   const chromeAPI = typeof chrome !== 'undefined' ? chrome : (typeof browser !== 'undefined' ? browser : null);
@@ -28,6 +28,7 @@
       const sourceSelect = container.querySelector('#select-transfer-source');
       const targetSelect = container.querySelector('#select-transfer-target');
       const executeBtn = container.querySelector('#btn-transfer-execute');
+      const promptTextarea = container.querySelector('#textarea-transfer-prompt');
       const logBox = container.querySelector('#transfer-log');
 
       function log(msg, type = "info") {
@@ -35,11 +36,43 @@
         const prefix = type === "error" ? "❌ " : (type === "success" ? "✅ " : "ℹ️ ");
         const text = `[${time}] ${prefix}${msg}\n`;
         if (logBox) {
-          if (logBox.innerText === "Select tabs and click Execute.") {
+          if (logBox.innerText === "Select valid tabs and click the paper plane to Execute.") {
             logBox.innerText = "";
           }
           logBox.innerText += text;
           logBox.scrollTop = logBox.scrollHeight;
+        }
+      }
+
+      // 1. Hydrate and Persist Transfer Prompt Text
+      if (promptTextarea && chromeAPI && chromeAPI.storage && chromeAPI.storage.local) {
+        chromeAPI.storage.local.get(['transferPromptText'], (data) => {
+          promptTextarea.value = data.transferPromptText || "Here is the previous conversation context:";
+        });
+
+        promptTextarea.addEventListener('input', () => {
+          chromeAPI.storage.local.set({ transferPromptText: promptTextarea.value });
+        });
+      }
+
+      // Update button visual state based on selection validity
+      function updateButtonState() {
+        if (!executeBtn) return;
+        const sourceVal = sourceSelect ? sourceSelect.value : "";
+        const targetVal = targetSelect ? targetSelect.value : "";
+
+        if (sourceVal && targetVal && sourceVal !== targetVal) {
+          executeBtn.disabled = false;
+          executeBtn.style.color = "var(--accent-indigo, #6366f1)";
+          executeBtn.style.borderColor = "var(--accent-indigo, #6366f1)";
+          executeBtn.style.background = "rgba(99, 102, 241, 0.15)";
+          executeBtn.style.cursor = "pointer";
+        } else {
+          executeBtn.disabled = true;
+          executeBtn.style.color = "#64748b";
+          executeBtn.style.borderColor = "var(--border-color)";
+          executeBtn.style.background = "rgba(255,255,255,0.03)";
+          executeBtn.style.cursor = "not-allowed";
         }
       }
 
@@ -48,27 +81,41 @@
         try {
           const allTabs = await chromeAPI.tabs.query({});
           const aiTabs = allTabs.filter(isSupportedAiTab);
+          const tabStates = window.__agy_tab_states || {};
 
-          const populateSelect = (selectEl, defaultText) => {
+          console.log("[ContextTransferModule] Scanning tabs with states cache:", tabStates);
+
+          const populateSelect = (selectEl, defaultText, filterFn) => {
             if (!selectEl) return;
             const currentValue = selectEl.value;
             selectEl.innerHTML = `<option value="">${defaultText}</option>`;
             
             aiTabs.forEach(tab => {
-              const option = document.createElement('option');
-              option.value = tab.id;
-              option.textContent = `${tab.title} (ID: ${tab.id})`;
-              selectEl.appendChild(option);
+              const tabState = tabStates[tab.id] || "empty"; // default to empty if unknown
+              if (filterFn(tabState)) {
+                const option = document.createElement('option');
+                option.value = tab.id;
+                option.textContent = `${tab.title.substring(0, 16)}... (ID: ${tab.id})`;
+                selectEl.appendChild(option);
+              }
             });
 
-            // Maintain previously selected value if still valid
-            if (currentValue && aiTabs.some(t => t.id === parseInt(currentValue, 10))) {
+            // Maintain previously selected value if still present in selection list
+            const hasOption = Array.from(selectEl.options).some(opt => opt.value === currentValue);
+            if (currentValue && hasOption) {
               selectEl.value = currentValue;
+            } else {
+              selectEl.value = "";
             }
           };
 
-          populateSelect(sourceSelect, "Select source chat...");
-          populateSelect(targetSelect, "Select target chat...");
+          // FROM can only be populated from "complete" tabs
+          populateSelect(sourceSelect, "Select complete source...", (state) => state === "complete");
+
+          // TO can only be populated from "empty" or "newchat" tabs
+          populateSelect(targetSelect, "Select empty target...", (state) => state === "empty" || state === "newchat");
+
+          updateButtonState();
         } catch (e) {
           console.error("Failed to query tabs for Context Transfer:", e);
         }
@@ -84,21 +131,23 @@
         chromeAPI.tabs.onActivated.addListener(scanTabs);
       }
 
+      // Listen for global tab state cache hydration events to reactively rebuild dropdowns
+      document.addEventListener('agyTabStatesHydrated', scanTabs);
+
+      if (sourceSelect) sourceSelect.addEventListener('change', updateButtonState);
+      if (targetSelect) targetSelect.addEventListener('change', updateButtonState);
+
       if (executeBtn) {
         executeBtn.addEventListener('click', async () => {
           const sourceId = sourceSelect ? parseInt(sourceSelect.value, 10) : NaN;
           const targetId = targetSelect ? parseInt(targetSelect.value, 10) : NaN;
 
           if (isNaN(sourceId) || isNaN(targetId)) {
-            log("Error: Please select both a Source and a Target tab.", "error");
+            log("Error: Select a Complete source and an Empty target tab first.", "error");
             return;
           }
 
-          if (sourceId === targetId) {
-            log("Error: Source and Target tabs cannot be the same.", "error");
-            return;
-          }
-
+          const prefixPrompt = promptTextarea ? promptTextarea.value.trim() : "";
           log(`Initializing Context Migration from Tab ${sourceId} to Tab ${targetId}...`);
 
           // 1. Get currently active tab in browser window to restore later
@@ -120,35 +169,34 @@
               }, resolve);
             });
 
-            if (!listRes || listRes.status !== "success" || !listRes.list || listRes.list.length === 0) {
-              log("Error: No message responses found in the source tab.", "error");
-              return;
+            const turnsList = listRes.list;
+            log(`Found ${turnsList.length} total message turns to migrate...`);
+
+            let consolidatedText = prefixPrompt ? `${prefixPrompt}\n\n` : "";
+
+            for (let i = 0; i < turnsList.length; i++) {
+              const turn = turnsList[i];
+              log(`Copying Turn ${i + 1}/${turnsList.length} (Type: ${turn.type})...`);
+
+              const copyRes = await new Promise((resolve) => {
+                chromeAPI.runtime.sendMessage({
+                  action: "bridgeCommand",
+                  payload: { tabId: sourceId, command: "clickCopyButton", payload: { type: turn.type, index: turn.index } }
+                }, resolve);
+              });
+
+              if (copyRes && copyRes.status === "success" && copyRes.text) {
+                const prefix = turn.type === "user" ? "user said:\n" : "ai responsed:\n";
+                consolidatedText += `${prefix}${copyRes.text}\n`;
+              } else {
+                log(`Warning: Failed to copy turn ${i + 1}`, "error");
+              }
+
+              // Pause 100ms between program clicks to avoid clipboard locks
+              await new Promise(r => setTimeout(r, 100));
             }
 
-            const aiButtons = listRes.list.filter(btn => btn.type === "ai");
-            if (aiButtons.length === 0) {
-              log("Error: No AI responses found in the source tab to copy.", "error");
-              return;
-            }
-
-            // C. Copy the last AI response (the final AI button index in the page-wide list)
-            const targetBtn = aiButtons[aiButtons.length - 1];
-            log(`Copying final AI response (Page Button Index: ${targetBtn.index})...`);
-
-            const copyRes = await new Promise((resolve) => {
-              chromeAPI.runtime.sendMessage({
-                action: "bridgeCommand",
-                payload: { tabId: sourceId, command: "clickCopyButton", payload: { type: "ai", index: targetBtn.index } }
-              }, resolve);
-            });
-
-            if (!copyRes || copyRes.status !== "success" || !copyRes.text) {
-              log("Error: Failed to copy the last AI response text.", "error");
-              return;
-            }
-
-            const copiedText = copyRes.text;
-            log(`Copied ${copiedText.length} characters successfully.`, "success");
+            log(`Reconstructed conversation history successfully (${consolidatedText.length} chars).`, "success");
 
             // D. Switch focus to the TARGET tab to write text
             log(`Activating Target Tab ${targetId}...`);
@@ -160,14 +208,28 @@
             const writeRes = await new Promise((resolve) => {
               chromeAPI.runtime.sendMessage({
                 action: "bridgeCommand",
-                payload: { tabId: targetId, command: "writeToInput", payload: { text: copiedText } }
+                payload: { tabId: targetId, command: "writeToInput", payload: { text: consolidatedText } }
               }, resolve);
             });
 
             if (writeRes && writeRes.status === "success") {
-              log("Context transfer completed successfully.", "success");
+              log("Input hydrated. Submitting prompt...", "success");
+
+              // F. Send clickSend message to submit in target tab
+              const sendRes = await new Promise((resolve) => {
+                chromeAPI.runtime.sendMessage({
+                  action: "bridgeCommand",
+                  payload: { tabId: targetId, command: "clickSend" }
+                }, resolve);
+              });
+
+              if (sendRes && sendRes.status === "success") {
+                log("Context transfer completed and sent successfully.", "success");
+              } else {
+                log("Warning: Failed to trigger submit in target tab.", "error");
+              }
             } else {
-              log("Error: Failed to write copied text into the target tab input.", "error");
+              log("Error: Failed to write copied text into target tab input.", "error");
             }
 
           } catch (err) {

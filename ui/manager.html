@@ -135,23 +135,39 @@
         <div class="view-body">
           <div class="debug-card">
             <h3>Context Migration</h3>
-            <p class="card-desc">Transfer final message from a Source tab to a Target tab (Strict AI domains only).</p>
-            <div class="dbg-control-row dbg-col">
-              <label for="select-transfer-source" style="font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">Source Chat (From)</label>
-              <select id="select-transfer-source" class="dbg-select" style="width: 100%; margin-bottom: 12px;">
-                <option value="">Scan tabs first...</option>
-              </select>
+            <p class="card-desc">Transfer final message from a Complete source tab to an Empty target tab.</p>
+            
+            <!-- Side-by-Side Selector Layout with Center Paper Plane Button -->
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-top: 15px; margin-bottom: 15px;">
+              <div style="flex: 1; display: flex; flex-direction: column;">
+                <label for="select-transfer-source" style="font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: var(--accent-indigo, #6366f1); text-transform: uppercase; margin-bottom: 6px;">FROM (Complete)</label>
+                <select id="select-transfer-source" class="dbg-select" style="width: 100%;">
+                  <option value="">No complete chats...</option>
+                </select>
+              </div>
+              
+              <button id="btn-transfer-execute" class="dbg-btn" style="flex-shrink: 0; width: 42px; height: 42px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); color: #64748b; cursor: not-allowed; transition: all 0.3s ease; margin-top: 18px;" disabled>
+                <svg style="width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+              </button>
+              
+              <div style="flex: 1; display: flex; flex-direction: column;">
+                <label for="select-transfer-target" style="font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: var(--accent-purple, #a855f7); text-transform: uppercase; margin-bottom: 6px;">TO (Empty)</label>
+                <select id="select-transfer-target" class="dbg-select" style="width: 100%;">
+                  <option value="">No empty chats...</option>
+                </select>
+              </div>
             </div>
-            <div class="dbg-control-row dbg-col">
-              <label for="select-transfer-target" style="font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">Target Chat (To)</label>
-              <select id="select-transfer-target" class="dbg-select" style="width: 100%; margin-bottom: 12px;">
-                <option value="">Scan tabs first...</option>
-              </select>
+
+            <!-- Transfer Prompt Prefix (Save-on-Edit) -->
+            <div class="dbg-control-row dbg-col" style="margin-top: 15px;">
+              <label for="textarea-transfer-prompt" style="font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Transfer Prompt Prefix</label>
+              <textarea id="textarea-transfer-prompt" class="dbg-text-input" style="width: 100%; height: 60px; resize: none; border-radius: 6px; padding: 8px; font-family: inherit; font-size: 12px;" placeholder="Edits automatically save to storage..."></textarea>
             </div>
-            <div class="dbg-control-row">
-              <button id="btn-transfer-execute" class="dbg-btn" style="width: 100%; background-color: var(--accent-indigo);">Execute Transfer</button>
-            </div>
-            <div id="transfer-log" class="dbg-preview-box" style="margin-top: 15px; font-family: monospace; font-size: 11px; padding: 10px; max-height: 120px; overflow-y: auto;">Select tabs and click Execute.</div>
+
+            <div id="transfer-log" class="dbg-preview-box" style="margin-top: 15px; font-family: monospace; font-size: 11px; padding: 10px; max-height: 120px; overflow-y: auto;">Select valid tabs and click the paper plane to Execute.</div>
           </div>
         </div>
       </section>
