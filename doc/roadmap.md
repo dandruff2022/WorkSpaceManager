@@ -267,3 +267,20 @@ Extend the Workspace Manager with a contextual developer assistant module that l
   * *Mitigation*: Fall back to a fuzzy patch parser, or provide a "Repair Prompt" action that tells the AI exactly which part of its output failed to parse so it can correct itself.
 * **Overwriting Safety**: Direct file writes can cause data loss.
   * *Mitigation*: Never write directly to disk without user approval. Force a mandatory human-in-the-loop preview step before executing any patch write.
+
+### Future Plan 2 — Global Split-Pane Canvas Integration
+
+Unify the spatial concept of AI tab nodes by turning the Orchestrator graph canvas into a persistent split-pane sidebar visible across all primary tabs (Broadcast, Context Transfer, Orchestrator).
+
+#### **Design & Workflow**
+1. **Persistent Left Panel**: A persistent vertical column displaying the open tabs as active node boxes with color-coded generation states.
+2. **Context-Sensitive Actions**:
+   * **In Broadcast**: Nodes show checkbox overlays. Clicking a node selects it for prompt dispatch.
+   * **In Context Transfer**: Supports dragging connection lines from one node (Source) to another (Target) to execute context transfers.
+   * **In Orchestrator**: Expands to full canvas showing cascading execution trees.
+
+#### **Concerns & Mitigations**
+* **Popup Real Estate Constraints**: The Chrome popup has a strict 800px width limit.
+  * *Mitigation*: Use a clean 30:70 split pane layout, keeping the canvas narrow and focused on node boxes, reserving the wide pane for prompt editors.
+* **Modal Context Confusion**: Multi-use gestures (clicking vs dragging) can confuse users.
+  * *Mitigation*: Dynamically change node visual indicators (checkboxes vs connector handles) based on the active tab header.
