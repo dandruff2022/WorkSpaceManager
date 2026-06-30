@@ -27,6 +27,7 @@
 
       const observersContainer = container.querySelector('#orch-observers-container');
       let observedTabs = new Set();
+      let tabStatesCache = {}; // Cache to retain states when pills are cleared/recreated
 
       function getStatusClass(state) {
         switch (state) {
@@ -44,7 +45,7 @@
           case 'working': return 'Generating...';
           case 'complete':
           case 'idle': return 'Observing (Idle)';
-          default: return 'Inactive';
+          default: return 'Initializing';
         }
       }
 
@@ -62,6 +63,9 @@
             }
 
             aiTabs.forEach(tab => {
+              const cachedState = tabStatesCache[tab.id];
+              console.log(`[OrchestratorModule] Rendering Tab ${tab.id} pill. Cached state: ${cachedState || 'none'}`);
+
               // Create status pill for each tab
               const pill = document.createElement('div');
               pill.id = `orch-observer-tab-${tab.id}`;
@@ -75,14 +79,14 @@
               pill.style.gap = '8px';
 
               const dot = document.createElement('div');
-              dot.className = 'traffic-light light-inactive';
+              dot.className = `traffic-light ${getStatusClass(cachedState)}`;
               dot.id = `orch-light-${tab.id}`;
 
               const label = document.createElement('span');
               label.id = `orch-text-${tab.id}`;
               label.style.fontSize = '11px';
               label.style.fontWeight = '500';
-              label.textContent = `${tab.title.substring(0, 16)}... (ID: ${tab.id}) - Initializing`;
+              label.textContent = `${tab.title.substring(0, 16)}... (ID: ${tab.id}) - ${getStatusText(cachedState)}`;
 
               pill.appendChild(dot);
               pill.appendChild(label);
@@ -91,14 +95,15 @@
               // Register observeGenerationState in the background tab (JIT is handled automatically by background Command forwarder)
               if (!observedTabs.has(tab.id)) {
                 observedTabs.add(tab.id);
+                console.log(`[OrchestratorModule] Requesting MutationObserver for Tab ${tab.id}...`);
                 chromeAPI.runtime.sendMessage({
                   action: "bridgeCommand",
                   payload: { tabId: tab.id, command: "observeGenerationState" }
                 }, (res) => {
                   if (res && res.status === "success") {
-                    console.log(`[Orchestrator] MutationObserver registered on tab ${tab.id}`);
+                    console.log(`[OrchestratorModule] MutationObserver registration success for Tab ${tab.id}`);
                   } else {
-                    console.warn(`[Orchestrator] Failed to register MutationObserver on tab ${tab.id}`);
+                    console.warn(`[OrchestratorModule] Failed to register MutationObserver on Tab ${tab.id}`);
                   }
                 });
               }
@@ -117,6 +122,7 @@
         chromeAPI.tabs.onUpdated.addListener(initializeTabObservers);
         chromeAPI.tabs.onRemoved.addListener((tabId) => {
           observedTabs.delete(tabId);
+          delete tabStatesCache[tabId];
           initializeTabObservers();
         });
         chromeAPI.tabs.onActivated.addListener(initializeTabObservers);
@@ -127,7 +133,10 @@
         chromeAPI.runtime.onMessage.addListener((message) => {
           if (message.action === 'bridge_state_change' && message.payload) {
             const { tabId, state } = message.payload;
-            console.log(`[Orchestrator] Received state update for Tab ${tabId}: ${state}`);
+            console.log(`[OrchestratorModule] Received state broadcast for Tab ${tabId}: ${state}`);
+
+            // Cache the state immediately so it survives redraws
+            tabStatesCache[tabId] = state;
 
             const dot = container.querySelector(`#orch-light-${tabId}`);
             const textEl = container.querySelector(`#orch-text-${tabId}`);
