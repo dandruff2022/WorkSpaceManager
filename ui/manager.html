@@ -129,22 +129,29 @@
             <h1 class="view-title">Context Transfer</h1>
             <p class="view-description">Migrate conversation history seamlessly from one AI chatbot tab to another.</p>
           </div>
-          <span class="badge badge-indigo">Phase 3</span>
+          <span class="badge badge-indigo">Phase 1.4 Active</span>
         </div>
 
         <div class="view-body">
-          <div class="placeholder-card">
-            <div class="placeholder-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
-                <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
-              </svg>
+          <div class="debug-card">
+            <h3>Context Migration</h3>
+            <p class="card-desc">Transfer final message from a Source tab to a Target tab (Strict AI domains only).</p>
+            <div class="dbg-control-row dbg-col">
+              <label for="select-transfer-source" style="font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">Source Chat (From)</label>
+              <select id="select-transfer-source" class="dbg-select" style="width: 100%; margin-bottom: 12px;">
+                <option value="">Scan tabs first...</option>
+              </select>
             </div>
-            <h3>Context Transfer Interface</h3>
-            <p>Here you will be able to select source and target active tabs and automate full text and state extraction. Integration starts in Phase 3.</p>
-            <div class="mock-control-row">
-              <span class="mock-btn">Configure Selectors</span>
+            <div class="dbg-control-row dbg-col">
+              <label for="select-transfer-target" style="font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">Target Chat (To)</label>
+              <select id="select-transfer-target" class="dbg-select" style="width: 100%; margin-bottom: 12px;">
+                <option value="">Scan tabs first...</option>
+              </select>
             </div>
+            <div class="dbg-control-row">
+              <button id="btn-transfer-execute" class="dbg-btn" style="width: 100%; background-color: var(--accent-indigo);">Execute Transfer</button>
+            </div>
+            <div id="transfer-log" class="dbg-preview-box" style="margin-top: 15px; font-family: monospace; font-size: 11px; padding: 10px; max-height: 120px; overflow-y: auto;">Select tabs and click Execute.</div>
           </div>
         </div>
       </section>
@@ -156,23 +163,31 @@
             <h1 class="view-title">Broadcast</h1>
             <p class="view-description">Send identical prompts to multiple tabs simultaneously for comparison or parallel execution.</p>
           </div>
-          <span class="badge badge-purple">Phase 3</span>
+          <span class="badge badge-purple">Phase 1.4 Active</span>
         </div>
 
         <div class="view-body">
-          <div class="placeholder-card">
-            <div class="placeholder-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
-                <line x1="12" x2="12" y1="19" y2="22"></line>
-              </svg>
+          <div class="debug-card">
+            <h3>Multi-Tab Broadcast</h3>
+            <p class="card-desc">Select target tabs to receive the prompt simultaneously.</p>
+            
+            <div class="dbg-control-row dbg-col">
+              <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">Select Target AI Tabs</label>
+              <div id="broadcast-tabs-list" style="max-height: 120px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 6px; background: rgba(0,0,0,0.15); margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
+                <div style="color: var(--text-muted); font-size: 12px;">Loading active tabs...</div>
+              </div>
             </div>
-            <h3>Multi-Tab Broadcast Controls</h3>
-            <p>Write your prompt, select your target LLM instances, and trigger instant concurrent execution. Integration starts in Phase 3.</p>
-            <div class="mock-control-row">
-              <span class="mock-btn">Select Targets</span>
+
+            <div class="dbg-control-row dbg-col">
+              <label for="textarea-broadcast-prompt" style="font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">Prompt Text</label>
+              <textarea id="textarea-broadcast-prompt" class="dbg-text-input" style="width: 100%; height: 90px; resize: none; border-radius: 6px; padding: 10px; font-family: inherit; font-size: 13px;" placeholder="Type prompt to broadcast..."></textarea>
             </div>
+
+            <div class="dbg-control-row" style="margin-top: 10px;">
+              <button id="btn-broadcast-submit" class="dbg-btn" style="width: 100%; background-color: var(--accent-teal);">Broadcast Prompt</button>
+            </div>
+
+            <div id="broadcast-log" class="dbg-preview-box" style="margin-top: 15px; font-family: monospace; font-size: 11px; padding: 10px; max-height: 120px; overflow-y: auto;">Select targets and type a prompt to start.</div>
           </div>
         </div>
       </section>
@@ -184,23 +199,41 @@
             <h1 class="view-title">Orchestrator</h1>
             <p class="view-description">Manage multi-agent workflows visually via an ephemeral tab-mapping node tree.</p>
           </div>
-          <span class="badge badge-blue">Phase 4</span>
+          <span class="badge badge-blue">Phase 1.4 Active</span>
         </div>
 
         <div class="view-body">
-          <div class="placeholder-card">
-            <div class="placeholder-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="3" y="3" width="7" height="9" rx="1"></rect>
-                <rect x="14" y="3" width="7" height="5" rx="1"></rect>
-                <rect x="14" y="12" width="7" height="9" rx="1"></rect>
-                <rect x="3" y="16" width="7" height="5" rx="1"></rect>
-              </svg>
+          <div style="display: flex; flex-direction: column; gap: 15px;">
+            <!-- Live Active Tab Status Panel -->
+            <div class="debug-card" style="padding: 12px;">
+              <h4 style="margin: 0 0 8px 0; font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Live Tab Observers</h4>
+              <div id="orch-observers-container" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <div style="font-size: 11px; color: var(--text-muted);">No active observers. Scan tabs to mount observers.</div>
+              </div>
             </div>
-            <h3>Visual Workflow Graph</h3>
-            <p>Map tabs 1:1, spawn children via task dispatches, and merge responses back up to your parent node. Build begins in Phase 4.</p>
-            <div class="mock-control-row">
-              <span class="mock-btn">Open Graph Canvas</span>
+
+            <!-- Scrollable Node Graph Canvas Placeholder -->
+            <div class="orch-canvas-wrapper" style="position: relative; height: 200px; border: 1px dashed var(--border-color); border-radius: 8px; background: rgba(0,0,0,0.2); overflow: hidden;">
+              <!-- Graph Node 1 (Disabled) -->
+              <div class="graph-node-placeholder" style="position: absolute; top: 20px; left: 20px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: var(--text-muted); opacity: 0.5; padding: 8px; border-radius: 6px; width: 130px; cursor: not-allowed;">
+                <div class="drag-handle" style="height: 5px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-bottom: 6px;"></div>
+                <div style="font-size: 10px; font-weight: bold;">ChatGPT Node (AI)</div>
+                <div style="font-size: 8px; margin-top: 3px;">State: Complete</div>
+                <div class="anchor-right" style="position: absolute; right: -3px; top: 50%; width: 6px; height: 6px; border-radius: 50%; background: var(--border-color);"></div>
+              </div>
+
+              <!-- Graph Node 2 (Disabled) -->
+              <div class="graph-node-placeholder" style="position: absolute; top: 90px; left: 190px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: var(--text-muted); opacity: 0.5; padding: 8px; border-radius: 6px; width: 130px; cursor: not-allowed;">
+                <div class="drag-handle" style="height: 5px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-bottom: 6px;"></div>
+                <div style="font-size: 10px; font-weight: bold;">Claude Node (AI)</div>
+                <div style="font-size: 8px; margin-top: 3px;">State: Empty</div>
+                <div class="anchor-left" style="position: absolute; left: -3px; top: 50%; width: 6px; height: 6px; border-radius: 50%; background: var(--border-color);"></div>
+              </div>
+
+              <!-- Visual Connections Background Layer -->
+              <svg style="position: absolute; width: 100%; height: 100%; pointer-events: none;">
+                <path d="M 150 45 C 170 45, 175 110, 190 110" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1.5" stroke-dasharray="3 3" />
+              </svg>
             </div>
           </div>
         </div>
@@ -213,21 +246,30 @@
             <h1 class="view-title">Skills Registry</h1>
             <p class="view-description">Manage system prompts and automation keyword macros for quick insertion.</p>
           </div>
-          <span class="badge badge-teal">Phase 2</span>
+          <span class="badge badge-teal">Phase 2 Placeholder</span>
         </div>
 
         <div class="view-body">
-          <div class="placeholder-card">
-            <div class="placeholder-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-              </svg>
-            </div>
+          <div class="debug-card">
             <h3>Prompt Macro Library</h3>
-            <p>Customize skills like <code>@redo</code>, <code>@breakdown</code>, or create custom prompts like <code>@summarize</code>. UI assembly starts in Phase 2.</p>
-            <div class="mock-control-row">
-              <span class="mock-btn">Add Custom Skill</span>
+            <p class="card-desc">System prompts and macro configs. All actions are disabled placeholders (Phase 2 build).</p>
+            <div style="display: flex; flex-direction: column; gap: 8px; opacity: 0.5;">
+              <div style="display: flex; justify-content: space-between; padding: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 6px; align-items: center;">
+                <div>
+                  <strong style="font-size: 12px; color: var(--text-color);">@redo</strong>
+                  <div style="font-size: 10px; color: var(--text-muted);">Re-executes the last prompt with alternate guidelines.</div>
+                </div>
+                <button class="dbg-btn" style="padding: 4px 8px; font-size: 10px; opacity: 0.5; cursor: not-allowed;" disabled>Edit</button>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 6px; align-items: center;">
+                <div>
+                  <strong style="font-size: 12px; color: var(--text-color);">@breakdown</strong>
+                  <div style="font-size: 10px; color: var(--text-muted);">Breaks down a complex user prompt into modular sub-tasks.</div>
+                </div>
+                <button class="dbg-btn" style="padding: 4px 8px; font-size: 10px; opacity: 0.5; cursor: not-allowed;" disabled>Edit</button>
+              </div>
             </div>
+            <button class="dbg-btn" style="width: 100%; margin-top: 15px; opacity: 0.5; cursor: not-allowed;" disabled>Add Custom Skill</button>
           </div>
         </div>
       </section>
@@ -239,21 +281,26 @@
             <h1 class="view-title">Connection & Selector Setup</h1>
             <p class="view-description">Map webpage elements and configure active browser tab connections.</p>
           </div>
-          <span class="badge badge-rose">Phase 2</span>
+          <span class="badge badge-rose">Phase 1.4 Active</span>
         </div>
 
         <div class="view-body">
-          <div class="placeholder-card">
-            <div class="placeholder-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
-                <line x1="12" y1="2" x2="12" y2="12"></line>
-              </svg>
+          <div class="debug-card">
+            <h3>Registry of Supported Platforms</h3>
+            <p class="card-desc">The following four platforms are supported natively out-of-the-box:</p>
+            <div style="display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap;">
+              <span class="dbg-status-badge success" style="padding: 4px 8px;">ChatGPT (Connected)</span>
+              <span class="dbg-status-badge success" style="padding: 4px 8px;">Claude (Connected)</span>
+              <span class="dbg-status-badge success" style="padding: 4px 8px;">Gemini (Connected)</span>
+              <span class="dbg-status-badge success" style="padding: 4px 8px;">Copilot (Connected)</span>
             </div>
-            <h3>Website Connection Manager</h3>
-            <p>Map Input textareas, Send buttons, and Copy actions using the visual picker or raw CSS selectors. System setup begins in Phase 1 & 2.</p>
-            <div class="mock-control-row">
-              <span class="mock-btn">New Site Connection</span>
+
+            <h3 style="margin-top: 20px;">Validate Profile JSON</h3>
+            <p class="card-desc">Paste selector profile JSON structure here to validate schema fields.</p>
+            <textarea id="textarea-profile-import" class="dbg-text-input" style="width: 100%; height: 90px; font-family: monospace; font-size: 11px; resize: none; margin-bottom: 10px;" placeholder='{ "siteName": "CustomSite", "selectors": { "inputSelector": "..." } }'></textarea>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <button id="btn-validate-profile" class="dbg-btn" style="background-color: var(--accent-rose);">Validate JSON Format</button>
+              <span id="profile-validation-badge" class="dbg-status-badge"></span>
             </div>
           </div>
         </div>

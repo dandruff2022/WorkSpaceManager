@@ -347,6 +347,10 @@ chromeAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Forward observation state changes back to manager UI
   if (message.action === 'bridge_state_change') {
+    if (sender && sender.tab) {
+      message.payload = message.payload || {};
+      message.payload.tabId = sender.tab.id;
+    }
     chromeAPI.runtime.sendMessage(message).catch(() => {});
     return false;
   }

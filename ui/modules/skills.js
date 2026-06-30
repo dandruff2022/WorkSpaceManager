@@ -1,11 +1,10 @@
 // Workspace Manager - Skills Registry Module
-// Manages quick system prompts keyword macro registry
+// Manages system prompts and automation keyword macros (Phase 2 Placeholder)
 
 (() => {
   window.SkillsModule = {
     init(container) {
-      console.log("[SkillsModule] Initializing Skills UI elements...");
-      // Placeholder initialization (to be implemented in Phase 2)
+      console.log("[SkillsModule] Initializing Skills Registry UI (Phase 2 Placeholder)...");
     }
   };
 })();
