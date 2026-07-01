@@ -119,21 +119,35 @@ The `SkillsRegistry` manages all system-default and user-defined prompt template
 
 ## 3. Ephemeral Orchestrator Node Graph & Connection State
 
-This section describes how we track open AI browser tabs (Connection State) and coordinate them as a visual graph hierarchy (Orchestrator Node Graph).
+This section describes how we dynamically discover open AI browser tabs via domain whitelisting (Connection State) and coordinate them as an in-memory visual hierarchy (Orchestrator Node Graph).
 
 ```
 +-------------------------------------------------------------------------------+
 |                            OrchestratorNodeRegistry                           |
 +-------------------------------------------------------------------------------+
-|  - sessionConnectedTabs: Set<TabId>   --> In-memory checked tabs              |
-|  - openAiTabs: Map<TabId, OrchestratorNode>                                    |
+|  - nodes: Map<TabId, OrchestratorNode>                                        |
+|  - edges: Map<EdgeId, OrchestratorEdge>                                       |
+|  - activeTabId: TabId | null                                                  |
 +-------------------------------------------------------------------------------+
-|  + syncWithBrowserTabs(): Promise     --> Scans browser via tabs.query        |
-|  + toggleTabConnection(id, state)     --> Checks/unchecks tab in session list |
-|  + isTabConnected(id): boolean        --> Verifies if tab is active           |
-|  + getConnectedTabs(): TabObject[]    --> Feeds target lists (e.g. Broadcast) |
-|  + getOpenAiTabs(): TabObject[]       --> Lists tabs for Connection Checklist |
-|  + handleTabRemoved(id)               --> Automatic cleanup on close          |
+|  /* --- Public API (External Access) --- */                                   |
+|  + load(): Promise<void>              --> Init scan of all browser windows    |
+|  + getNodes(): OrchestratorNode[]     --> Lists all active discovered nodes   |
+|  + getEdges(): OrchestratorEdge[]     --> Lists all current graph edges       |
+|  + getNode(tabId): OrchestratorNode   --> Returns single node details         |
+|  + addEdge(sourceId, targetId, state) --> Creates a staged/active connection  |
+|  + removeEdge(sourceId, targetId)     --> Removes a specific edge             |
+|  + updateNodeState(tabId, state)      --> Updates execution status            |
+|  + updateNodeEditorCache(tabId, text) --> Saves draft editor content          |
+|  + selectNode(tabId): Promise<void>   --> Focuses tab in browser window       |
+|  + clearGraph(): void                 --> Resets graph to flat initial state  |
+|                                                                               |
+|  /* --- Internal State & Lifecycle Event Handlers --- */                       |
+|  - handleTabCreated(tab): void        --> Auto-detects & mounts matching tab  |
+|  - handleTabUpdated(tabId, info, tab) --> Checks URL changes (mount/dismount) |
+|  - handleTabRemoved(tabId): void      --> Cleans node & breaks attached edges |
+|  - handleTabActivated(info): void     --> Syncs selected node status on switch|
+|  - autoFilterTab(tab): boolean        --> Queries SiteProfilesRegistry match  |
+|  - breakAllConnectedEdges(tabId): void--> Helper to scrub edges on node reset |
 +-------------------------------------------------------------------------------+
 ```
 
@@ -143,19 +157,30 @@ This section describes how we track open AI browser tabs (Connection State) and 
 ### 3.2 Data Structure Design: Node Graph Registry (`OrchestratorNodeRegistry`)
 * **OrchestratorNode Schema**:
   * `tabId` (number): Mapping 1:1 to the browser tab ID.
-  * `parentId` (number|null): ID of parent node.
+  * `url` (string): Active URL of the tab.
+  * `title` (string): Visual tab title.
+  * `parentId` (number|null): Link to parent node.
   * `executionState` (string): `"empty"`, `"working"`, `"complete"`, or `"waiting"`.
   * `editorCache` (string): Current text draft buffer.
-* **Storage Location**: **In-memory only** (ephemeral popup state). The node connections and active checklists reset when the manager popup is closed or the side panel reloads.
-* **Access Methods**:
-  * `async syncWithBrowserTabs()`: Queries open tabs via browser APIs and populates the `openAiTabs` map.
-  * `toggleTabConnection(tabId, isConnected)`: Adds or removes `tabId` from the `sessionConnectedTabs` Set.
-  * `isTabConnected(tabId)`: Returns if the tab is checked/connected.
-  * `getConnectedTabs()`: Returns open tabs that are checked.
-  * `getOpenAiTabs()`: Returns all open tabs matching registered domains.
-  * `handleTabRemoved(tabId)`: Cleans up node connections and removes `tabId` from session sets when a tab is closed.
+* **OrchestratorEdge Schema**:
+  * `id` (string): Unique identifier (e.g. `"sourceId-targetId"`).
+  * `sourceId` (number): ID of the source node.
+  * `targetId` (number): ID of the target node.
+  * `state` (string): `"staged"`, `"active"`, or `"dimmed"`.
+* **Storage Location**: **In-memory only** (ephemeral popup state). The node connections, active editor caches, parent-child hierarchies, and edges reset when the manager popup/side panel is closed or reloaded.
+* **Auto-Discovery via SiteProfilesRegistry**:
+  * The checklist is deprecated. Discoverability is fully automated by checking tab URLs against the configured profiles database.
+  * A tab is automatically registered as a graph node if `SiteProfilesRegistry.getProfileForUrl(tab.url)` returns a valid profile. This allows newly added custom user platforms to be dynamically recognized.
+* **Lifecycle State Transitions**:
+  * **Load/Initialization**: `load()` queries browser tabs via `chrome.tabs.query()`. If a tab URL matches a profile in `SiteProfilesRegistry`, it is instantiated as an `OrchestratorNode`.
+  * **Tab Created**: `handleTabCreated()` intercepts new tabs. If the URL matches a registered profile, it mounts the tab as a new independent node.
+  * **Tab Updated**: `handleTabUpdated()` checks if a tab's URL redirected. If a non-AI tab redirects to a profile-matched domain, it mounts a node. If a matched tab redirects away, it dismounts the node.
+  * **Tab Removed**: `handleTabRemoved()` runs on tab closure. It purges the node, calls `breakAllConnectedEdges()` to remove any associated edges, and triggers a graph layout refresh.
+  * **Tab Activated**: `handleTabActivated()` keeps graph selection in sync when users switch tabs inside the browser window.
 
 ### 3.3 How Node Graph States Are Used
-1. **Connection Checklist UI**: The checklist UI in the Connection panel queries the Orchestrator's `getOpenAiTabs()` and binds toggles to `toggleTabConnection(tabId, state)`.
-2. **Tab Lifecycle Listeners**: We hook `chrome.tabs.onRemoved` to run `OrchestratorNodeRegistry.handleTabRemoved(tabId)` so disconnected/closed tabs are scrubbed from the active node graph and connection set.
-3. **Workflow Targeting**: Broadcast and Context Transfer query `OrchestratorNodeRegistry.getConnectedTabs()` to target only the checked tabs.
+1. **Dynamic Visualization Graph**: The main navigation canvas queries `getNodes()` and `getEdges()` to draw the tree layout. Node selections and key clicks trigger `selectNode(tabId)` to focus the active tab.
+2. **Orchestrator Workflow Actions**: 
+  * **Dispatch**: Matches the parsed output of `%format` against `Empty` nodes, drawing `staged` (dotted) parent-to-child edges and setting `parentId` connections.
+  * **Merge**: Clicking Merge on a child copies the AI output, prepends `%merge`, appends it to the parent node's `editorCache`, and reverses the edge direction.
+3. **Tab Event Synchronization**: Event listeners bind browser-level events (`chrome.tabs.onUpdated`, `chrome.tabs.onRemoved`, `chrome.tabs.onActivated`) directly to the registry's internal event handlers to keep popup states in sync with browser reality.
