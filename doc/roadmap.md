@@ -99,7 +99,7 @@ Implement a shared module (`bridge.js`) exposing typed, reusable functions. Ever
 | `tabs.onUpdated` | Orchestrator, Connection | Detects tab title changes (for node label sync) and URL changes (delegated to `observeNavigation`). |
 | `tabs.sendMessage()` / `runtime.sendMessage()` | All modules | Message bus between background script, content scripts, and the detached window. All automation calls are routed through here. |
 | `runtime.onMessage` | Background script | Central dispatcher: receives action requests from the manager UI (window/panel), routes them to the correct content script in the correct tab. |
-| `storage.local.get/set` | Connection, Skills, Context Transfer | Persists site profiles, user preferences (including preferred view mode: window vs side panel), custom skills, and the saved Transfer Prompt. |
+| `storage.local.get/set` | Connection, Skills | Persists site profiles, user preferences (including preferred view mode: window vs side panel), and custom/system skills (such as the `@transfer` prompt template). |
 | `windows.create()` / `windows.update()` / `sidebarAction` | Phase 0.5 (already done) | Opens/focuses the detached window or opens/toggles the side panel on the right. |
 | `scripting.executeScript()` | All modules | Dynamically injects content scripts into a target tab on demand when automation is needed. |
 | `ensureContentScript(tabId)` | All modules | Pings the target tab to verify the content script is active; dynamically injects `content.js` using `scripting.executeScript()` if the handshake fails. |
@@ -147,15 +147,11 @@ Design and implement the logic for managing application state using the availabl
   - **Structure**: A forest of strict trees where each node maps 1:1 to an active AI tab. Nodes track `tabId`, `parentId`, `executionState` (Empty, Working, Complete, Waiting), and an independent `editorCache` string. Edges track visual flow states (Staged, Active, Dimmed).
   - **Lifecycle & Management**: Completely ephemeral in-memory state. Rebuilt from `tabs.query` on window open. Managed bidirectionally: switching browser tabs updates the active node, and clicking a node switches the browser tab. Edges never break automatically on send; they only sever when a tab is closed or a node transitions to `Empty` via a "New Chat" action.
 - [ ] **Persistent Skills Registry**
-  - **Structure**: A dictionary mapping `@keywords` to prompt templates, segmented into read-only System skills (e.g., `@redo`, `@format`) and mutable Custom user skills.
+  - **Structure**: A dictionary mapping `@keywords` to prompt templates, segmented into read-only System skills (e.g., `@redo`, `@format`, `@transfer`) and mutable Custom user skills.
   - **Lifecycle & Management**: Persisted in `storage.local`. System skills are bootstrapped on install/update. Custom skills undergo CRUD operations through the UI and are immediately synced to local storage to persist across extension restarts.
 - [ ] **Site Profiles & Connection State**
   - **Structure**: **Site Profiles** persist DOM element selectors (Input, Send, New Chat, Copy buttons) and fallback flags (e.g., Enter key simulation). **Active Connections** is an in-memory list tracking which open browser tabs match these profiles and whether the user has toggled them "on" for the current session.
   - **Lifecycle & Management**: Site profiles persist in `storage.local` and are imported/updated via JSON config files. The Active Connections list is dynamically synchronized in real-time with browser events (`tabs.onCreated`, `tabs.onRemoved`, `tabs.onUpdated`).
-- [ ] **Module-Specific Drafts & Configurations**
-  - **Structure & Management**:
-    - **Context Transfer**: The overarching *Transfer Prompt* buffer is saved on-edit to `storage.local` to survive closures. The "From" / "To" active selections are ephemeral memory states.
-    - **Broadcast**: The *Broadcast Prompt* is saved on-edit to `storage.local`. The selected checklist of target tabs is ephemeral memory state, strictly validated against the Active Connections Registry before dispatch.
 
 ### Milestone 2.2 — Skills Module UI
 
@@ -284,3 +280,22 @@ Unify the spatial concept of AI tab nodes by turning the Orchestrator graph canv
   * *Mitigation*: Use a clean 30:70 split pane layout, keeping the canvas narrow and focused on node boxes, reserving the wide pane for prompt editors.
 * **Modal Context Confusion**: Multi-use gestures (clicking vs dragging) can confuse users.
   * *Mitigation*: Dynamically change node visual indicators (checkboxes vs connector handles) based on the active tab header.
+
+### Future Plan 3 — Notebook & Automate
+ 
+Implement a persistent notebook view within the extension workspace to compile research, draft documents, and compose complex, repeatable multi-step automation scripts.
+ 
+#### **Design & Workflow**
+1. **Persistent Notebook Structure**: Displays a sidebar directory of notebooks with editable Markdown content, persisted locally in storage.
+2. **AI-Assisted Notebooks**:
+   * **Chat Integration**: Let users chat with an AI tab directly using the active notebook page as context.
+   * **Skill Macro Execution**: Trigger quick-action skills (like summarizing, outlining, or formatting) directly on selected notebook text.
+3. **Persistent Automation Scripts**:
+   * Allow users to convert notebook pages into automation recipes/runbooks.
+   * Define chained sequences (e.g., "Run prompt A on Claude -> copy output -> insert prefix -> run prompt B on Gemini -> append back to notebook").
+ 
+#### **Concerns & Mitigations**
+* **Complexity & Feature Creep**: Building a full markdown editor and script executor inside a browser popup is non-core and raises design complexity.
+  * *Mitigation*: Position this feature strictly as an extension/add-on view. Keep the initial markdown editor extremely lightweight (using simple textareas or basic contenteditable elements) and defer execution automation until Phase 4's orchestration engine is fully stable.
+* **Storage Limits**: Local extension storage (`chrome.storage.local`) has quota limits (typically 10MB unless the `"unlimitedStorage"` permission is requested).
+  * *Mitigation*: Include the `"unlimitedStorage"` permission in the manifest when this feature is developed, or allow users to link notebooks directly to a local project directory.

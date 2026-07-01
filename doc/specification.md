@@ -204,8 +204,8 @@ All actions except Send only modify the editor cache — they never communicate 
 | Action | Behavior |
 | :--- | :--- |
 | **Task Breakdown** | Inserts `@breakdown` into the editor. |
-| **Dispatch** | Inserts `@format` into the editor. After the user sends and the chatbot responds: **(1)** Extension reads the last response via copy-button mapping. **(2)** Parses by splitting on `===` and extracting `Title`/`Task`. **(3)** For each task (max 3): draws a line to an Empty node (defaulting to available tabs in order; user can drag to reassign). **(4)** Overwrites each child's cache with its `Task` content. **(5)** Renames child nodes using `Title`. **(6)** Parent node enters **Waiting** state. |
-| **Merge** | Reads the current node's last AI response via copy-button mapping, prepends `@merge` prompt text, and **appends** the result to the target's cache with a separator and child name label (e.g., `--- [Task B Result] ---`). |
+| **Dispatch** | Inserts `%format` into the editor. After the user sends and the chatbot responds: **(1)** Extension reads the last response via copy-button mapping. **(2)** Parses by splitting on `===` and extracting `Title`/`Task`. **(3)** For each task (max 3): draws a line to an Empty node (defaulting to available tabs in order; user can drag to reassign). **(4)** Overwrites each child's cache with its `Task` content. **(5)** Renames child nodes using `Title`. **(6)** Parent node enters **Waiting** state. |
+| **Merge** | Reads the current node's last AI response via copy-button mapping, prepends `%merge` prompt text, and **appends** the result to the target's cache with a separator and child name label (e.g., `--- [Task B Result] ---`). |
 
 **Merge targeting**:
 - **Dispatched child**: Auto-targets the parent node. No dragging.
@@ -224,8 +224,8 @@ When the extension encounters a failure, the recovery pattern is consistent:
    - **Continue** → clears editor, inserts `@continue` → abandons the operation, resumes prior conversation.
 
 **Triggers**:
-- `@format` parse failure (0 valid tasks extracted).
-- `@format` output exceeds 3-task dispatch limit.
+- `%format` parse failure (0 valid tasks extracted).
+- `%format` output exceeds 3-task dispatch limit.
 
 ### 4.6 Lifecycle
 
@@ -251,7 +251,7 @@ User chats in Tab A, realizes a tangent would derail the conversation. Switches 
 1. User chats in Tab A. Topic is complex.
 2. Chatbot drafts a plan.
 3. **Task Breakdown** → `@breakdown` added → send → chatbot splits plan → user reviews.
-4. **Dispatch** → `@format` added → send → chatbot outputs parseable tasks (max 3).
+4. **Dispatch** → `%format` added → send → chatbot outputs parseable tasks (max 3).
 5. Extension parses, draws lines to Empty child tabs (B, C, D), populates caches, renames nodes. Tab A enters **Waiting**.
 6. User reviews assignments, drags lines to reassign if needed, navigates to each child, clicks **Send**.
 7. Children work independently.
@@ -281,6 +281,7 @@ Standalone conversational utilities. Useful with or without orchestration.
 | :--- | :--- | :--- |
 | **`@redo`** | Instructs the chatbot to rerun the last instruction with higher fidelity. Avoids the browser's edit/regenerate buttons — issues a new message so full conversational context is preserved. | "Redo last instruction provided, follow that instruction more carefully, and output only the reworked result." |
 | **`@continue`** | Instructs the chatbot to abandon its current line of work and return to the conversation topic before the detour. | *placeholder* |
+| **`@shorten`** | Instructs the chatbot to compress its work or conversation history into a brief, consolidated report. | "Summarize the task result into a short, concise paragraph." |
 
 #### Orchestration Skills
 
@@ -288,12 +289,12 @@ Used in sequence during multi-agent workflows. These are the prompts behind the 
 
 | Skill | Role in Workflow | Prompt |
 | :--- | :--- | :--- |
-| **`@breakdown`** | Sent to a chatbot that already has a plan in context. Instructs it to divide the plan into discrete subtasks for other chatbots. No formatting enforced — output is for user review before proceeding to `@format`. | *placeholder* |
-| **`@format`** | Sent **after** the user approves a breakdown. Instructs the chatbot to re-output its task assignments in a parseable format (see §5.3). This is the only skill whose output is machine-parsed. | *placeholder* |
-| **`@shorten`** | Sent to a child agent after it finishes a subtask. Instructs it to compress its work into a brief report (task name + result), short enough for the parent to review multiple reports at once. | *placeholder* |
-| **`@merge`** | Used as a prefix. The extension prepends this prompt to a copied child response before appending it to the target node's cache. Signals that the following content is an external subtask result. | *placeholder* |
+| **`@breakdown`** | Sent to a chatbot that already has a plan in context. Instructs it to divide the plan into discrete subtasks for other chatbots. No formatting enforced — output is for user review before proceeding to `%format`. | *placeholder* |
+| **`%format`** | Sent **after** the user approves a breakdown. Instructs the chatbot to re-output its task assignments in a parseable format (see §5.3). This is the only skill whose output is machine-parsed. | *placeholder* |
+| **`%merge`** | Used as a prefix. The extension prepends this prompt to a copied child response before appending it to the target node's cache. Signals that the following content is an external subtask result. | *placeholder* |
+| **`%transfer`** | Used as a prefix when performing a context transfer between tabs. Prepended to the beginning of the migrated conversation history to prime the target chatbot. | "Below is context migrated from a previous conversation..." |
 
-### 5.3 Parseable Format (`@format` Output Schema)
+### 5.3 Parseable Format (`%format` Output Schema)
 
 The chatbot outputs tasks separated by `===` delimiters, each with `Title:` and `Task:` fields:
 

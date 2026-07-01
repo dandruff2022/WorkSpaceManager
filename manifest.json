@@ -7,14 +7,15 @@
     "tabs",
     "storage",
     "scripting",
-    "sidePanel"
+    "sidePanel",
+    "unlimitedStorage"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js",
-    "scripts": ["background.js"]
+    "scripts": ["utils/site_profiles_registry.js", "utils/skills_registry.js", "background.js"]
   },
   "action": {
     "default_title": "Workspace Manager",

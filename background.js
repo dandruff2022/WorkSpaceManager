@@ -1,5 +1,8 @@
-// Workspace Manager - Background Script
-// Targets Chrome/Chromium and Firefox (Manifest V3)
+// Import Registries in worker context
+if (typeof importScripts === 'function') {
+  importScripts('utils/site_profiles_registry.js');
+  importScripts('utils/skills_registry.js');
+}
 
 const chromeAPI = typeof chrome !== 'undefined' ? chrome : browser;
 let managerWindowId = null;

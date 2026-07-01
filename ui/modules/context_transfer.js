@@ -44,15 +44,32 @@
         }
       }
 
-      // 1. Hydrate and Persist Transfer Prompt Text
-      if (promptTextarea && chromeAPI && chromeAPI.storage && chromeAPI.storage.local) {
-        chromeAPI.storage.local.get(['transferPromptText'], (data) => {
-          promptTextarea.value = data.transferPromptText || "Here is the previous conversation context:";
-        });
+      // 1. Hydrate and Persist Transfer Prompt Text from SkillsRegistry
+      if (promptTextarea) {
+        if (typeof SkillsRegistry !== 'undefined') {
+          SkillsRegistry.load().then(() => {
+            const transferSkill = SkillsRegistry.getSkill("%transfer");
+            promptTextarea.value = transferSkill ? transferSkill.prompt : "Below is context migrated from a previous conversation. Treat it as established background for this session. Do not re-derive, question, or summarize it — simply continue the work from where it left off.\n\n--- Transferred Context ---\n";
+          }).catch(err => {
+            console.error("[ContextTransferModule] Failed to load SkillsRegistry:", err);
+            promptTextarea.value = "Below is context migrated from a previous conversation. Treat it as established background for this session. Do not re-derive, question, or summarize it — simply continue the work from where it left off.\n\n--- Transferred Context ---\n";
+          });
 
-        promptTextarea.addEventListener('input', () => {
-          chromeAPI.storage.local.set({ transferPromptText: promptTextarea.value });
-        });
+          promptTextarea.addEventListener('input', () => {
+            SkillsRegistry.addOrUpdateSkill("%transfer", promptTextarea.value, "Prefix for injecting prior conversation context.")
+              .catch(err => console.error("[ContextTransferModule] Failed to save %transfer skill:", err));
+          });
+        } else {
+          console.warn("[ContextTransferModule] SkillsRegistry not found. Falling back to local storage.");
+          if (chromeAPI && chromeAPI.storage && chromeAPI.storage.local) {
+            chromeAPI.storage.local.get(['transferPromptText'], (data) => {
+              promptTextarea.value = data.transferPromptText || "Here is the previous conversation context:";
+            });
+            promptTextarea.addEventListener('input', () => {
+              chromeAPI.storage.local.set({ transferPromptText: promptTextarea.value });
+            });
+          }
+        }
       }
 
       // Update button visual state based on selection validity
