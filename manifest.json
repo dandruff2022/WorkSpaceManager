@@ -32,7 +32,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["bridge.js", "content.js"],
+      "js": ["bridge.js", "utils/autocomplete.js", "content.js"],
       "run_at": "document_start"
     }
   ]

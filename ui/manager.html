@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="manager.css">
   <script src="../utils/site_profiles_registry.js" defer></script>
   <script src="../utils/skills_registry.js" defer></script>
+  <script src="../utils/autocomplete.js" defer></script>
   <script src="modules/context_transfer.js" defer></script>
   <script src="modules/broadcast.js" defer></script>
   <script src="modules/orchestrator.js" defer></script>
@@ -264,30 +265,55 @@
             <h1 class="view-title">Skills Registry</h1>
             <p class="view-description">Manage system prompts and automation keyword macros for quick insertion.</p>
           </div>
-          <span class="badge badge-teal">Phase 2 Placeholder</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="select-trigger-char" style="font-size: 11px; color: var(--text-muted); font-weight: 500;">Autocomplete Trigger:</label>
+            <select id="select-trigger-char" class="dbg-select" style="padding: 4px 8px; font-size: 12px; height: 30px; min-width: 60px;">
+              <option value="@">@</option>
+              <option value="#">#</option>
+              <option value="/">/</option>
+              <option value="disabled">Disabled</option>
+            </select>
+          </div>
         </div>
 
-        <div class="view-body">
-          <div class="debug-card">
-            <h3>Prompt Macro Library</h3>
-            <p class="card-desc">System prompts and macro configs. All actions are disabled placeholders (Phase 2 build).</p>
-            <div style="display: flex; flex-direction: column; gap: 8px; opacity: 0.5;">
-              <div style="display: flex; justify-content: space-between; padding: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 6px; align-items: center;">
-                <div>
-                  <strong style="font-size: 12px; color: var(--text-color);">@redo</strong>
-                  <div style="font-size: 10px; color: var(--text-muted);">Re-executes the last prompt with alternate guidelines.</div>
-                </div>
-                <button class="dbg-btn" style="padding: 4px 8px; font-size: 10px; opacity: 0.5; cursor: not-allowed;" disabled>Edit</button>
+        <div class="view-body" style="height: calc(100% - 70px); overflow: hidden; padding: 0;">
+          <div style="display: flex; height: 100%; gap: 15px;">
+            <!-- Left Panel: List of Skills -->
+            <div style="flex: 2; display: flex; flex-direction: column; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; height: 100%; overflow: hidden;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="font-size: 12px; font-weight: 600; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em;">Macro Library</h3>
+                <button id="btn-add-skill-trigger" class="dbg-btn" style="padding: 4px 8px; font-size: 11px; font-weight: 600; border-color: var(--accent-indigo);">+ Add Custom</button>
               </div>
-              <div style="display: flex; justify-content: space-between; padding: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 6px; align-items: center;">
-                <div>
-                  <strong style="font-size: 12px; color: var(--text-color);">@breakdown</strong>
-                  <div style="font-size: 10px; color: var(--text-muted);">Breaks down a complex user prompt into modular sub-tasks.</div>
-                </div>
-                <button class="dbg-btn" style="padding: 4px 8px; font-size: 10px; opacity: 0.5; cursor: not-allowed;" disabled>Edit</button>
+              <div id="skills-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px;">
+                <!-- Dynamically populated skills cards -->
               </div>
             </div>
-            <button class="dbg-btn" style="width: 100%; margin-top: 15px; opacity: 0.5; cursor: not-allowed;" disabled>Add Custom Skill</button>
+
+            <!-- Right Panel: Form Editor -->
+            <div style="flex: 3; display: flex; flex-direction: column; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; height: 100%; overflow-y: auto;">
+              <h3 id="skill-editor-title" style="font-size: 12px; font-weight: 600; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 15px;">Skill Settings</h3>
+              <form id="skill-form" style="display: flex; flex-direction: column; gap: 12px; flex: 1;">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <label for="input-skill-keyword" style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Keyword</label>
+                  <input type="text" id="input-skill-keyword" class="dbg-text-input" placeholder="@my_keyword" style="width: 100%;" required>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <label for="input-skill-desc" style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Description</label>
+                  <input type="text" id="input-skill-desc" class="dbg-text-input" placeholder="What does this macro do?" style="width: 100%;">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 120px;">
+                  <label for="textarea-skill-prompt" style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Prompt Template</label>
+                  <textarea id="textarea-skill-prompt" class="dbg-text-input" placeholder="Type prompt template here..." style="width: 100%; flex: 1; resize: none; font-family: inherit; font-size: 12px;" required></textarea>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                  <button type="button" id="btn-delete-skill" class="dbg-btn" style="border-color: var(--accent-rose); color: var(--accent-rose); background: rgba(244, 63, 94, 0.05);">Delete</button>
+                  <button type="submit" id="btn-save-skill" class="dbg-btn" style="border-color: var(--accent-indigo); color: white; background: var(--grad-primary); border: none; font-weight: 600; padding: 6px 15px;">Save Skill</button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       </section>

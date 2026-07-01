@@ -265,7 +265,20 @@ function closeDetachedWindow() {
 chromeAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log("Background received message:", message);
 
-  // Milestone 1.2 testing actions
+  if (message.action === 'querySkills') {
+    if (typeof SkillsRegistry !== 'undefined') {
+      SkillsRegistry.load().then(() => {
+        const matches = SkillsRegistry.getMatchingSkills(message.prefix, 6);
+        sendResponse({ matches });
+      }).catch(err => {
+        console.error("Failed to query skills in background:", err);
+        sendResponse({ matches: [] });
+      });
+    } else {
+      sendResponse({ matches: [] });
+    }
+    return true; // asynchronous response
+  }
   if (message.action === 'getTestTrackerLogs') {
     sendResponse({
       activatedCount: tabTracker.eventsLog.activatedCount,

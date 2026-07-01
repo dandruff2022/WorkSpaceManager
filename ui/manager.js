@@ -189,6 +189,25 @@ function initializeModules() {
   }
 
   setupDebugModeVisibility();
+  setupPopupAutocomplete();
+}
+
+function setupPopupAutocomplete() {
+  const targetIds = ["textarea-broadcast-prompt", "textarea-transfer-prompt"];
+  targetIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && typeof SkillsAutocomplete !== 'undefined') {
+      new SkillsAutocomplete(el, {
+        onQuery: async (prefix) => {
+          if (typeof SkillsRegistry !== 'undefined') {
+            await SkillsRegistry.load();
+            return SkillsRegistry.getMatchingSkills(prefix, 6);
+          }
+          return [];
+        }
+      });
+    }
+  });
 }
 
 function setupDebugModeVisibility() {

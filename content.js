@@ -105,3 +105,33 @@ chromeAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   return true;
 });
+
+// Dynamic binding of Skills Autocomplete on active input focus
+document.addEventListener("focusin", (e) => {
+  const el = e.target;
+  if (!el) return;
+
+  const isTextarea = el.tagName === "TEXTAREA";
+  const isInput = el.tagName === "INPUT" && el.type === "text";
+  const isEditable = el.getAttribute("contenteditable") === "true";
+
+  if ((isTextarea || isInput || isEditable) && !el.__agy_autocomplete_attached) {
+    if (typeof SkillsAutocomplete !== "undefined") {
+      new SkillsAutocomplete(el, {
+        onQuery: (prefix) => {
+          return new Promise((resolve) => {
+            chromeAPI.runtime.sendMessage({ action: "querySkills", prefix }, (response) => {
+              if (response && response.matches) {
+                resolve(response.matches);
+              } else {
+                resolve([]);
+              }
+            });
+          });
+        }
+      });
+      el.__agy_autocomplete_attached = true;
+      console.log("[Workspace Manager] Autocomplete attached to element:", el);
+    }
+  }
+});
