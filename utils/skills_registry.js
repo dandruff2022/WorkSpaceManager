@@ -104,12 +104,14 @@
 
     // Filters skills matching search prefix, restricted to keywords starting with '@'
     getMatchingSkills(prefix, limit = 6) {
-      if (!prefix) return [];
-      const cleanPrefix = prefix.toLowerCase();
+      // Strip any leading trigger characters (@, #, /, %, etc.)
+      const cleanPrefix = (prefix || "").replace(/^[@#/%]/, '').toLowerCase();
       
       const list = Object.values(this.skills).filter(skill => {
         const keyword = skill.keyword || "";
-        return keyword.startsWith('@') && keyword.toLowerCase().startsWith(cleanPrefix);
+        const cleanKeyword = keyword.replace(/^[@#/%]/, '').toLowerCase();
+        // Match only user-callable skills (starting with '@')
+        return keyword.startsWith('@') && cleanKeyword.startsWith(cleanPrefix);
       });
 
       return list.slice(0, limit);

@@ -239,8 +239,20 @@
       
       const caretCoords = this.getCaretCoordinates();
       if (caretCoords) {
-        this.dropdown.style.top = `${caretCoords.top}px`;
-        this.dropdown.style.left = `${caretCoords.left}px`;
+        const dropdownHeight = this.dropdown.offsetHeight || 150;
+        
+        // Default position: Above the cursor line, shifted 5px to the right of the cursor
+        let top = caretCoords.top - dropdownHeight - 5;
+        let left = caretCoords.left + 5;
+
+        // Auto-flip: place below the cursor line if there is not enough vertical space above
+        if (top < window.scrollY + 10) {
+          // caretCoords.top is the bottom of the cursor line, so add 5px padding
+          top = caretCoords.top + 5;
+        }
+
+        this.dropdown.style.top = `${top}px`;
+        this.dropdown.style.left = `${left}px`;
       }
     }
 
@@ -290,6 +302,9 @@
       div.style.wordBreak = "break-all";
       div.style.top = "0";
       div.style.left = "0";
+      div.style.margin = "0";
+      div.style.border = "none";
+      div.style.width = `${element.clientWidth}px`;
       
       const textBefore = element.value.substring(0, position);
       div.textContent = textBefore;
@@ -304,8 +319,9 @@
       const spanRect = span.getBoundingClientRect();
       const divRect = div.getBoundingClientRect();
       
-      const top = elementRect.top + window.scrollY + spanRect.top - divRect.top + parseInt(styles.fontSize || "14", 10);
-      const left = elementRect.left + window.scrollX + spanRect.left - divRect.left;
+      // Calculate top/left relative to caret bottom, accounting for scroll offsets
+      const top = elementRect.top + window.scrollY + (spanRect.top - divRect.top) - element.scrollTop + parseInt(styles.fontSize || "14", 10);
+      const left = elementRect.left + window.scrollX + (spanRect.left - divRect.left) - element.scrollLeft;
       
       document.body.removeChild(div);
       

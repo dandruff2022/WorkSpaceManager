@@ -33,17 +33,34 @@
         }
       }
 
-      // 2. Load Autocomplete Trigger Key Setting
-      if (triggerSelect && chromeAPI && chromeAPI.storage && chromeAPI.storage.local) {
-        chromeAPI.storage.local.get(['autocompleteTriggerChar'], (data) => {
-          triggerSelect.value = data.autocompleteTriggerChar || "@";
+      // 2. Load Autocomplete Trigger Key & Webpage Enabled Setting
+      if (chromeAPI && chromeAPI.storage && chromeAPI.storage.local) {
+        const webpageCheckbox = container.querySelector('#checkbox-enable-webpage');
+
+        chromeAPI.storage.local.get(['autocompleteTriggerChar', 'enableWebpageAutocomplete'], (data) => {
+          if (triggerSelect) {
+            triggerSelect.value = data.autocompleteTriggerChar || "@";
+          }
+          if (webpageCheckbox) {
+            webpageCheckbox.checked = !!data.enableWebpageAutocomplete;
+          }
         });
 
-        triggerSelect.addEventListener('change', () => {
-          chromeAPI.storage.local.set({ autocompleteTriggerChar: triggerSelect.value }, () => {
-            console.log(`[SkillsModule] Autocomplete trigger key set to: ${triggerSelect.value}`);
+        if (triggerSelect) {
+          triggerSelect.addEventListener('change', () => {
+            chromeAPI.storage.local.set({ autocompleteTriggerChar: triggerSelect.value }, () => {
+              console.log(`[SkillsModule] Autocomplete trigger key set to: ${triggerSelect.value}`);
+            });
           });
-        });
+        }
+
+        if (webpageCheckbox) {
+          webpageCheckbox.addEventListener('change', () => {
+            chromeAPI.storage.local.set({ enableWebpageAutocomplete: webpageCheckbox.checked }, () => {
+              console.log(`[SkillsModule] enableWebpageAutocomplete set to: ${webpageCheckbox.checked}`);
+            });
+          });
+        }
       }
 
       // 3. Render the list of skills

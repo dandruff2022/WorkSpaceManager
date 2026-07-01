@@ -116,22 +116,30 @@ document.addEventListener("focusin", (e) => {
   const isEditable = el.getAttribute("contenteditable") === "true";
 
   if ((isTextarea || isInput || isEditable) && !el.__agy_autocomplete_attached) {
-    if (typeof SkillsAutocomplete !== "undefined") {
-      new SkillsAutocomplete(el, {
-        onQuery: (prefix) => {
-          return new Promise((resolve) => {
-            chromeAPI.runtime.sendMessage({ action: "querySkills", prefix }, (response) => {
-              if (response && response.matches) {
-                resolve(response.matches);
-              } else {
-                resolve([]);
-              }
-            });
+    if (chromeAPI && chromeAPI.storage && chromeAPI.storage.local) {
+      chromeAPI.storage.local.get(['enableWebpageAutocomplete'], (data) => {
+        if (!data.enableWebpageAutocomplete) {
+          return; // Webpage sessions autocomplete disabled
+        }
+
+        if (typeof SkillsAutocomplete !== "undefined") {
+          new SkillsAutocomplete(el, {
+            onQuery: (prefix) => {
+              return new Promise((resolve) => {
+                chromeAPI.runtime.sendMessage({ action: "querySkills", prefix }, (response) => {
+                  if (response && response.matches) {
+                    resolve(response.matches);
+                  } else {
+                    resolve([]);
+                  }
+                });
+              });
+            }
           });
+          el.__agy_autocomplete_attached = true;
+          console.log("[Workspace Manager] Autocomplete attached to element:", el);
         }
       });
-      el.__agy_autocomplete_attached = true;
-      console.log("[Workspace Manager] Autocomplete attached to element:", el);
     }
   }
 });

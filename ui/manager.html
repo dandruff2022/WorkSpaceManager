@@ -265,14 +265,20 @@
             <h1 class="view-title">Skills Registry</h1>
             <p class="view-description">Manage system prompts and automation keyword macros for quick insertion.</p>
           </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <label for="select-trigger-char" style="font-size: 11px; color: var(--text-muted); font-weight: 500;">Autocomplete Trigger:</label>
-            <select id="select-trigger-char" class="dbg-select" style="padding: 4px 8px; font-size: 12px; height: 30px; min-width: 60px;">
-              <option value="@">@</option>
-              <option value="#">#</option>
-              <option value="/">/</option>
-              <option value="disabled">Disabled</option>
-            </select>
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <label for="select-trigger-char" style="font-size: 11px; color: var(--text-muted); font-weight: 500;">Autocomplete Trigger:</label>
+              <select id="select-trigger-char" class="dbg-select" style="padding: 4px 8px; font-size: 12px; height: 30px; min-width: 60px;">
+                <option value="@">@</option>
+                <option value="#">#</option>
+                <option value="/">/</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="checkbox-enable-webpage" style="width: 14px; height: 14px; cursor: pointer;">
+              <label for="checkbox-enable-webpage" style="font-size: 11px; color: var(--text-muted); font-weight: 500; cursor: pointer;">Enable in Browser Sessions</label>
+            </div>
           </div>
         </div>
 
