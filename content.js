@@ -117,9 +117,26 @@ document.addEventListener("focusin", (e) => {
 
   if ((isTextarea || isInput || isEditable) && !el.__agy_autocomplete_attached) {
     if (chromeAPI && chromeAPI.storage && chromeAPI.storage.local) {
-      chromeAPI.storage.local.get(['enableWebpageAutocomplete'], (data) => {
+      chromeAPI.storage.local.get(['enableWebpageAutocomplete', 'siteProfiles'], (data) => {
         if (!data.enableWebpageAutocomplete) {
           return; // Webpage sessions autocomplete disabled
+        }
+
+        // Verify if the current domain matches a supported/connected site profile
+        const host = window.location.hostname;
+        const profiles = data.siteProfiles || {};
+        let isSupported = false;
+        
+        for (const key in profiles) {
+          const profile = profiles[key];
+          if (profile.domain && host.includes(profile.domain.toLowerCase())) {
+            isSupported = true;
+            break;
+          }
+        }
+
+        if (!isSupported) {
+          return; // Skip non-supported website
         }
 
         if (typeof SkillsAutocomplete !== "undefined") {

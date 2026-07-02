@@ -37,7 +37,6 @@
 
     bindEvents() {
       this.element.addEventListener('input', (e) => this.handleInput(e));
-      this.element.addEventListener('keydown', (e) => this.handleKeyDown(e), true);
       
       // Close dropdown if user clicks elsewhere
       const clickHandler = (e) => {
@@ -115,28 +114,36 @@
     }
 
     handleKeyDown(e) {
-      if (this.state !== "TRIGGERED" || !this.dropdown) return;
+      if (this.state !== "TRIGGERED" || !this.dropdown || document.activeElement !== this.element) return;
 
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
           this.selectedIndex = (this.selectedIndex + 1) % this.items.length;
           this.updateSelection();
           break;
         case "ArrowUp":
           e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
           this.selectedIndex = (this.selectedIndex - 1 + this.items.length) % this.items.length;
           this.updateSelection();
           break;
         case "Enter":
         case "Tab":
           e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
           if (this.selectedIndex >= 0 && this.selectedIndex < this.items.length) {
             this.commitSelection(this.items[this.selectedIndex]);
           }
           break;
         case "Escape":
           e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
           this.hideDropdown();
           break;
       }
@@ -144,6 +151,12 @@
 
     showDropdown(matches) {
       this.items = matches;
+      
+      if (!this._globalKeyDownHandler) {
+        this._globalKeyDownHandler = (e) => this.handleKeyDown(e);
+      }
+      window.addEventListener('keydown', this._globalKeyDownHandler, true);
+
       if (!this.dropdown) {
         this.dropdown = document.createElement("div");
         this.dropdown.id = "agy-autocomplete-dropdown";
@@ -336,19 +349,43 @@
       if (!this.isContentEditable()) {
         const selectionEnd = this.element.selectionEnd;
         this.element.focus();
-        this.element.setSelectionRange(this.triggerIndex, selectionEnd);
+        
+        // Dynamically locate the trigger character index in the current text value
+        const textBefore = this.element.value.substring(0, selectionEnd);
+        const lastTriggerIndex = textBefore.lastIndexOf(this.triggerChar);
+        const triggerIndex = lastTriggerIndex !== -1 ? lastTriggerIndex : this.triggerIndex;
+
+        this.element.setSelectionRange(triggerIndex, selectionEnd);
         document.execCommand('insertText', false, promptInjected);
       } else {
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
           const range = selection.getRangeAt(0);
-          const textNode = range.startContainer;
-          if (textNode.nodeType === Node.TEXT_NODE) {
+          
+          // Traverses DOM backwards to find trigger character, resolving split or element nodes
+          const trigger = findPrecedingTrigger(range.startContainer, range.startOffset, this.triggerChar);
+
+          if (trigger) {
             const newRange = document.createRange();
-            newRange.setStart(textNode, this.triggerIndex);
-            newRange.setEnd(textNode, range.endOffset);
+            newRange.setStart(trigger.node, trigger.index);
+            newRange.setEnd(range.startContainer, range.startOffset);
             selection.removeAllRanges();
             selection.addRange(newRange);
+          } else {
+            // Fallback to original selection behavior if helper fails
+            const textNode = range.startContainer;
+            if (textNode.nodeType === Node.TEXT_NODE) {
+              const textContent = textNode.textContent;
+              const textBefore = textContent.substring(0, range.endOffset);
+              const lastTriggerIndex = textBefore.lastIndexOf(this.triggerChar);
+              const triggerIndex = lastTriggerIndex !== -1 ? lastTriggerIndex : this.triggerIndex;
+
+              const newRange = document.createRange();
+              newRange.setStart(textNode, triggerIndex);
+              newRange.setEnd(textNode, range.endOffset);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+            }
           }
           document.execCommand('insertText', false, promptInjected);
         }
@@ -359,11 +396,73 @@
 
     hideDropdown() {
       this.state = "CLOSED";
+      if (this._globalKeyDownHandler) {
+        window.removeEventListener('keydown', this._globalKeyDownHandler, true);
+      }
       if (this.dropdown) {
         document.body.removeChild(this.dropdown);
         this.dropdown = null;
       }
     }
+  }
+
+  // DOM Helper to recursively locate the last text node within a subtree
+  function getLastTextNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) return node;
+    for (let i = node.childNodes.length - 1; i >= 0; i--) {
+      const text = getLastTextNode(node.childNodes[i]);
+      if (text) return text;
+    }
+    return null;
+  }
+
+  // Traverses DOM backwards from caret to locate nearest trigger character
+  function findPrecedingTrigger(startNode, startOffset, triggerChar) {
+    let node = startNode;
+    let offset = startOffset;
+
+    // If caret is in an element node, target the child node immediately preceding the caret
+    if (node.nodeType !== Node.TEXT_NODE) {
+      if (offset > 0 && node.childNodes[offset - 1]) {
+        const prev = node.childNodes[offset - 1];
+        const lastText = getLastTextNode(prev);
+        if (lastText) {
+          node = lastText;
+          offset = lastText.textContent.length;
+        }
+      }
+    }
+
+    // Walk backwards through sibling trees and parent blocks
+    while (node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const textBefore = node.textContent.substring(0, offset);
+        const idx = textBefore.lastIndexOf(triggerChar);
+        if (idx !== -1) {
+          return { node, index: idx };
+        }
+      }
+
+      if (node.previousSibling) {
+        const prev = node.previousSibling;
+        const lastText = getLastTextNode(prev);
+        if (lastText) {
+          node = lastText;
+          offset = lastText.textContent.length;
+        } else {
+          node = prev;
+          offset = 0;
+        }
+      } else {
+        node = node.parentNode;
+        offset = 0;
+        // Cease traversal if walking out of editable limits
+        if (!node || node.isContentEditable === false || node.tagName === "BODY") {
+          break;
+        }
+      }
+    }
+    return null;
   }
 
   // Export globally
