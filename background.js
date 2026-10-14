@@ -395,7 +395,7 @@ async function ensureContentScript(tabId) {
   // Inject scripts dynamically
   await chromeAPI.scripting.executeScript({
     target: { tabId },
-    files: ["bridge.js", "content.js"]
+    files: ["bridge.js", "utils/autocomplete.js", "content.js"]
   });
   await chromeAPI.scripting.executeScript({
     target: { tabId },
