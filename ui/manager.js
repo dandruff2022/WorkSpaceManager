@@ -271,7 +271,7 @@ async function queryInitialTabStates() {
 // Listen for real-time state changes globally
 if (chromeAPI && chromeAPI.runtime && chromeAPI.runtime.onMessage) {
   chromeAPI.runtime.onMessage.addListener((message) => {
-    if (message.action === 'bridge_state_change' && message.payload) {
+    if (message.action === 'bridge_state_change' && message.payload && message.payload.tabId !== undefined && message.payload.tabId !== null) {
       const { tabId, state } = message.payload;
       window.__agy_tab_states[tabId] = state;
       console.log(`[Workspace Manager Global] Tab ${tabId} state changed to: ${state}`);
