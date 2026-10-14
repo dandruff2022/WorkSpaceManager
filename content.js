@@ -129,7 +129,10 @@ document.addEventListener("focusin", (e) => {
         
         for (const key in profiles) {
           const profile = profiles[key];
-          if (profile.domain && host.includes(profile.domain.toLowerCase())) {
+          const hostLower = (host || "").toLowerCase();
+          const matchesDomain = profile.domain && hostLower.includes(profile.domain.toLowerCase());
+          const matchesAlias = Array.isArray(profile.domainAliases) && profile.domainAliases.some(alias => alias && hostLower.includes(alias.toLowerCase()));
+          if (matchesDomain || matchesAlias) {
             isSupported = true;
             break;
           }

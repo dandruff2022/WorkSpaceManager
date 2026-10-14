@@ -17,7 +17,10 @@
         
         for (const key in profiles) {
           const profile = profiles[key];
-          if (host.includes(profile.domain)) {
+          const hostLower = (host || "").toLowerCase();
+          const matchesDomain = profile.domain && hostLower.includes(profile.domain.toLowerCase());
+          const matchesAlias = Array.isArray(profile.domainAliases) && profile.domainAliases.some(alias => alias && hostLower.includes(alias.toLowerCase()));
+          if (matchesDomain || matchesAlias) {
             activeProfile = profile;
             console.log(`[Workspace Manager Bridge] Matched site profile: ${profile.siteName}`);
             break;

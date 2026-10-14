@@ -137,8 +137,9 @@ chromeAPI.runtime.onInstalled.addListener(() => {
     },
     copilot: {
       siteName: "Copilot",
-      domain: "copilot.microsoft.com",
-      newChatUrl: "https://copilot.microsoft.com/",
+      domain: "copilot.com",
+      domainAliases: ["copilot.microsoft.com"],
+      newChatUrl: "https://copilot.com/",
       selectors: {
         inputSelector: "textarea, #searchbar",
         sendButtonSelector: "button[aria-label*=\"submit\" i], button[aria-label*=\"send\" i]",

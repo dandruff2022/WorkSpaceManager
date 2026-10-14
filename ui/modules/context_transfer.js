@@ -8,7 +8,8 @@
     "chatgpt.com",
     "claude.ai",
     "gemini.google.com",
-    "copilot.microsoft.com"
+    "copilot.microsoft.com",
+    "copilot.com"
   ];
 
   function isSupportedAiTab(tab) {

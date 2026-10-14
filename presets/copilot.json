@@ -1,6 +1,9 @@
 {
   "siteName": "Copilot",
-  "domain": "copilot.microsoft.com",
+  "domain": "copilot.com",
+  "domainAliases": [
+    "copilot.microsoft.com"
+  ],
   "selectors": {
     "inputSelector": "textarea, #searchbar",
     "sendButtonSelector": "button[aria-label*=\"submit\" i], button[aria-label*=\"send\" i]",

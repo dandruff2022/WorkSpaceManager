@@ -54,7 +54,10 @@
         
         for (const name in this.profiles) {
           const profile = this.profiles[name];
-          if (profile.domain && host.includes(profile.domain.toLowerCase())) {
+          const hostLower = (host || "").toLowerCase();
+          const matchesDomain = profile.domain && hostLower.includes(profile.domain.toLowerCase());
+          const matchesAlias = Array.isArray(profile.domainAliases) && profile.domainAliases.some(alias => alias && hostLower.includes(alias.toLowerCase()));
+          if (matchesDomain || matchesAlias) {
             return profile;
           }
         }
@@ -87,6 +90,7 @@
       this.profiles[key] = {
         siteName: profileObj.siteName,
         domain: profileObj.domain,
+        domainAliases: Array.isArray(profileObj.domainAliases) ? [...profileObj.domainAliases] : [],
         newChatUrl: profileObj.newChatUrl || "/",
         selectors: {
           inputSelector: profileObj.selectors.inputSelector,
