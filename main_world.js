@@ -12,6 +12,24 @@
     };
   }
 
+  // Intercept Clipboard write (ClipboardItem API, used by e.g. Claude)
+  if (navigator.clipboard && typeof navigator.clipboard.write === 'function') {
+    const originalWrite = navigator.clipboard.write.bind(navigator.clipboard);
+    navigator.clipboard.write = async (items) => {
+      const item = items && items[0];
+      if (item && item.types && item.types.includes('text/plain')) {
+        try {
+          const blob = await item.getType('text/plain');
+          document.dispatchEvent(new CustomEvent('agyCopyCaptured', { detail: await blob.text() }));
+        } catch (e) {}
+      }
+      if (window.__agy_intercept_active === true) {
+        return Promise.resolve();
+      }
+      return originalWrite(items);
+    };
+  }
+
   // Intercept SPA History navigation
   const originalPushState = history.pushState.bind(history);
   const originalReplaceState = history.replaceState.bind(history);
