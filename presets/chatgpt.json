@@ -2,13 +2,13 @@
   "siteName": "ChatGPT",
   "domain": "chatgpt.com",
   "selectors": {
-    "inputSelector": "#prompt-textarea",
+    "inputSelector": "#prompt-textarea, div.ProseMirror[contenteditable=\"true\"]",
     "sendButtonSelector": "button[data-testid*=\"send\" i], button[aria-label*=\"send\" i]",
     "newChatButtonSelector": "a[href=\"/\"], button[aria-label*=\"new chat\" i]",
-    "copyButtonSelector": "button[data-testid$=\"copy-turn-action-button\"], button[aria-label*=\"copy\" i]",
+    "copyButtonSelector": "button[data-testid$=\"copy-turn-action-button\"], button[aria-label=\"Copy\"]",
     "userCopyButtonSelector": "button[aria-label*=\"copy message\" i]",
-    "stopButtonSelector": "button[data-testid*=\"stop-button\" i], button[aria-label*=\"stop generating\" i]",
-    "messageTurnSelector": "article, [data-testid^=\"conversation-turn\"]"
+    "stopButtonSelector": "button[data-testid*=\"stop-button\" i], button[aria-label*=\"stop generating\" i], button[aria-label=\"Stop\"]",
+    "messageTurnSelector": "article, [data-testid^=\"conversation-turn\"], [data-turn-key]"
   },
   "flags": {
     "useEnterFallback": false
