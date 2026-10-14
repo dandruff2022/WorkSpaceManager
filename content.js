@@ -5,51 +5,6 @@ console.log("[Workspace Manager] Content script loaded on: " + window.location.h
 
 const chromeAPI = typeof chrome !== 'undefined' ? chrome : browser;
 
-// Function to inject interceptors into the webpage's Main World
-function injectMainWorldInterceptors() {
-  try {
-    const script = document.createElement('script');
-    script.textContent = `
-      (() => {
-        // Intercept Clipboard writeText
-        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-          const originalWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
-          navigator.clipboard.writeText = async (text) => {
-            document.dispatchEvent(new CustomEvent('agyCopyCaptured', { detail: text }));
-            if (window.__agy_intercept_active === true) {
-              return Promise.resolve();
-            }
-            return originalWriteText(text);
-          };
-        }
-
-        // Intercept SPA History navigation
-        const originalPushState = history.pushState.bind(history);
-        const originalReplaceState = history.replaceState.bind(history);
-
-        history.pushState = function(...args) {
-          const result = originalPushState(...args);
-          document.dispatchEvent(new CustomEvent('agyNavigation', { detail: args[2] || location.pathname }));
-          return result;
-        };
-
-        history.replaceState = function(...args) {
-          const result = originalReplaceState(...args);
-          document.dispatchEvent(new CustomEvent('agyNavigation', { detail: args[2] || location.pathname }));
-          return result;
-        };
-      })();
-    `;
-    (document.head || document.documentElement).appendChild(script);
-    script.remove();
-    console.log("[Workspace Manager] Main world interceptors successfully injected.");
-  } catch (e) {
-    console.error("[Workspace Manager] Failed to inject main world interceptors:", e);
-  }
-}
-
-// Perform injection at document start
-injectMainWorldInterceptors();
 
 // Listen to CustomEvents relayed from Main World to Isolated World
 document.addEventListener("agyCopyCaptured", (e) => {

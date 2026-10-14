@@ -397,6 +397,11 @@ async function ensureContentScript(tabId) {
     target: { tabId },
     files: ["bridge.js", "content.js"]
   });
+  await chromeAPI.scripting.executeScript({
+    target: { tabId },
+    files: ["main_world.js"],
+    world: 'MAIN'
+  });
   console.log(`[Background] Dynamically injected content scripts into tab ${tabId}.`);
   return true;
 }
