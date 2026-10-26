@@ -42,14 +42,14 @@ Develop and validate a comprehensive, console-injectable test runner script (`te
   - Draft a thorough workflow that starts from a complete new chat, testing individual automation units (pasting/writing text, clicking send buttons, resetting chats, reading/copying text, reading ai status(empty, working, complete)) and chained interactions (sequential multi-turn copying).
   - Define strategies within the comments to handle tricky layout cases—such as inline code blocks(might have its own copy button and confuse the script), uploaded images/files, and collapsible segments—to ensure selectors correctly isolate main conversation text and buttons without timeline corruption.
 
-- [ ] **Milestone 1.1.2 — Console Automation Test Script Implementation**
+- [x] **Milestone 1.1.2 — Console Automation Test Script Implementation**
   - Program the testing logic in `test/sandbox_tester.js` using raw JS execution.
   - Prefix the script with a long, detailed system prompt block instructing any AI model how to modify and repair the script's selectors in case of layout drift.
   - Implement browser popups (`alert` / `confirm` dialogs) for each unit test step to prompt user confirmation of successful interactions (writing, sending, resetting, copying).
   - Implement successful-run JSON configuration file generation containing verified DOM selectors and flags.
   - Log helpful debugging info and self-correction prompts: upon failure, print instructions directing the user to copy/paste the script and error log into an AI tool for auto-updating.
 
-- [ ] **Milestone 1.1.3 — Platform Verification & Default Config Export**
+- [x] **Milestone 1.1.3 — Platform Verification & Default Config Export**
   - Execute the script manually in developer consoles on four mainstream AI platforms: ChatGPT, Claude, Gemini, and Copilot.
   - Refine selectors and rewrite rules until the script passes completely on all four sites.
   - Export and save the four `.json` configurations inside the extension resources as built-in default settings.
@@ -178,10 +178,10 @@ Ship a small public demo: prompt autocomplete, send-to-many with live tab monito
 Context Transfer and Orchestrator are hidden from the UI (Phases 3–4 below are on hold and will be redesigned).
 Plan: [`doc/plan/phase_2.5_demo_release_plan.md`](plan/phase_2.5_demo_release_plan.md).
 
-- [ ] Engine smoke test & selector fixes on all four sites
-- [ ] Hide Context Transfer / Orchestrator; trim default prompts
-- [ ] UI rework: Send / Prompts / Settings, plain theme, empty states, PNG icon set
-- [ ] Done notifications + per-tab quick actions
+- [x] Engine smoke test on ChatGPT and Gemini (Chrome); Claude and Copilot not tested in this release
+- [x] Hide Context Transfer / Orchestrator; trim default prompts
+- [x] UI rework: Send / Prompts / Settings, plain theme, empty states, PNG icon set
+- [x] Done notifications (per-tab quick prompt menu was tried and removed: it sent on select, which surprised users)
 - [ ] README, `v0.6.0` tag, GitHub release
 
 ---
