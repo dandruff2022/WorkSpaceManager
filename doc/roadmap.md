@@ -172,6 +172,20 @@ With state management solidified and primitives validated, implement the full Co
 
 ---
 
+## Phase 2.5 — Demo Release (v0.6.0)
+
+Ship a small public demo: prompt autocomplete, send-to-many with live tab monitor, plain 3-screen UI, README with GIFs.
+Context Transfer and Orchestrator are hidden from the UI (Phases 3–4 below are on hold and will be redesigned).
+Plan: [`doc/plan/phase_2.5_demo_release_plan.md`](plan/phase_2.5_demo_release_plan.md).
+
+- [ ] Engine smoke test & selector fixes on all four sites
+- [ ] Hide Context Transfer / Orchestrator; trim default prompts
+- [ ] UI rework: Send / Prompts / Settings, plain theme, empty states, PNG icon set
+- [ ] Done notifications + per-tab quick actions
+- [ ] README, `v0.6.0` tag, GitHub release
+
+---
+
 ## Phase 3 — Context Transfer & Broadcast Integration
 
 Implement UI and functionality for **Context Transfer** and **Broadcast**. Collect issues and difficulties met during implementation to pave the way for the harder parts (like the Orchestrator).
