@@ -5,7 +5,7 @@
   const chromeAPI = typeof chrome !== 'undefined' ? chrome : (typeof browser !== 'undefined' ? browser : null);
 
   // List of protected default system skills
-  const SYSTEM_KEYWORDS = ["@redo", "@continue", "@breakdown", "@shorten", "%transfer", "%format", "%merge"];
+  const SYSTEM_KEYWORDS = ["@redo", "@continue", "@shorten", "@check"];
 
   window.SkillsModule = {
     async init(container) {
@@ -19,7 +19,8 @@
       const deleteBtn = container.querySelector('#btn-delete-skill');
       const saveBtn = container.querySelector('#btn-save-skill');
       const addSkillBtn = container.querySelector('#btn-add-skill-trigger');
-      const triggerSelect = container.querySelector('#select-trigger-char');
+      // Trigger key and on/off switch live in the Settings view
+      const triggerSelect = document.getElementById('select-trigger-char');
       const editorTitle = container.querySelector('#skill-editor-title');
 
       let selectedKeyword = null;
@@ -35,14 +36,14 @@
 
       // 2. Load Autocomplete Trigger Key & Webpage Enabled Setting
       if (chromeAPI && chromeAPI.storage && chromeAPI.storage.local) {
-        const webpageCheckbox = container.querySelector('#checkbox-enable-webpage');
+        const webpageCheckbox = document.getElementById('checkbox-enable-webpage');
 
         chromeAPI.storage.local.get(['autocompleteTriggerChar', 'enableWebpageAutocomplete'], (data) => {
           if (triggerSelect) {
             triggerSelect.value = data.autocompleteTriggerChar || "@";
           }
           if (webpageCheckbox) {
-            webpageCheckbox.checked = !!data.enableWebpageAutocomplete;
+            webpageCheckbox.checked = data.enableWebpageAutocomplete !== false;
           }
         });
 
@@ -74,7 +75,7 @@
         allSkills.sort((a, b) => a.keyword.localeCompare(b.keyword));
 
         if (allSkills.length === 0) {
-          skillsList.innerHTML = `<div style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 20px;">No prompt macros found.</div>`;
+          skillsList.innerHTML = `<div class="empty-note">No saved prompts yet.</div>`;
           return;
         }
 
@@ -82,51 +83,25 @@
           const isSystem = SYSTEM_KEYWORDS.includes(skill.keyword.toLowerCase());
           
           const card = document.createElement('div');
-          card.style.display = "flex";
-          card.style.flexDirection = "column";
-          card.style.padding = "8px 12px";
-          card.style.background = selectedKeyword === skill.keyword ? "rgba(99, 102, 241, 0.12)" : "rgba(255, 255, 255, 0.02)";
-          card.style.border = selectedKeyword === skill.keyword ? "1px solid rgba(99, 102, 241, 0.4)" : "1px solid var(--border-color)";
-          card.style.borderRadius = "6px";
-          card.style.cursor = "pointer";
-          card.style.transition = "all 0.2s ease";
+          card.className = 'prompt-card' + (selectedKeyword === skill.keyword ? ' selected' : '');
 
           const header = document.createElement('div');
-          header.style.display = "flex";
-          header.style.justifyContent = "space-between";
-          header.style.alignItems = "center";
+          header.className = 'prompt-card-header';
 
           const keyLabel = document.createElement('strong');
-          keyLabel.style.fontSize = "12px";
-          keyLabel.style.color = skill.keyword.startsWith('%') ? "var(--accent-purple)" : "var(--accent-indigo)";
+          keyLabel.className = 'prompt-card-key';
           keyLabel.textContent = skill.keyword;
 
           const badge = document.createElement('span');
-          badge.style.fontSize = "9px";
-          badge.style.padding = "2px 5px";
-          badge.style.borderRadius = "4px";
-          badge.style.fontWeight = "600";
-          if (isSystem) {
-            badge.style.background = "rgba(99, 102, 241, 0.15)";
-            badge.style.color = "var(--text-secondary)";
-            badge.textContent = "SYSTEM";
-          } else {
-            badge.style.background = "rgba(16, 185, 129, 0.15)";
-            badge.style.color = "#10b981";
-            badge.textContent = "CUSTOM";
-          }
+          badge.className = 'tag';
+          badge.textContent = isSystem ? "Built-in" : "Yours";
 
           header.appendChild(keyLabel);
           header.appendChild(badge);
 
           const descLabel = document.createElement('div');
-          descLabel.style.fontSize = "10px";
-          descLabel.style.color = "var(--text-muted)";
-          descLabel.style.marginTop = "4px";
-          descLabel.style.whiteSpace = "nowrap";
-          descLabel.style.overflow = "hidden";
-          descLabel.style.textOverflow = "ellipsis";
-          descLabel.textContent = skill.description || "No description provided.";
+          descLabel.className = 'prompt-card-desc';
+          descLabel.textContent = skill.description || "No description.";
 
           card.appendChild(header);
           card.appendChild(descLabel);
@@ -149,7 +124,7 @@
         const skill = SkillsRegistry.getSkill(keyword);
         if (!skill) return;
 
-        if (editorTitle) editorTitle.textContent = `Edit Skill: ${skill.keyword}`;
+        if (editorTitle) editorTitle.textContent = skill.keyword;
         if (keywordInput) {
           keywordInput.value = skill.keyword;
           keywordInput.disabled = true; // Lock keyword input for editing
@@ -169,7 +144,7 @@
         selectedKeyword = null;
         renderSkillsList();
 
-        if (editorTitle) editorTitle.textContent = "Add Custom Skill";
+        if (editorTitle) editorTitle.textContent = "New prompt";
         if (keywordInput) {
           keywordInput.value = "";
           keywordInput.disabled = false; // Enable keyword editing for new custom skills
@@ -196,17 +171,17 @@
 
           // Validation check
           if (!keyword || !prompt) {
-            alert("Keyword and Prompt Template are required.");
+            alert("Please fill in the keyword and the prompt text.");
             return;
           }
 
-          if (!keyword.startsWith('@') && !keyword.startsWith('%')) {
-            alert("Keyword must start with '@' or '%'.");
+          if (!keyword.startsWith('@')) {
+            alert("The keyword must start with @ (for example @summarize).");
             return;
           }
 
           if (keyword.includes(" ")) {
-            alert("Keyword cannot contain spaces.");
+            alert("The keyword cannot contain spaces.");
             return;
           }
 
@@ -240,11 +215,11 @@
           if (!selectedKeyword) return;
           
           if (SYSTEM_KEYWORDS.includes(selectedKeyword.toLowerCase())) {
-            alert("Protected system skills cannot be deleted.");
+            alert("Built-in prompts cannot be deleted.");
             return;
           }
 
-          if (confirm(`Are you sure you want to delete the custom skill '${selectedKeyword}'?`)) {
+          if (confirm(`Delete the prompt ${selectedKeyword}?`)) {
             try {
               const success = await SkillsRegistry.deleteSkill(selectedKeyword);
               if (success) {

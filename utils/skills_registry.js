@@ -8,39 +8,26 @@
     redo: {
       keyword: "@redo",
       prompt: "The previous response did not fully meet the requirements. Redo the last instruction I provided. Follow that instruction more carefully this time, paying close attention to every detail and constraint. Output only the complete reworked result — do not include explanations, apologies, or references to the previous attempt.",
-      description: "Retry the last instruction with higher fidelity."
+      description: "Try the last request again, more carefully."
     },
     continue: {
       keyword: "@continue",
       prompt: "The previous messages were a temporary detour from our main conversation. Disregard the detour entirely and return to the topic we were discussing before it. Resume from where we left off on the original topic, as if the detour never happened. Do not summarize or reference the detour.",
-      description: "Abandon the current detour and resume the prior topic."
-    },
-    breakdown: {
-      keyword: "@breakdown",
-      prompt: "Review the plan we have discussed so far. Divide it into up to 3 discrete, independent subtasks that could each be handled by a separate assistant. For each subtask, provide a short descriptive title and a clear, self-contained task description that includes all the context needed to complete it without access to this conversation. Output only the subtasks — do not include commentary or ask follow-up questions.",
-      description: "Split the current plan into independent subtasks."
+      description: "Go back to the earlier topic after a side question."
     },
     shorten: {
       keyword: "@shorten",
       prompt: "Condense your most recent response into a brief summary. Keep only the essential outcome, key findings, or final result. Remove all intermediate reasoning, examples, and verbose explanations. The summary should be short enough to be read at a glance alongside several other similar summaries. Output only the condensed summary.",
-      description: "Compress the last response into a brief summary."
+      description: "Shorten the last answer to a quick summary."
     },
-    transfer: {
-      keyword: "%transfer",
-      prompt: "Below is context migrated from a previous conversation. Treat it as established background for this session. Do not re-derive, question, or summarize it — simply continue the work from where it left off.\n\n--- Transferred Context ---\n",
-      description: "Prefix for injecting prior conversation context."
-    },
-    format: {
-      keyword: "%format",
-      prompt: "Re-output the subtask assignments you just described, using exactly the following structured format. Each task must be separated by a line containing only ===. Each task must have a Title: line and a Task: line. The Task description must be fully self-contained — include all necessary context so the recipient can complete it without access to this conversation. Output a maximum of 3 tasks. Do not include any text outside of this structure.\n\n===\nTitle: [Short descriptive title]\nTask: [Complete, self-contained task description with all required context]\n===",
-      description: "Re-format subtasks into a machine-parseable structure."
-    },
-    merge: {
-      keyword: "%merge",
-      prompt: "The following content is the completed result of an external subtask performed by another assistant. It is being merged into your context as reference material. Read and absorb it, but do not respond to it yet — wait for further instructions on how to use it.\n\n--- External Subtask Result ---\n",
-      description: "Prefix for appending a child task's result."
+    check: {
+      keyword: "@check",
+      prompt: "Critically review your most recent response. List any factual errors, weak reasoning, or missing points, then give a corrected version. If nothing needs fixing, say so in one sentence.",
+      description: "Ask the AI to check and correct its last answer."
     }
   };
+
+  const LEGACY_DEFAULT_KEYS = ["breakdown", "transfer", "format", "merge"];
 
   const SkillsRegistry = {
     skills: {},
@@ -63,6 +50,12 @@
             console.log("[SkillsRegistry] Storage empty. Seeded defaults.");
           } else {
             this.skills = data.skills;
+            // v0.6: drop workflow-only defaults from hidden modules (Context Transfer, Orchestrator)
+            let migrated = false;
+            for (const key of LEGACY_DEFAULT_KEYS) {
+              if (this.skills[key]) { delete this.skills[key]; migrated = true; }
+            }
+            if (migrated) await this.save();
             console.log(`[SkillsRegistry] Loaded ${Object.keys(this.skills).length} skills.`);
           }
           resolve();

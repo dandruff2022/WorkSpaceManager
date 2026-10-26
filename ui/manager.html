@@ -4,354 +4,188 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Workspace Manager</title>
-  <!-- Google Fonts: Outfit -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="../icons/icon.svg">
   <link rel="stylesheet" href="manager.css">
   <script src="../utils/site_profiles_registry.js" defer></script>
   <script src="../utils/skills_registry.js" defer></script>
   <script src="../utils/autocomplete.js" defer></script>
-  <script src="modules/context_transfer.js" defer></script>
-  <script src="modules/broadcast.js" defer></script>
-  <script src="modules/orchestrator.js" defer></script>
+  <!-- Hidden in v0.6 (code kept): modules/context_transfer.js, modules/broadcast.js, modules/orchestrator.js -->
+  <script src="modules/send.js" defer></script>
   <script src="modules/skills.js" defer></script>
   <script src="modules/connection.js" defer></script>
   <script src="modules/debug_test.js" defer></script>
   <script src="manager.js" defer></script>
 </head>
 <body>
-  <!-- Ambient background glow elements -->
-  <div class="glow-bg">
-    <div class="glow-orb orb-1"></div>
-    <div class="glow-orb orb-2"></div>
-  </div>
-
   <div class="app-container">
     <!-- Left Panel: Sidebar Navigation -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <svg class="logo" viewBox="0 0 64 64">
-          <defs>
-            <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style="stop-color:#6366f1;" />
-              <stop offset="100%" style="stop-color:#a855f7;" />
-            </linearGradient>
-          </defs>
-          <rect width="64" height="64" rx="16" fill="url(#logo-grad)" />
-          <circle cx="20" cy="20" r="4" fill="#ffffff" />
-          <circle cx="44" cy="20" r="4" fill="#ffffff" />
-          <circle cx="32" cy="44" r="6" fill="#ffffff" />
-          <line x1="20" y1="20" x2="32" y2="44" stroke="#ffffff" stroke-width="3" stroke-dasharray="2 2" />
-          <line x1="44" y1="20" x2="32" y2="44" stroke="#ffffff" stroke-width="3" stroke-dasharray="2 2" />
-        </svg>
-        <div class="brand">
-          <span class="brand-title">Workspace</span>
-          <span class="brand-subtitle">MANAGER</span>
-        </div>
+        <img class="logo" src="../icons/icon.svg" alt="">
+        <span class="brand-title">Workspace Manager</span>
       </div>
 
       <nav class="nav-menu">
-        <button class="nav-item active" data-target="context-transfer">
+        <button class="nav-item active" data-target="send">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
-            <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
           </svg>
-          <span class="nav-label">Context Transfer</span>
-        </button>
-
-        <button class="nav-item" data-target="broadcast">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-            <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
-            <line x1="12" x2="12" y1="19" y2="22"></line>
-          </svg>
-          <span class="nav-label">Broadcast</span>
-        </button>
-
-        <button class="nav-item" data-target="orchestrator">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="9" rx="1"></rect>
-            <rect x="14" y="3" width="7" height="5" rx="1"></rect>
-            <rect x="14" y="12" width="7" height="9" rx="1"></rect>
-            <rect x="3" y="16" width="7" height="5" rx="1"></rect>
-          </svg>
-          <span class="nav-label">Orchestrator</span>
+          <span class="nav-label">Send</span>
         </button>
 
         <button class="nav-item" data-target="skills">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
           </svg>
-          <span class="nav-label">Skills</span>
+          <span class="nav-label">Prompts</span>
         </button>
 
-        <button class="nav-item" data-target="connection">
+        <button class="nav-item" data-target="settings">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
-            <line x1="12" y1="2" x2="12" y2="12"></line>
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
-          <span class="nav-label">Connection</span>
+          <span class="nav-label">Settings</span>
         </button>
 
         <button class="nav-item debug-mode-only" data-target="debug-test">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-            <path d="M8 21V7a4 4 0 0 1 8 0v14"></path>
-            <circle cx="12" cy="14" r="2"></circle>
-            <line x1="6" y1="14" x2="8" y2="14"></line>
-            <line x1="16" y1="14" x2="18" y2="14"></line>
-            <line x1="12" y1="9" x2="12" y2="10"></line>
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
           </svg>
-          <span class="nav-label">Debug Test</span>
+          <span class="nav-label">Debug</span>
         </button>
       </nav>
-
-      <!-- View Switcher -->
-      <div class="view-mode-selector">
-        <span class="selector-title">VIEW MODE</span>
-        <div class="segment-control">
-          <button class="segment-btn active" id="btn-mode-window" data-mode="window">
-            Window
-          </button>
-          <button class="segment-btn" id="btn-mode-panel" data-mode="panel">
-            Side Panel
-          </button>
-          <div class="segment-slider"></div>
-        </div>
-      </div>
     </aside>
 
     <!-- Right Panel: Dynamic Content View -->
     <main class="content-area">
 
-      <!-- Context Transfer Module -->
-      <section id="view-context-transfer" class="module-view active">
+      <!-- Send Module -->
+      <section id="view-send" class="module-view active">
         <div class="view-header">
-          <div class="title-wrap">
-            <h1 class="view-title">Context Transfer</h1>
-            <p class="view-description">Migrate conversation history seamlessly from one AI chatbot tab to another.</p>
-          </div>
-          <span class="badge badge-indigo">Phase 1.4 Active</span>
+          <h1 class="view-title">Send</h1>
+          <p class="view-description">Type once, send to the chatbot tabs you pick, and see when each one is done.</p>
         </div>
 
         <div class="view-body">
-          <div class="debug-card">
-            <h3>Context Migration</h3>
-            <p class="card-desc">Transfer final message from a Complete source tab to an Empty target tab.</p>
-            
-            <!-- Side-by-Side Selector Layout with Center Paper Plane Button -->
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-top: 15px; margin-bottom: 15px;">
-              <div style="flex: 1; display: flex; flex-direction: column;">
-                <label for="select-transfer-source" style="font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: var(--accent-indigo, #6366f1); text-transform: uppercase; margin-bottom: 6px;">FROM (Complete)</label>
-                <select id="select-transfer-source" class="dbg-select" style="width: 100%;">
-                  <option value="">No complete chats...</option>
-                </select>
-              </div>
-              
-              <button id="btn-transfer-execute" class="dbg-btn" style="flex-shrink: 0; width: 42px; height: 42px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); color: #64748b; cursor: not-allowed; transition: all 0.3s ease; margin-top: 18px;" disabled>
-                <svg style="width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="22" y1="2" x2="11" y2="13"></line>
-                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                </svg>
-              </button>
-              
-              <div style="flex: 1; display: flex; flex-direction: column;">
-                <label for="select-transfer-target" style="font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: var(--accent-purple, #a855f7); text-transform: uppercase; margin-bottom: 6px;">TO (Empty)</label>
-                <select id="select-transfer-target" class="dbg-select" style="width: 100%;">
-                  <option value="">No empty chats...</option>
-                </select>
-              </div>
+          <div class="card">
+            <div class="card-header">
+              <h2>Open chatbot tabs</h2>
+              <button id="btn-send-select-all" class="btn-link">Select all / none</button>
             </div>
-
-            <!-- Transfer Prompt Prefix (Save-on-Edit) -->
-            <div class="dbg-control-row dbg-col" style="margin-top: 15px;">
-              <label for="textarea-transfer-prompt" style="font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Transfer Prompt Prefix</label>
-              <textarea id="textarea-transfer-prompt" class="dbg-text-input" style="width: 100%; height: 60px; resize: none; border-radius: 6px; padding: 8px; font-family: inherit; font-size: 12px;" placeholder="Edits automatically save to storage..."></textarea>
+            <div id="send-tabs-list" class="tab-list">
+              <div class="empty-note">Looking for chatbot tabs…</div>
             </div>
-
-            <div id="transfer-log" class="dbg-preview-box" style="margin-top: 15px; font-family: monospace; font-size: 11px; padding: 10px; max-height: 120px; overflow-y: auto;">Select valid tabs and click the paper plane to Execute.</div>
           </div>
-        </div>
-      </section>
 
-      <!-- Broadcast Module -->
-      <section id="view-broadcast" class="module-view">
-        <div class="view-header">
-          <div class="title-wrap">
-            <h1 class="view-title">Broadcast</h1>
-            <p class="view-description">Send identical prompts to multiple tabs simultaneously for comparison or parallel execution.</p>
-          </div>
-          <span class="badge badge-purple">Phase 1.4 Active</span>
-        </div>
-
-        <div class="view-body">
-          <div class="debug-card">
-            <h3>Multi-Tab Broadcast</h3>
-            <p class="card-desc">Select target tabs to receive the prompt simultaneously.</p>
-            
-            <div class="dbg-control-row dbg-col">
-              <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">Select Target AI Tabs</label>
-              <div id="broadcast-tabs-list" style="max-height: 120px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 6px; background: rgba(0,0,0,0.15); margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
-                <div style="color: var(--text-muted); font-size: 12px;">Loading active tabs...</div>
-              </div>
-            </div>
-
-            <div class="dbg-control-row dbg-col">
-              <label for="textarea-broadcast-prompt" style="font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">Prompt Text</label>
-              <textarea id="textarea-broadcast-prompt" class="dbg-text-input" style="width: 100%; height: 90px; resize: none; border-radius: 6px; padding: 10px; font-family: inherit; font-size: 13px;" placeholder="Type prompt to broadcast..."></textarea>
-            </div>
-
-            <div class="dbg-control-row" style="margin-top: 10px;">
-              <button id="btn-broadcast-submit" class="dbg-btn" style="width: 100%; background-color: var(--accent-teal);">Broadcast Prompt</button>
-            </div>
-
-            <div id="broadcast-log" class="dbg-preview-box" style="margin-top: 15px; font-family: monospace; font-size: 11px; padding: 10px; max-height: 120px; overflow-y: auto;">Select targets and type a prompt to start.</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Orchestrator Module -->
-      <section id="view-orchestrator" class="module-view">
-        <div class="view-header">
-          <div class="title-wrap">
-            <h1 class="view-title">Orchestrator</h1>
-            <p class="view-description">Manage multi-agent workflows visually via an ephemeral tab-mapping node tree.</p>
-          </div>
-          <span class="badge badge-blue">Phase 1.4 Active</span>
-        </div>
-
-        <div class="view-body">
-          <div style="display: flex; flex-direction: column; gap: 15px;">
-            <!-- Live Active Tab Status Panel -->
-            <div class="debug-card" style="padding: 12px;">
-              <h4 style="margin: 0 0 8px 0; font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Live Tab Observers</h4>
-              <div id="orch-observers-container" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <div style="font-size: 11px; color: var(--text-muted);">No active observers. Scan tabs to mount observers.</div>
-              </div>
-            </div>
-
-            <!-- Scrollable Node Graph Canvas Placeholder -->
-            <div class="orch-canvas-wrapper" style="position: relative; height: 200px; border: 1px dashed var(--border-color); border-radius: 8px; background: rgba(0,0,0,0.2); overflow: hidden;">
-              <!-- Graph Node 1 (Disabled) -->
-              <div class="graph-node-placeholder" style="position: absolute; top: 20px; left: 20px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: var(--text-muted); opacity: 0.5; padding: 8px; border-radius: 6px; width: 130px; cursor: not-allowed;">
-                <div class="drag-handle" style="height: 5px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-bottom: 6px;"></div>
-                <div style="font-size: 10px; font-weight: bold;">ChatGPT Node (AI)</div>
-                <div style="font-size: 8px; margin-top: 3px;">State: Complete</div>
-                <div class="anchor-right" style="position: absolute; right: -3px; top: 50%; width: 6px; height: 6px; border-radius: 50%; background: var(--border-color);"></div>
-              </div>
-
-              <!-- Graph Node 2 (Disabled) -->
-              <div class="graph-node-placeholder" style="position: absolute; top: 90px; left: 190px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: var(--text-muted); opacity: 0.5; padding: 8px; border-radius: 6px; width: 130px; cursor: not-allowed;">
-                <div class="drag-handle" style="height: 5px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-bottom: 6px;"></div>
-                <div style="font-size: 10px; font-weight: bold;">Claude Node (AI)</div>
-                <div style="font-size: 8px; margin-top: 3px;">State: Empty</div>
-                <div class="anchor-left" style="position: absolute; left: -3px; top: 50%; width: 6px; height: 6px; border-radius: 50%; background: var(--border-color);"></div>
-              </div>
-
-              <!-- Visual Connections Background Layer -->
-              <svg style="position: absolute; width: 100%; height: 100%; pointer-events: none;">
-                <path d="M 150 45 C 170 45, 175 110, 190 110" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1.5" stroke-dasharray="3 3" />
-              </svg>
+          <div class="card">
+            <textarea id="send-prompt" class="text-input composer" placeholder="Type a prompt. Type @ to insert a saved prompt. Press ⌘/Ctrl + Enter to send."></textarea>
+            <div class="composer-footer">
+              <span id="send-status" class="status-line"></span>
+              <button id="btn-send" class="btn btn-primary">Send</button>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- Skills Module -->
+      <!-- Prompts (Skills) Module -->
       <section id="view-skills" class="module-view">
         <div class="view-header">
-          <div class="title-wrap">
-            <h1 class="view-title">Skills Registry</h1>
-            <p class="view-description">Manage system prompts and automation keyword macros for quick insertion.</p>
+          <h1 class="view-title">Prompts</h1>
+          <p class="view-description">Saved prompts. On any supported chat site, type @ in the message box to insert one.</p>
+        </div>
+
+        <div class="view-body prompts-layout">
+          <div class="card prompts-list-card">
+            <div class="card-header">
+              <h2>Your prompts</h2>
+              <button id="btn-add-skill-trigger" class="btn btn-small">+ New</button>
+            </div>
+            <div id="skills-list" class="prompts-list"></div>
           </div>
-          <div style="display: flex; align-items: center; gap: 15px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <label for="select-trigger-char" style="font-size: 11px; color: var(--text-muted); font-weight: 500;">Autocomplete Trigger:</label>
-              <select id="select-trigger-char" class="dbg-select" style="padding: 4px 8px; font-size: 12px; height: 30px; min-width: 60px;">
+
+          <div class="card prompts-editor-card">
+            <h2 id="skill-editor-title">Prompt</h2>
+            <form id="skill-form" class="form">
+              <label for="input-skill-keyword">Keyword</label>
+              <input type="text" id="input-skill-keyword" class="text-input" placeholder="@my_prompt" required>
+
+              <label for="input-skill-desc">Description</label>
+              <input type="text" id="input-skill-desc" class="text-input" placeholder="What is it for?">
+
+              <label for="textarea-skill-prompt">Prompt text</label>
+              <textarea id="textarea-skill-prompt" class="text-input prompt-text" placeholder="The text that gets inserted…" required></textarea>
+
+              <div class="form-actions">
+                <button type="button" id="btn-delete-skill" class="btn btn-danger">Delete</button>
+                <button type="submit" id="btn-save-skill" class="btn btn-primary">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings Module (includes the former Connection view) -->
+      <section id="view-settings" class="module-view">
+        <div class="view-header">
+          <h1 class="view-title">Settings</h1>
+          <p class="view-description">How the extension looks and behaves.</p>
+        </div>
+
+        <div class="view-body">
+          <div class="card">
+            <h2>@ prompt pop-up</h2>
+            <div class="setting-row">
+              <label for="checkbox-enable-webpage">Show the pop-up on chat sites</label>
+              <input type="checkbox" id="checkbox-enable-webpage">
+            </div>
+            <div class="setting-row">
+              <label for="select-trigger-char">Key that opens it</label>
+              <select id="select-trigger-char" class="select">
                 <option value="@">@</option>
                 <option value="#">#</option>
                 <option value="/">/</option>
-                <option value="disabled">Disabled</option>
+                <option value="disabled">Off</option>
               </select>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <input type="checkbox" id="checkbox-enable-webpage" style="width: 14px; height: 14px; cursor: pointer;">
-              <label for="checkbox-enable-webpage" style="font-size: 11px; color: var(--text-muted); font-weight: 500; cursor: pointer;">Enable in Browser Sessions</label>
-            </div>
           </div>
-        </div>
 
-        <div class="view-body" style="height: calc(100% - 70px); overflow: hidden; padding: 0;">
-          <div style="display: flex; height: 100%; gap: 15px;">
-            <!-- Left Panel: List of Skills -->
-            <div style="flex: 2; display: flex; flex-direction: column; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; height: 100%; overflow: hidden;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <h3 style="font-size: 12px; font-weight: 600; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em;">Macro Library</h3>
-                <button id="btn-add-skill-trigger" class="dbg-btn" style="padding: 4px 8px; font-size: 11px; font-weight: 600; border-color: var(--accent-indigo);">+ Add Custom</button>
+          <div class="card">
+            <h2>Notifications</h2>
+            <div class="setting-row">
+              <label for="checkbox-notify-done">Notify me when an answer is ready</label>
+              <input type="checkbox" id="checkbox-notify-done">
+            </div>
+            <p class="muted small">Only for tabs shown on the Send page, and only when you are looking at another tab.</p>
+          </div>
+
+          <div class="card">
+            <h2>Window</h2>
+            <div class="setting-row">
+              <span>Open as</span>
+              <div class="segment-control">
+                <button class="segment-btn active" id="btn-mode-window" data-mode="window">Window</button>
+                <button class="segment-btn" id="btn-mode-panel" data-mode="panel">Side panel</button>
               </div>
-              <div id="skills-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px;">
-                <!-- Dynamically populated skills cards -->
+            </div>
+          </div>
+
+          <div id="view-connection" class="card">
+            <h2>Supported sites</h2>
+            <p class="muted small">ChatGPT and Gemini are tested in this version. Claude and Copilot may need selector updates.</p>
+            <div class="site-tags">
+              <span class="tag">ChatGPT</span><span class="tag">Gemini</span><span class="tag">Claude</span><span class="tag">Copilot</span>
+            </div>
+            <details class="advanced">
+              <summary>Advanced: check a site profile (JSON)</summary>
+              <textarea id="textarea-profile-import" class="text-input mono" placeholder='{ "siteName": "CustomSite", "selectors": { "inputSelector": "..." } }'></textarea>
+              <div class="form-actions start">
+                <button id="btn-validate-profile" class="btn btn-small">Check</button>
+                <span id="profile-validation-badge" class="dbg-status-badge"></span>
               </div>
-            </div>
-
-            <!-- Right Panel: Form Editor -->
-            <div style="flex: 3; display: flex; flex-direction: column; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; height: 100%; overflow-y: auto;">
-              <h3 id="skill-editor-title" style="font-size: 12px; font-weight: 600; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 15px;">Skill Settings</h3>
-              <form id="skill-form" style="display: flex; flex-direction: column; gap: 12px; flex: 1;">
-                <div style="display: flex; flex-direction: column; gap: 4px;">
-                  <label for="input-skill-keyword" style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Keyword</label>
-                  <input type="text" id="input-skill-keyword" class="dbg-text-input" placeholder="@my_keyword" style="width: 100%;" required>
-                </div>
-                
-                <div style="display: flex; flex-direction: column; gap: 4px;">
-                  <label for="input-skill-desc" style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Description</label>
-                  <input type="text" id="input-skill-desc" class="dbg-text-input" placeholder="What does this macro do?" style="width: 100%;">
-                </div>
-
-                <div style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 120px;">
-                  <label for="textarea-skill-prompt" style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Prompt Template</label>
-                  <textarea id="textarea-skill-prompt" class="dbg-text-input" placeholder="Type prompt template here..." style="width: 100%; flex: 1; resize: none; font-family: inherit; font-size: 12px;" required></textarea>
-                </div>
-
-                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
-                  <button type="button" id="btn-delete-skill" class="dbg-btn" style="border-color: var(--accent-rose); color: var(--accent-rose); background: rgba(244, 63, 94, 0.05);">Delete</button>
-                  <button type="submit" id="btn-save-skill" class="dbg-btn" style="border-color: var(--accent-indigo); color: white; background: var(--grad-primary); border: none; font-weight: 600; padding: 6px 15px;">Save Skill</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Connection Module -->
-      <section id="view-connection" class="module-view">
-        <div class="view-header">
-          <div class="title-wrap">
-            <h1 class="view-title">Connection & Selector Setup</h1>
-            <p class="view-description">Map webpage elements and configure active browser tab connections.</p>
-          </div>
-          <span class="badge badge-rose">Phase 1.4 Active</span>
-        </div>
-
-        <div class="view-body">
-          <div class="debug-card">
-            <h3>Registry of Supported Platforms</h3>
-            <p class="card-desc">The following four platforms are supported natively out-of-the-box:</p>
-            <div style="display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap;">
-              <span class="dbg-status-badge success" style="padding: 4px 8px;">ChatGPT (Connected)</span>
-              <span class="dbg-status-badge success" style="padding: 4px 8px;">Claude (Connected)</span>
-              <span class="dbg-status-badge success" style="padding: 4px 8px;">Gemini (Connected)</span>
-              <span class="dbg-status-badge success" style="padding: 4px 8px;">Copilot (Connected)</span>
-            </div>
-
-            <h3 style="margin-top: 20px;">Validate Profile JSON</h3>
-            <p class="card-desc">Paste selector profile JSON structure here to validate schema fields.</p>
-            <textarea id="textarea-profile-import" class="dbg-text-input" style="width: 100%; height: 90px; font-family: monospace; font-size: 11px; resize: none; margin-bottom: 10px;" placeholder='{ "siteName": "CustomSite", "selectors": { "inputSelector": "..." } }'></textarea>
-            <div style="display: flex; gap: 10px; align-items: center;">
-              <button id="btn-validate-profile" class="dbg-btn" style="background-color: var(--accent-rose);">Validate JSON Format</button>
-              <span id="profile-validation-badge" class="dbg-status-badge"></span>
-            </div>
+            </details>
           </div>
         </div>
       </section>
@@ -469,15 +303,9 @@
   <!-- Detached State Placeholder for Sidebar/Panel view -->
   <div id="detached-placeholder" class="detached-placeholder">
     <div class="placeholder-card">
-      <div class="placeholder-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-          <line x1="9" y1="3" x2="9" y2="21"></line>
-        </svg>
-      </div>
-      <h3>Manager is Detached</h3>
-      <p>The Workspace Manager is currently running in a separate popup window to prevent auto-closure on focus loss.</p>
-      <button id="btn-dock-here" class="dock-btn">Dock back to Side Panel</button>
+      <h3>Workspace Manager is open in its own window</h3>
+      <p>Click here to show it in the side panel instead.</p>
+      <button id="btn-dock-here" class="btn btn-primary">Use side panel</button>
     </div>
   </div>
 </body>

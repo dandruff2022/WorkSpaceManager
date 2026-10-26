@@ -166,10 +166,9 @@ function switchViewMode(newMode) {
 function initializeModules() {
   console.log("[Workspace Manager] Initializing modules...");
   
+  // v0.6: Context Transfer, Broadcast and Orchestrator are hidden (code kept in ui/modules/)
   const modules = {
-    'context-transfer': window.ContextTransferModule,
-    'broadcast': window.BroadcastModule,
-    'orchestrator': window.OrchestratorModule,
+    'send': window.SendModule,
     'skills': window.SkillsModule,
     'connection': window.ConnectionModule,
     'debug-test': window.DebugTestModule
@@ -190,10 +189,22 @@ function initializeModules() {
 
   setupDebugModeVisibility();
   setupPopupAutocomplete();
+  setupNotificationSetting();
+}
+
+function setupNotificationSetting() {
+  const checkbox = document.getElementById('checkbox-notify-done');
+  if (!checkbox || !chromeAPI || !chromeAPI.storage) return;
+  chromeAPI.storage.local.get(['notifyWhenDone'], (data) => {
+    checkbox.checked = data.notifyWhenDone !== false;
+  });
+  checkbox.addEventListener('change', () => {
+    chromeAPI.storage.local.set({ notifyWhenDone: checkbox.checked });
+  });
 }
 
 function setupPopupAutocomplete() {
-  const targetIds = ["textarea-broadcast-prompt", "textarea-transfer-prompt"];
+  const targetIds = ["send-prompt"];
   targetIds.forEach(id => {
     const el = document.getElementById(id);
     if (el && typeof SkillsAutocomplete !== 'undefined') {
@@ -211,8 +222,9 @@ function setupPopupAutocomplete() {
 }
 
 function setupDebugModeVisibility() {
+  // Debug tools are hidden unless the manager is opened with ?debug (e.g. ui/manager.html?mode=window&debug)
   if (typeof window.__agy_debug_mode === 'undefined') {
-    window.__agy_debug_mode = true; // default true for development
+    window.__agy_debug_mode = new URLSearchParams(window.location.search).has('debug');
   }
 
   const debugElements = document.querySelectorAll('.debug-mode-only');

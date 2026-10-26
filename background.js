@@ -367,6 +367,7 @@ chromeAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (sender && sender.tab) {
       message.payload = message.payload || {};
       message.payload.tabId = sender.tab.id;
+      notifyIfAnswerReady(sender.tab, message.payload.state);
     }
     chromeAPI.runtime.sendMessage(message).catch(() => {});
     return false;
@@ -404,4 +405,48 @@ async function ensureContentScript(tabId) {
   });
   console.log(`[Background] Dynamically injected content scripts into tab ${tabId}.`);
   return true;
+}
+
+// "Answer ready" notifications: when a watched tab goes from working to done while the user is not
+// looking at it, show a system notification; clicking it focuses that tab.
+const lastGenerationState = new Map(); // tabId -> last observed state
+
+async function notifyIfAnswerReady(tab, state) {
+  const previous = lastGenerationState.get(tab.id);
+  lastGenerationState.set(tab.id, state);
+  if (previous !== 'working' || state !== 'complete') return;
+  if (!chromeAPI.notifications) return;
+
+  const { notifyWhenDone } = await chromeAPI.storage.local.get(['notifyWhenDone']);
+  if (notifyWhenDone === false) return;
+
+  // Skip if the tab is in front of the user right now
+  try {
+    const win = await chromeAPI.windows.get(tab.windowId);
+    if (tab.active && win.focused) return;
+  } catch (e) { /* window gone; notify anyway */ }
+
+  let site = "Chatbot";
+  try { site = new URL(tab.url).hostname.replace(/^www\./, ''); } catch (e) {}
+  chromeAPI.notifications.create(`answer-ready-${tab.id}-${Date.now()}`, {
+    type: 'basic',
+    iconUrl: chromeAPI.runtime.getURL('icons/icon-128.png'),
+    title: 'Answer ready',
+    message: `${tab.title || site} finished responding.`,
+    contextMessage: site
+  });
+}
+
+chromeAPI.tabs.onRemoved.addListener((tabId) => lastGenerationState.delete(tabId));
+
+if (chromeAPI.notifications) {
+  chromeAPI.notifications.onClicked.addListener((notificationId) => {
+    const match = /^answer-ready-(\d+)-/.exec(notificationId);
+    if (!match) return;
+    const tabId = parseInt(match[1], 10);
+    chromeAPI.tabs.update(tabId, { active: true }, (tab) => {
+      if (!chromeAPI.runtime.lastError && tab) chromeAPI.windows.update(tab.windowId, { focused: true });
+    });
+    chromeAPI.notifications.clear(notificationId);
+  });
 }

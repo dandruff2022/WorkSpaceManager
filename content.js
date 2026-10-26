@@ -73,7 +73,7 @@ document.addEventListener("focusin", (e) => {
   if ((isTextarea || isInput || isEditable) && !el.__agy_autocomplete_attached) {
     if (chromeAPI && chromeAPI.storage && chromeAPI.storage.local) {
       chromeAPI.storage.local.get(['enableWebpageAutocomplete', 'siteProfiles'], (data) => {
-        if (!data.enableWebpageAutocomplete) {
+        if (data.enableWebpageAutocomplete === false) {
           return; // Webpage sessions autocomplete disabled
         }
 
