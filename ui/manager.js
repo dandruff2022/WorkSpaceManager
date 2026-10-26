@@ -127,9 +127,37 @@ function updateUIForMode(mode) {
   }
 }
 
+// Last focused normal browser window, cached so the side panel can be opened synchronously from a click
+let lastNormalWindowId = null;
+if (chromeAPI && chromeAPI.windows) {
+  chromeAPI.windows.getLastFocused({ windowTypes: ['normal'] }).then(win => {
+    if (win) lastNormalWindowId = win.id;
+  }).catch(() => {});
+  chromeAPI.windows.onFocusChanged.addListener((windowId) => {
+    if (windowId === chromeAPI.windows.WINDOW_ID_NONE) return;
+    chromeAPI.windows.get(windowId).then(win => {
+      if (win.type === 'normal') lastNormalWindowId = win.id;
+    }).catch(() => {});
+  });
+}
+
 // Persist selection and notify background script to restructure presentation
 function switchViewMode(newMode) {
   updateUIForMode(newMode);
+
+  // Chrome: from the detached window, open the side panel directly in this click (user gesture required)
+  const inDetachedWindow = window.location.search.includes('mode=window');
+  if (newMode === 'panel' && inDetachedWindow && chromeAPI && chromeAPI.sidePanel && lastNormalWindowId !== null) {
+    chromeAPI.storage.local.set({ preferredMode: 'panel' });
+    chromeAPI.sidePanel.open({ windowId: lastNormalWindowId })
+      .then(() => window.close())
+      .catch(err => {
+        console.error("Could not open the side panel:", err);
+        updateUIForMode('window');
+        chromeAPI.storage.local.set({ preferredMode: 'window' });
+      });
+    return;
+  }
   
   // Persist locally (asynchronous fire-and-forget to preserve gesture token)
   if (chromeAPI && chromeAPI.storage && chromeAPI.storage.local) {

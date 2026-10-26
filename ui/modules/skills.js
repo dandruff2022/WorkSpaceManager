@@ -40,7 +40,7 @@
 
         chromeAPI.storage.local.get(['autocompleteTriggerChar', 'enableWebpageAutocomplete'], (data) => {
           if (triggerSelect) {
-            triggerSelect.value = data.autocompleteTriggerChar || "@";
+            triggerSelect.value = data.autocompleteTriggerChar || ";;";
           }
           if (webpageCheckbox) {
             webpageCheckbox.checked = data.enableWebpageAutocomplete !== false;

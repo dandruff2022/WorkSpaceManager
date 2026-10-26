@@ -8,7 +8,7 @@
     constructor(element, options = {}) {
       this.element = element;
       this.onQuery = options.onQuery || null;
-      this.triggerChar = "@"; // default, gets synced dynamically from storage
+      this.triggerChar = ";;"; // default, gets synced dynamically from storage
       
       this.state = "CLOSED"; // CLOSED, TRIGGERED
       this.dropdown = null;
@@ -24,12 +24,12 @@
     async initTriggerChar() {
       if (chromeAPI && chromeAPI.storage && chromeAPI.storage.local) {
         chromeAPI.storage.local.get(['autocompleteTriggerChar'], (data) => {
-          this.triggerChar = data.autocompleteTriggerChar || "@";
+          this.triggerChar = data.autocompleteTriggerChar || ";;";
         });
 
         chromeAPI.storage.onChanged.addListener((changes) => {
           if (changes.autocompleteTriggerChar) {
-            this.triggerChar = changes.autocompleteTriggerChar.newValue || "@";
+            this.triggerChar = changes.autocompleteTriggerChar.newValue || ";;";
           }
         });
       }

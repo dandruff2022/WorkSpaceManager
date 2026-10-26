@@ -76,7 +76,7 @@ chromeAPI.tabs.onActivated.addListener((activeInfo) => {
 });
 
 // Initialize the extension when installed or updated
-chromeAPI.runtime.onInstalled.addListener(() => {
+chromeAPI.runtime.onInstalled.addListener(async () => {
   console.log("Workspace Manager Extension Installed.");
   runStartupTabScan();
   
@@ -157,10 +157,16 @@ chromeAPI.runtime.onInstalled.addListener(() => {
   };
 
   // Seed storage.local with default preferredMode and siteProfiles
-  chromeAPI.storage.local.set({ 
-    preferredMode: 'window',
-    siteProfiles: defaultProfiles
-  });
+  // Keep the user's saved window/panel choice; v0.6 moves the prompt pop-up key from "@" (which the chat sites
+  // use for their own menus) to ";;" once
+  const stored = await chromeAPI.storage.local.get(['preferredMode', 'triggerMigratedV06']);
+  const seed = { siteProfiles: defaultProfiles };
+  if (!stored.preferredMode) seed.preferredMode = 'window';
+  if (!stored.triggerMigratedV06) {
+    seed.autocompleteTriggerChar = ';;';
+    seed.triggerMigratedV06 = true;
+  }
+  chromeAPI.storage.local.set(seed);
 
   // For Chrome: Configure default behavior for the side panel API if available
   if (chromeAPI.sidePanel && typeof chromeAPI.sidePanel.setPanelBehavior === 'function') {

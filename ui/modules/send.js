@@ -1,6 +1,6 @@
 // Workspace Manager - Send Module
 // One composer for many chatbot tabs: pick tabs, send, watch each tab's status, jump to a tab,
-// and fire a saved prompt at a single tab. Replaces the Broadcast view and the Orchestrator's tab monitor.
+// Replaces the Broadcast view and the Orchestrator's tab monitor.
 
 (() => {
   const chromeAPI = typeof chrome !== 'undefined' ? chrome : (typeof browser !== 'undefined' ? browser : null);
@@ -78,29 +78,8 @@
         chip.className = `status-chip ${info.cls}`;
       }
 
-      function quickPromptSelect(tabId) {
-        const select = document.createElement('select');
-        select.className = 'quick-select';
-        select.title = "Send a saved prompt to this tab";
-        const placeholder = new Option("Quick prompt…", "");
-        select.appendChild(placeholder);
-        const skills = typeof SkillsRegistry !== 'undefined' ? SkillsRegistry.getAllSkills() : [];
-        skills
-          .filter(s => s.keyword.startsWith('@'))
-          .sort((a, b) => a.keyword.localeCompare(b.keyword))
-          .forEach(s => select.appendChild(new Option(s.keyword, s.keyword)));
-        select.addEventListener('change', async () => {
-          const skill = SkillsRegistry.getSkill(select.value);
-          select.value = "";
-          if (skill) await sendToTabs([tabId], skill.prompt, skill.keyword);
-        });
-        return select;
-      }
-
       async function renderTabs() {
         if (!chromeAPI || !chromeAPI.tabs || !listEl) return;
-        if (typeof SkillsRegistry !== 'undefined') await SkillsRegistry.load();
-
         const allTabs = await chromeAPI.tabs.query({});
         const aiTabs = allTabs.filter(tab => siteOf(tab));
 
@@ -150,7 +129,7 @@
           chip.id = `send-status-${tab.id}`;
           chip.className = 'status-chip';
 
-          row.append(checkbox, name, chip, quickPromptSelect(tab.id));
+          row.append(checkbox, name, chip);
           listEl.appendChild(row);
           renderStatus(tab.id);
 
@@ -158,7 +137,15 @@
           if (!observedTabs.has(tab.id)) {
             observedTabs.add(tab.id);
             bridge(tab.id, "observeGenerationState").then(res => {
-              if (res.status !== "success") observedTabs.delete(tab.id);
+              if (res.status !== "success") {
+                observedTabs.delete(tab.id);
+                const failedChip = container.querySelector(`#send-status-${tab.id}`);
+                if (failedChip) {
+                  failedChip.textContent = "Reload tab";
+                  failedChip.className = "status-chip status-error";
+                  failedChip.title = `Could not connect to this tab: ${res.error || "no response"}`;
+                }
+              }
             });
           }
         });
@@ -166,11 +153,10 @@
       }
 
       // Focus each tab in turn (sites ignore synthetic input in background tabs), type, send, then restore focus.
-      async function sendToTabs(tabIds, text, label) {
+      async function sendToTabs(tabIds, text) {
         if (busy) return;
         busy = true;
         updateSendButton();
-        const what = label || "Prompt";
         setStatusLine(`Sending to ${tabIds.length} tab(s)…`);
 
         const [activeTab] = await chromeAPI.tabs.query({ active: true, lastFocusedWindow: true });
@@ -197,7 +183,7 @@
         }
 
         if (failed.length === 0) {
-          setStatusLine(`${what} sent. You'll get a notification when answers are ready.`, "ok");
+          setStatusLine(`Sent. You'll get a notification when answers are ready.`, "ok");
         } else {
           setStatusLine(`Could not send to: ${failed.join(", ")}. Try reloading that tab.`, "error");
         }

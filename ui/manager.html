@@ -81,7 +81,7 @@
           </div>
 
           <div class="card">
-            <textarea id="send-prompt" class="text-input composer" placeholder="Type a prompt. Type @ to insert a saved prompt. Press ⌘/Ctrl + Enter to send."></textarea>
+            <textarea id="send-prompt" class="text-input composer" placeholder="Type a prompt. Type ;; to insert a saved prompt. Press ⌘/Ctrl + Enter to send."></textarea>
             <div class="composer-footer">
               <span id="send-status" class="status-line"></span>
               <button id="btn-send" class="btn btn-primary">Send</button>
@@ -94,7 +94,7 @@
       <section id="view-skills" class="module-view">
         <div class="view-header">
           <h1 class="view-title">Prompts</h1>
-          <p class="view-description">Saved prompts. On any supported chat site, type @ in the message box to insert one.</p>
+          <p class="view-description">Saved prompts. On a supported chat site, type ;; in the message box to pick one (you can change the key in Settings).</p>
         </div>
 
         <div class="view-body prompts-layout">
@@ -136,7 +136,7 @@
 
         <div class="view-body">
           <div class="card">
-            <h2>@ prompt pop-up</h2>
+            <h2>Prompt pop-up</h2>
             <div class="setting-row">
               <label for="checkbox-enable-webpage">Show the pop-up on chat sites</label>
               <input type="checkbox" id="checkbox-enable-webpage">
@@ -144,6 +144,7 @@
             <div class="setting-row">
               <label for="select-trigger-char">Key that opens it</label>
               <select id="select-trigger-char" class="select">
+                <option value=";;">;; (recommended)</option>
                 <option value="@">@</option>
                 <option value="#">#</option>
                 <option value="/">/</option>
