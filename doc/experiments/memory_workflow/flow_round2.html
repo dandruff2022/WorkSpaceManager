@@ -1,0 +1,118 @@
+<title>记忆驱动流程示例</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: findings strip on top, then a swimlane grid (rows = steps, columns = places) from the real round-2 run */
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --fg:#1d2330; --muted:#667085; --line:#dfe3ea;
+  --accent:#4f46e5; --ok:#0e7a5f; --ok-bg:#e3f4ee; --warn:#a35a00; --warn-bg:#fdf0dc;
+  --wrap:#4f46e5; --wrap-bg:#ecebfd; --mem-bg:#f2f0ff; --del:#b42318; --code-bg:#f3f4f7;
+  --sans:"IBM Plex Sans",-apple-system,"PingFang SC","Noto Sans SC",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,"PingFang SC",monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#13151b; --panel:#1b1e26; --fg:#e6e8ee; --muted:#9aa3b5; --line:#2c313d;
+  --accent:#8b85ff; --ok:#5fd0aa; --ok-bg:#163229; --warn:#f0b45c; --warn-bg:#3a2a12;
+  --wrap:#a5a0ff; --wrap-bg:#26244a; --mem-bg:#1f1d33; --del:#ff8a80; --code-bg:#22252e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#13151b; --panel:#1b1e26; --fg:#e6e8ee; --muted:#9aa3b5; --line:#2c313d;
+  --accent:#8b85ff; --ok:#5fd0aa; --ok-bg:#163229; --warn:#f0b45c; --warn-bg:#3a2a12;
+  --wrap:#a5a0ff; --wrap-bg:#26244a; --mem-bg:#1f1d33; --del:#ff8a80; --code-bg:#22252e; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.5}
+.page{padding-inline:16px;padding-block:24px 48px;max-width:1300px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1{font-size:22px;margin:0;text-wrap:balance}
+h2{font-size:15px;margin:0}
+.sub{color:var(--muted);margin:0;max-width:75ch}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.card p{margin:0;color:var(--muted)}
+.tag{align-self:flex-start;font-size:12px;padding:1px 8px;border-radius:10px;font-weight:600}
+.t-ok{color:var(--ok);background:var(--ok-bg)} .t-warn{color:var(--warn);background:var(--warn-bg)}
+.chip{font-family:var(--mono);font-size:12px;padding:1px 6px;border-radius:4px;color:var(--wrap);background:var(--wrap-bg);white-space:nowrap}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.grid{display:grid;grid-template-columns:96px repeat(4,minmax(220px,1fr));min-width:1000px}
+.grid>div{padding:10px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);min-width:0;display:flex;flex-direction:column;gap:6px}
+.hd{font-weight:600;font-size:13px}
+.hd small,.step small{display:block;font-weight:400;color:var(--muted)}
+.step{font-weight:600;font-size:13px}
+.lane-mem{background:var(--mem-bg)}
+.lbl{font-size:12px;color:var(--muted)}
+pre{margin:0;font-family:var(--mono);font-size:12px;line-height:1.45;background:var(--code-bg);padding:7px 8px;border-radius:5px;white-space:pre-wrap;word-break:break-word}
+.add{color:var(--ok)} .del{color:var(--del);text-decoration:line-through}
+.note{font-size:13px}
+.ok{color:var(--ok);font-weight:600} .warn{color:var(--warn);font-weight:600}
+</style>
+
+<div class="page">
+  <h1>第二轮实测：写一篇讲向量数据库的博客</h1>
+  <p class="sub">真实跑在 ChatGPT 和 Gemini 上，内容有删减。另一轮"芝加哥一日游"（查资料型）结果一致，不重复列出。</p>
+
+  <div class="cards">
+    <div class="card"><span class="tag t-ok">修好了</span><h2>"简短"有用了</h2><p>改成消息末尾的 +short 后，正文只有 16–50 词，内容都进了 result 块。</p></div>
+    <div class="card"><span class="tag t-ok">修好了</span><h2>交接不再丢东西</h2><p>Return 写明要保留什么，两家都保留了全部条目和链接。</p></div>
+    <div class="card"><span class="tag t-ok">修好了</span><h2>记忆更新守规矩</h2><p>决定都带〔AI · 依据〕，删问题会写理由，换平台续写不再重新争论。</p></div>
+    <div class="card"><span class="tag t-warn">新发现</span><h2>Gemini 的追问不是模型写的</h2><p>是网页自己加的"推荐追问"按钮。扩展用复制按钮拿原文就不会带上。</p></div>
+  </div>
+
+  <div class="scroll">
+  <div class="grid">
+    <div class="hd">步骤</div>
+    <div class="hd lane-mem">📄 记忆<small>唯一的进度</small></div>
+    <div class="hd">ChatGPT 主对话<small>拆任务 · 续写</small></div>
+    <div class="hd">两个子 agent<small>各开新对话</small></div>
+    <div class="hd">Gemini 临时对话<small>只用来更新记忆</small></div>
+
+    <div class="step">① 起点</div>
+    <div class="lane-mem"><span class="lbl">记忆 v0</span>
+<pre>## Goal 给会 Python、没学过 ML 的本科生写 ~600 词博客
+## Preferences 友好；一个日常比喻；一小段代码；不打广告
+## Decisions （空）
+## Open questions 用什么比喻？代码用哪个库？</pre></div>
+    <div></div><div></div><div></div>
+
+    <div class="step">② 拆任务</div>
+    <div></div>
+    <div><span class="lbl">发 <span class="chip">%split</span> ＋ 记忆全文 → 得到</span>
+<pre>```tasks
+Title: 概念讲解和比喻
+===
+Title: 代码示例
+```</pre><span class="note ok">一次就能解析</span></div>
+    <div></div><div></div>
+
+    <div class="step">③ 派发<small>并行</small></div>
+    <div></div><div></div>
+    <div><span class="lbl">发 <span class="chip">%task</span> ＋ 需要的几节 ＋ 任务 ＋ <span class="chip">+short</span></span>
+<pre>Gemini → 选了"音乐口味地图"比喻，写了 ~470 词草稿
+ChatGPT → 选了 Python 自带的 math.dist，写了 8 行代码</pre>
+      <span class="note ok">正文 50 / 16 词，链接都在</span>
+      <span class="note warn">关键选择是子 agent 自己拍板的</span></div>
+    <div></div>
+
+    <div class="step">④ 更新记忆</div>
+    <div class="lane-mem"><span class="lbl">记忆 v1（对比）</span>
+<pre>## Decisions
+<span class="add">+ 比喻：音乐口味地图〔AI · 依据：子任务 A〕
++ 代码：math.dist〔AI · 依据：子任务 B〕</span>
+## Open questions
+<span class="del">用什么比喻？代码用哪个库？</span>
+<span class="add">已删：两项都在新材料里选定了</span></pre>
+      <span class="note">👤 你看一眼对比，不同意就改</span></div>
+    <div></div><div></div>
+    <div><span class="lbl">发 <span class="chip">%mem-update</span> ＋ v0 ＋ 两个 result 块</span>
+<pre>```mem …```
+<span class="del">要我把它们拼成完整文章吗？</span></pre>
+      <span class="note">划掉的这句是网页按钮，不是回答内容</span></div>
+
+    <div class="step">⑤ 换平台续写</div>
+    <div></div>
+    <div><span class="lbl">新对话：<span class="chip">%resume</span> ＋ 记忆 v1 ＋ "写出全文"</span>
+<pre>~600 词成文：用了音乐比喻和 math.dist，
+语气友好，没有广告
+```result
+标题 + 两行摘要
+```</pre><span class="note ok">没有重新讨论已定的事</span></div>
+    <div></div><div></div>
+  </div>
+  </div>
+</div>
