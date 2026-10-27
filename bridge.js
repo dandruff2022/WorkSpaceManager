@@ -432,7 +432,9 @@ ${parentChain}
     const copyCount = Array.from(document.querySelectorAll(sel.copyButtonSelector)).filter(btn =>
       !(sel.userCopyButtonSelector && btn.matches(sel.userCopyButtonSelector)) && !btn.closest('pre, .code-block, code')
     ).length;
-    return { hasStop, copyCount, hasInput: !!document.querySelector(sel.inputSelector), url: window.location.href };
+    const input = document.querySelector(sel.inputSelector);
+    const inputLength = input ? (input.value !== undefined && input.tagName !== 'DIV' ? input.value : input.innerText || '').trim().length : 0;
+    return { hasStop, copyCount, hasInput: !!input, inputLength, url: window.location.href };
   }
 
   function scanInitialState() {

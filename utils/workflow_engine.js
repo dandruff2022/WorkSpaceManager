@@ -86,10 +86,18 @@
         let res = await bridge(tabId, 'writeToInput', { text });
         if (res.status !== 'success') { await sleep(1000); res = await bridge(tabId, 'writeToInput', { text }); }
         if (res.status !== 'success') throw new Error('Could not type into the message box');
-        await sleep(400);
-        res = await bridge(tabId, 'clickSend');
-        if (res.status !== 'success') throw new Error('Could not press send');
-        await sleep(800);
+        // The send button can lag behind the typed text (and a synthetic Enter is ignored), so press send until
+        // the page shows the message went out: the box is empty, the URL changed or the stop button is up
+        const before = await snapshot(tabId);
+        let sent = false;
+        for (let attempt = 0; attempt < 6 && !sent; attempt++) {
+          await sleep(attempt === 0 ? 400 : 1000);
+          res = await bridge(tabId, 'clickSend');
+          await sleep(700);
+          const after = await snapshot(tabId);
+          sent = !!after && (after.hasStop || after.inputLength === 0 || (before && after.url !== before.url));
+        }
+        if (!sent) throw new Error('Could not press send (the message is still in the box)');
       } finally {
         if (previous && previous.id !== tabId) await chromeAPI.tabs.update(previous.id, { active: true }).catch(() => {});
       }
@@ -293,7 +301,9 @@
     wf_removeTask: async (p) => { await self.ProjectStore.removeTask(p.projectId, p.taskId); return {}; },
     wf_run: async (p) => ({ step: await startStep(p.projectId, p) }),
     wf_openChat: async (p) => { await openStepChat(p.projectId, p.stepId); return {}; },
-    wf_getArchive: async (p) => ({ text: await self.ProjectStore.getArchive(p.archiveId) })
+    wf_getArchive: async (p) => ({ text: await self.ProjectStore.getArchive(p.archiveId) }),
+    // Dev harness: pick up code changes without visiting chrome://extensions
+    wf_devReload: async () => { setTimeout(() => chromeAPI.runtime.reload(), 200); return {}; }
   };
 
   function handleMessage(message, sendResponse) {
