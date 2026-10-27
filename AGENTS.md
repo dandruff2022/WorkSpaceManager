@@ -90,6 +90,10 @@ Live-run gotchas (all learned the hard way):
 - On the localhost demo page, Settings are page-local and do **not** reach the extension; change real settings in
   the extension's own Settings page (or rely on defaults).
 - Live runs create real chats in the user's ChatGPT/Gemini accounts; prefer small tasks and tell the user.
+- Testing the `;;` picker on a real site: Enter in the message box sends. Before pressing Enter, install a guard in the
+  page that blocks the send request (ChatGPT: `fetch` POST to `/backend-api/f/conversation`; Gemini: XHR to
+  `StreamGenerate`). ProseMirror reads several DOM edits made in one go as one change and can turn a cross-paragraph
+  change into an Enter key (ChatGPT then sends the old text); edit rich editors one step per tick (`SitePicker.applyStyles`).
 
 ## Docs: what to read for which task
 
@@ -99,7 +103,7 @@ Live-run gotchas (all learned the hard way):
 | Next phase (Library: prompts, styles, notes, one picker) | `doc/plan/phase_3.2_library_plan.md` |
 | Anything in Projects | `doc/plan/phase_3.1_flow_plan.md`, then `phase_3_plan.md`; prompt wording rationale in `doc/experiments/memory_workflow/prompts_v2.md` |
 | What's done / next | `doc/roadmap.md` (the "Phase 3 (new)" section) |
-| Why something was done | latest `doc/log/*.md` (newest: `2026_10_27_09.md`) |
+| Why something was done | latest `doc/log/*.md` (newest: `2026_10_27_10.md`) |
 | Site selectors broke | `presets/*.json`, `background.js` default profiles, `doc/debug_skill.md` |
 | Original vision (dated) | `doc/specification.md` — Firefox-era spec; the Orchestrator/Context Transfer parts are superseded |
 

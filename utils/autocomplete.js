@@ -138,7 +138,13 @@
 
     handleKey(e) {
       if (!this.picker || document.activeElement !== this.el) return;
-      if (this.picker.handleKey(e)) {
+      let used = e.key === 'Enter';   // even if handling fails, Enter must never reach the site (it sends)
+      try {
+        used = this.picker.handleKey(e);
+      } catch (err) {
+        console.error('[Workspace Manager] picker key failed:', err);
+      }
+      if (used) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
@@ -162,12 +168,15 @@
       this.host = null;
     }
 
-    // Select ";;query" (trigger up to the caret); returns false when it's gone
-    selectTrigger() {
+    // Select ";;query" (trigger up to the caret); returns false when it's gone.
+    // eatSpace: also take the space before it when nothing follows on the line (styles leave no trailing space)
+    selectTrigger(eatSpace) {
       if (!this.isEditable()) {
         const end = this.el.selectionEnd;
-        const start = this.el.value.substring(0, end).lastIndexOf(this.trigger);
+        let start = this.el.value.substring(0, end).lastIndexOf(this.trigger);
         if (start === -1) return false;
+        const rest = this.el.value.substring(end).split('\n')[0];
+        if (eatSpace && start > 0 && this.el.value[start - 1] === ' ' && !rest.trim()) start--;
         this.el.focus();
         this.el.setSelectionRange(start, end);
         return true;
@@ -178,7 +187,8 @@
       const found = findPrecedingTrigger(range.startContainer, range.startOffset, this.trigger);
       if (!found) return false;
       const r = document.createRange();
-      r.setStart(found.node, found.index);
+      const eat = eatSpace && found.index > 0 && found.node.data[found.index - 1] === ' ' && !this.around()[1].trim();
+      r.setStart(found.node, eat ? found.index - 1 : found.index);
       r.setEnd(range.startContainer, range.startOffset);
       sel.removeAllRanges();
       sel.addRange(r);
@@ -192,11 +202,16 @@
       document.execCommand('insertText', false, Library.paragraphText(before, after, item.insert.text));
     }
 
-    applyStyles(ids) {
+    async applyStyles(ids) {
       this.close();
-      if (this.selectTrigger()) document.execCommand('delete');
+      if (this.selectTrigger(true)) document.execCommand('delete');
       const line = StylesRegistry.buildLine(this.styles, ids);
       if (this.isEditable()) {
+        // Let the editor read the first edit before the second. ProseMirror reads DOM edits made in one go as one
+        // change; "delete ;; in the first paragraph + empty the last one" then looks like an Enter key and ChatGPT
+        // sends the message (seen live).
+        await new Promise(resolve => setTimeout(resolve, 50));
+        if (!document.contains(this.el)) return;
         this.applyLineEditable(line);
       } else {
         const value = this.el.value;
@@ -212,7 +227,9 @@
       if (global.StylesStore) global.StylesStore.setChoice('site', ids).catch(() => {});
     }
 
-    // Rich editors (ProseMirror on ChatGPT, Quill on Gemini): edit through the selection so the editor notices
+    // Rich editors (ProseMirror on ChatGPT, Quill on Gemini): edit through the selection so the editor notices.
+    // Only change text inside the line, never remove its block (a removed paragraph is a cross-block change, which
+    // ProseMirror may also read as Enter). Removing the styles leaves an empty line; the sites trim it on send.
     applyLineEditable(line) {
       const prefix = StylesRegistry.LINE_PREFIX;
       const walker = document.createTreeWalker(this.el, NodeFilter.SHOW_TEXT);
@@ -223,13 +240,7 @@
       const sel = window.getSelection();
       const r = document.createRange();
       if (found) {
-        if (line) {
-          r.selectNodeContents(found);
-        } else {
-          const block = found.parentElement && found.parentElement.closest('p, div, li');
-          if (block && block !== this.el && this.el.contains(block) && block.textContent.trim() === found.data.trim()) r.selectNode(block);
-          else r.selectNodeContents(found);
-        }
+        r.selectNodeContents(found);
         sel.removeAllRanges();
         sel.addRange(r);
         if (line) document.execCommand('insertText', false, line); else document.execCommand('delete');
