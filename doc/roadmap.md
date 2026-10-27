@@ -186,7 +186,23 @@ Plan: [`doc/plan/phase_2.5_demo_release_plan.md`](plan/phase_2.5_demo_release_pl
 
 ---
 
-## Phase 3 — Context Transfer & Broadcast Integration
+## Phase 3 (new) — Projects: a workflow you own (v0.7.0 trial)
+
+Memory-centred workflow: one project = versioned memory + tasks + activity; buttons split, run tasks on any AI, update
+memory in a fresh (temporary) chat, continue on another AI. Plan: [`doc/plan/phase_3_plan.md`](plan/phase_3_plan.md).
+Replaces the old Phase 3–4 below, which stay on hold.
+
+- [x] Prompt tests on ChatGPT and Gemini (prompts v2, `doc/experiments/memory_workflow/`)
+- [x] Prompts, parsers and project store with Node tests
+- [x] Background engine (open chat, send with confirmation, wait with peek, copy-read, `%fix` once, save)
+- [x] Projects screen; side panel is the default view
+- [x] End-to-end run via the dev harness: split (ChatGPT) → 2 tasks (ChatGPT + Gemini) → memory update (ChatGPT
+      temporary chat) → continue on Gemini; `%fix` path; restart recovery
+- [ ] User tries the Projects screen by hand
+- [ ] Decide on the tab flicker (send, Gemini peek) and the many-chats-per-task question
+- [ ] Release v0.7.0
+
+## Phase 3 (old, on hold) — Context Transfer & Broadcast Integration
 
 Implement UI and functionality for **Context Transfer** and **Broadcast**. Collect issues and difficulties met during implementation to pave the way for the harder parts (like the Orchestrator).
 

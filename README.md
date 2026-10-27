@@ -38,6 +38,13 @@ arrow keys and Enter (or click) to insert one. Edit, add or delete prompts on th
 | `@shorten` | Shorten the last answer to a quick summary |
 | `@check` | Ask the AI to check and correct its last answer |
 
+**Projects (new in 0.7, trial).** A project keeps one piece of work on your side: a memory of what is decided so
+far, a task list and every step any AI did. Write the goal, then use the buttons: **Split into tasks**, **Run tasks**
+(each task can go to a different AI), **Update memory** (a fresh chat rewrites the memory from the results; you see what
+changed and can undo) and **Continue in…** (start a new chat on any AI from the memory). Each button shows the message
+before it is sent, so you can edit it. Chat tabs opened for a step close by themselves once the answer is saved; reopen
+any of them from **Activity**.
+
 **Send to several AIs.** Click the toolbar icon to open the manager. The **Send** page lists your open chat tabs.
 Tick the ones you want, type a prompt (`;;` works here too), and press **Send** or ⌘/Ctrl + Enter. Each tab's status
 updates live; click a tab's name to jump to it.
@@ -59,7 +66,10 @@ separate window.
 - Chat sites change their pages often. When they do, sending or status detection on that site can break until the
   extension's selectors are updated.
 - To type into a tab, the extension briefly brings that tab to the front, then switches back.
-- Status updates and notifications only work while the manager window or side panel is open.
+- Status updates and notifications on the Send page only work while the manager is open (Projects steps run in the
+  background).
+- Projects: while a step runs, its chat tab is brought to the front for a moment to type, and Gemini tabs are briefly
+  shown while it answers (Gemini does not draw answers in hidden tabs).
 - Firefox support exists in the code but is not tested in this release.
 
 ## Roadmap
