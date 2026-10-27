@@ -104,15 +104,37 @@
     });
   }
 
-  // Done = a new answer copy button is there and no stop button, for two polls in a row
+  // Bring a tab to the front for a moment so the site renders (Gemini doesn't render answers in hidden tabs)
+  function peek(tabId) {
+    return withFocus(async () => {
+      const tab = await chromeAPI.tabs.get(tabId);
+      const [previous] = await chromeAPI.tabs.query({ active: true, windowId: tab.windowId });
+      await chromeAPI.tabs.update(tabId, { active: true });
+      try {
+        await sleep(1500);
+        return await snapshot(tabId);
+      } finally {
+        if (previous && previous.id !== tabId) await chromeAPI.tabs.update(previous.id, { active: true }).catch(() => {});
+      }
+    });
+  }
+
+  // Done = a new answer copy button is there and no stop button, for two polls in a row.
+  // A tab that shows neither progress nor an answer for a few polls gets a peek.
   async function waitForAnswer(tabId, baseCount) {
     const start = Date.now();
     let stable = 0;
+    let idle = 0;
     while (Date.now() - start < ANSWER_TIMEOUT_MS) {
       await sleep(POLL_MS);
       if (!(await tabExists(tabId))) throw new Error('The chat tab was closed');
-      const snap = await snapshot(tabId);
+      let snap = await snapshot(tabId);
+      if (snap && !snap.hasStop && snap.copyCount <= baseCount && ++idle >= 3) {
+        idle = 0;
+        snap = await peek(tabId);
+      }
       if (!snap) { stable = 0; continue; }
+      if (snap.hasStop) idle = 0;
       if (!snap.hasStop && snap.copyCount > baseCount) {
         if (++stable >= 2) return snap;
       } else {
