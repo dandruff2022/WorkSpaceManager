@@ -90,6 +90,7 @@ Live-run gotchas (all learned the hard way):
 
 | Task | Read |
 |---|---|
+| How the pieces fit (contexts, messages, data model, dependencies, toolchain) | `doc/architecture.md` |
 | Anything in Projects | `doc/plan/phase_3.1_flow_plan.md`, then `phase_3_plan.md`; prompt wording rationale in `doc/experiments/memory_workflow/prompts_v2.md` |
 | What's done / next | `doc/roadmap.md` (the "Phase 3 (new)" section) |
 | Why something was done | latest `doc/log/*.md` (newest: `2026_10_26_16.md`) |
