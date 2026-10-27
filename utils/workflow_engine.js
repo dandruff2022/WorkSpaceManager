@@ -214,7 +214,13 @@
         // The user keeps talking in this chat: show it and stop here
         const tab = await chromeAPI.tabs.update(tabId, { active: true });
         await chromeAPI.windows.update(tab.windowId, { focused: true }).catch(() => {});
-        await update({ status: 'done', url: tab.url || null });
+        // The chat gets its own URL a moment after sending; save that one so "Open chat" finds it later
+        let url = tab.url || null;
+        for (let i = 0; i < 20 && (!url || url.split('?')[0] === SITES[step.ai].newChatUrl); i++) {
+          await sleep(500);
+          url = (await chromeAPI.tabs.get(tabId).catch(() => ({}))).url || url;
+        }
+        await update({ status: 'done', url });
         tabId = null; // the user's chat now, never auto-closed
         return;
       }
