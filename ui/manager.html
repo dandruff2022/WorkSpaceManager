@@ -17,6 +17,7 @@
   <script src="modules/projects.js" defer></script>
   <script src="modules/send.js" defer></script>
   <script src="modules/skills.js" defer></script>
+  <script src="modules/library_page.js" defer></script>
   <script src="modules/connection.js" defer></script>
   <script src="modules/debug_test.js" defer></script>
   <script src="manager.js" defer></script>
@@ -50,7 +51,7 @@
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
           </svg>
-          <span class="nav-label">Prompts</span>
+          <span class="nav-label">Library</span>
         </button>
 
         <button class="nav-item" data-target="settings">
@@ -185,14 +186,18 @@
         </div>
       </section>
 
-      <!-- Prompts (Skills) Module -->
+      <!-- Library Module: Prompts and Styles tabs (section id kept as view-skills) -->
       <section id="view-skills" class="module-view">
         <div class="view-header">
-          <h1 class="view-title">Prompts</h1>
-          <p class="view-description">Saved prompts. On a supported chat site, type ;; in the message box to pick one (you can change the key in Settings).</p>
+          <h1 class="view-title">Library</h1>
+          <div class="lib-tabs" role="tablist">
+            <button type="button" class="lib-tab active" role="tab" data-tab="prompts" aria-selected="true"><span class="lib-sym kind-prompts">@</span> Prompts</button>
+            <button type="button" class="lib-tab" role="tab" data-tab="styles" aria-selected="false"><span class="lib-sym kind-styles">≡</span> Styles</button>
+          </div>
+          <p class="view-description" id="lib-description">Saved prompts. On a supported chat site, type ;; in the message box to pick one (you can change the key in Settings).</p>
         </div>
 
-        <div class="view-body prompts-layout">
+        <div class="view-body prompts-layout lib-panel" id="lib-prompts" role="tabpanel">
           <div class="card prompts-list-card">
             <div class="card-header">
               <h2>Your prompts</h2>
@@ -215,7 +220,39 @@
 
               <div class="form-actions">
                 <button type="button" id="btn-delete-skill" class="btn btn-danger">Delete</button>
+                <button type="button" id="btn-reset-skill" class="btn" hidden>Reset to original</button>
                 <button type="submit" id="btn-save-skill" class="btn btn-primary">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="view-body prompts-layout lib-panel" id="lib-styles" role="tabpanel" hidden>
+          <div class="card prompts-list-card">
+            <div class="card-header">
+              <h2>Answer styles</h2>
+              <button id="btn-add-style" class="btn btn-small">+ New</button>
+            </div>
+            <div id="styles-list" class="prompts-list"></div>
+          </div>
+
+          <div class="card prompts-editor-card">
+            <h2 id="style-editor-title">Style</h2>
+            <form id="style-form" class="form">
+              <label for="input-style-name">Name</label>
+              <input type="text" id="input-style-name" class="text-input" placeholder="Formal tone" required>
+
+              <label for="select-style-group">Group</label>
+              <select id="select-style-group" class="text-input"></select>
+              <p id="style-group-hint" class="muted small-note"></p>
+
+              <label for="textarea-style-text">Requirement text</label>
+              <textarea id="textarea-style-text" class="text-input prompt-text style-text" placeholder="Use a formal tone." required></textarea>
+              <p class="muted small-note">Goes into the last line of the message: <span id="style-line-preview"></span></p>
+
+              <div class="form-actions">
+                <button type="button" id="btn-delete-style" class="btn btn-danger">Delete</button>
+                <button type="button" id="btn-reset-style" class="btn">Reset to original</button>
+                <button type="submit" class="btn btn-primary">Save</button>
               </div>
             </form>
           </div>

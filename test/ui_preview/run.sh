@@ -23,5 +23,10 @@ shot combined-dark 850 1300 "_preview.html?mode=window#combined" dark
 shot empty-light 850 600 "_preview.html?mode=window#empty" light
 panel new-panel 1300 "#new" light
 panel combined-panel-dark 1500 "#combined" dark
+shot library-light 850 900 "_preview.html?mode=window#library" light
+shot library-styles-dark 850 1000 "_preview.html?mode=window#library-styles" dark
+panel library-styles-panel 1300 "#library-styles" light
+panel send-answer-panel 900 "#send-answer" light
+panel send-answer-panel-dark 900 "#send-answer" dark
 rm -f ui/_preview.html ui/_frame.html
 ls "$OUT"

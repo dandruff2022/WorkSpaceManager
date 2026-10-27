@@ -198,7 +198,7 @@ function initializeModules() {
   const modules = {
     'projects': window.ProjectsModule,
     'send': window.SendModule,
-    'skills': window.SkillsModule,
+    'skills': window.LibraryPageModule,
     'connection': window.ConnectionModule,
     'debug-test': window.DebugTestModule
   };

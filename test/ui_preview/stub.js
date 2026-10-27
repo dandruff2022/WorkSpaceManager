@@ -35,10 +35,24 @@
     windows: { getLastFocused: async () => null, onFocusChanged: noop, WINDOW_ID_NONE: -1 }
   };
 
+  // Other pages: #library (Prompts tab), #library-styles, #send-answer (Answer tray open)
+  const click = (sel) => { const node = document.querySelector(sel); if (node) node.click(); };
+  const PAGES = {
+    library: () => click('.nav-item[data-target="skills"]'),
+    'library-styles': () => { click('.nav-item[data-target="skills"]'); click('.lib-tab[data-tab="styles"]'); setTimeout(() => click('#styles-list [data-id="my-formal"]'), 100); },
+    'send-answer': () => { click('.nav-item[data-target="send"]'); setTimeout(() => click('#view-send .answer-btn'), 100); }
+  };
+
   // States: #empty, #new (just created), default (tasks running), #combine (tasks done), #combined (final answer + memory update)
   window.__seed = (async () => {
     const state = location.hash.slice(1);
     if (state === 'empty') return;
+    if (PAGES[state]) {
+      data.styles = { custom: [{ id: 'my-formal', name: 'Formal tone', group: 'approach', text: 'Use a formal, polite tone.' }], edits: { short: { name: 'Short', text: 'Keep it short: under 100 words.' } } };
+      data.styleChoice = { send: ['short', 'zh', 'sources'] };
+      window.addEventListener('load', () => setTimeout(PAGES[state], 300));
+      return;
+    }
     const P = WorkflowPrompts;
     const v0 = P.emptyMemory('Saturday in Chicago', 'Plan a one-day trip to Chicago on Saturday, back by 9 pm, no car, about $80.');
     const p = await store.create('Saturday in Chicago', v0);

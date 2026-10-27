@@ -1002,3 +1002,31 @@ body.state-detached-placeholder .app-container { display: none; }
 .answer-sym { color: var(--kind-styles); font-weight: 700; }
 .style-line { color: var(--text-muted); margin: 4px 0 0; overflow-wrap: anywhere; }
 .instruction-box { resize: vertical; min-height: 44px; }
+
+/* Phase 3.2: Library page (Prompts / Styles tabs) */
+:root { --kind-prompts: #4f46e5; }
+@media (prefers-color-scheme: dark) { :root { --kind-prompts: #a5b4fc; } }
+.kind-prompts { color: var(--kind-prompts); }
+.kind-styles { color: var(--kind-styles); }
+.lib-tabs { display: flex; gap: 4px; margin: 6px 0 8px; border-bottom: 1px solid var(--border-color); }
+.lib-tab {
+  background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  padding: 6px 10px; font: inherit; font-size: 13px; color: var(--text-muted); cursor: pointer;
+}
+.lib-tab:hover { color: var(--text-primary); }
+.lib-tab.active { color: var(--text-primary); border-bottom-color: var(--accent); font-weight: 600; }
+.lib-sym { font-weight: 700; margin-right: 2px; }
+.lib-panel[hidden] { display: none; }
+.lib-group-head {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 6px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-muted); padding: 8px 10px 2px;
+}
+.lib-group-head:first-child { padding-top: 2px; }
+.lib-group-head .lib-group-rule { text-transform: none; letter-spacing: 0; font-weight: 400; }
+#styles-list .prompt-card-key { color: var(--kind-styles); }
+.style-text { min-height: 70px; flex: 0 0 auto; }
+.small-note { font-size: 12px; margin: 0 0 4px; overflow-wrap: anywhere; }
+.tag.tag-edited { background: var(--accent-soft); color: var(--accent); }
+.prompt-card.flash { animation: lib-flash 1.2s ease-out; }
+@keyframes lib-flash { from { box-shadow: 0 0 0 2px var(--accent); } to { box-shadow: 0 0 0 2px transparent; } }

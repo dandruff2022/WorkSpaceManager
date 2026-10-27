@@ -208,6 +208,8 @@ Replaces the old Phase 3–4 below, which stay on hold.
 - [ ] Phase 3.2 Library ([`doc/plan/phase_3.2_library_plan.md`](plan/phase_3.2_library_plan.md))
   - [ ] Step A: Styles (answer styles) + one `;;` picker everywhere (site overlay, inline tray in the panel),
         Answer button in Send and Projects, Library page (Prompts / Styles)
+    - [x] Code: styles registry, library query, picker core, site overlay, tray + Answer button, Library page
+    - [ ] Live test with the user (ChatGPT, Gemini, Send, Projects)
   - [ ] Step B: Notes page, AI edit on request (diff + undo), bring a note into a project, Save-to-Notes on answers
 - [ ] Decide on the tab flicker (send, Gemini peek) and the many-chats-per-task question
 - [ ] Release v0.7.0

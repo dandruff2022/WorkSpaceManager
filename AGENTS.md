@@ -12,7 +12,7 @@ but are untested). The manager opens in Chrome's side panel by default, or as a 
 |---|---|---|
 | **Projects** (default) | A piece of work as a step line: Describe → Plan → Run tasks → Combine → Continue. The extension opens chats, sends, waits, reads the answer, keeps a versioned project memory. | Phase 3 / 3.1, branch `phase-3-projects`, trial (v0.7) |
 | **Send** | One prompt to several open chat tabs, live status per tab | Released in v0.6.0 |
-| **Prompts** | Saved prompts (`@redo`, `@check`…), inserted with `;;` on chat sites | Released in v0.6.0 |
+| **Library** | Tabs Prompts (`@redo`, `@check`…) and Styles (answer styles → one `Output requirements:` line); picked with `;;` on chat sites and in our boxes, styles also via the `≡ Answer` button | Prompts released in v0.6.0; Styles = Phase 3.2 Step A (trial) |
 | **Settings** | Panel/window, pop-up key, notifications, Projects options | — |
 
 Hidden but kept in the code: Context Transfer, Broadcast, Orchestrator (`ui/modules/{context_transfer,broadcast,orchestrator}.js`).
@@ -24,7 +24,7 @@ provider halfway and stay in control. Design history: `doc/plan/phase_3_plan.md`
 ## Where things live
 
 ```
-manifest.json            MV3; content scripts: bridge.js + utils/autocomplete.js + content.js (isolated), main_world.js (MAIN)
+manifest.json            MV3; content scripts: bridge.js + styles_registry, library, picker_core, autocomplete + content.js (isolated), main_world.js (MAIN)
 background.js            service worker: site profiles seed, side panel / window, message router, security gate,
                          importScripts the three Projects files below
 bridge.js                content script: page primitives (writeToInput, clickSend, clickCopyButton, getGenerationSnapshot,
@@ -36,11 +36,16 @@ utils/
   project_store.js       Projects storage (projects, memory versions, tasks, steps, archives); serialized writes
   workflow_engine.js     runs one step: open chat → type+send → wait → copy-read → parse (%fix once) → save;
                          Combine starts the memory chore; temp-chat rules; wf_* message API
-  site_profiles_registry.js, skills_registry.js, autocomplete.js   v0.6 features (profiles, prompts, ;; pop-up)
+  site_profiles_registry.js, skills_registry.js   site profiles, saved prompts (15 starters)
+  styles_registry.js     answer styles (built-ins, groups, per-place choice, the `Output requirements:` line)
+  library.js             `query()` over prompts/styles/notes/memory for the picker (also `library_query` in background)
+  picker_core.js         the one `;;` picker (list, groups, keys, ticks); autocomplete.js = its site overlay
 ui/
   manager.html/.css/.js  the manager page; manager.js registers modules and Settings
   modules/projects.js    Projects step line (flowState() derives the steps from project data)
-  modules/send.js, skills.js   Send and Prompts pages
+  modules/send.js        Send page
+  modules/library_page.js, skills.js   Library page (tabs; Styles tab in library_page.js, Prompts tab in skills.js)
+  modules/picker_tray.js the picker as an inline tray in our boxes + the `≡ Answer` button
 presets/*.json           site profile presets (selectors); background.js seeds the same defaults
 test/                    see test/README.md
 doc/                     plans, roadmap, logs, experiments (below)
@@ -60,7 +65,7 @@ chore at a time per project, refused if the memory changed meanwhile).
 
 `projects`, `archives`, `currentProjectId` (Projects) · `keepWorkerTabs`, `tempChatsForWork` (default on),
 `choresAi` (`same`|`chatgpt`|`gemini`), `devHarness` · `preferredMode` (`panel`|`window`), `siteProfiles`, `skills`,
-`autocompleteTriggerChar`, `enableWebpageAutocomplete`, `notifyWhenDone`.
+`skillsDefaultsVersion`, `styles` ({custom, edits}), `styleChoice` ({site, send, projects}), `autocompleteTriggerChar`, `enableWebpageAutocomplete`, `notifyWhenDone`.
 
 ### Security gate
 
@@ -71,8 +76,8 @@ chore at a time per project, refused if the memory changed meanwhile).
 
 | What | How |
 |---|---|
-| Unit tests | `node test/workflow_prompts.test.js`, `node test/project_store.test.js` |
-| Screenshots of the Projects UI with fake data | `sh test/ui_preview/run.sh` → `/tmp/wm_preview/*.png` (states: `#new`, default, `#combine`, `#combined`, `#empty`; light/dark; 380px panel) |
+| Unit tests | `node test/workflow_prompts.test.js`, `node test/project_store.test.js`, `node test/library.test.js` |
+| Screenshots of the Projects UI with fake data | `sh test/ui_preview/run.sh` → `/tmp/wm_preview/*.png` (states: `#new`, default, `#combine`, `#combined`, `#empty`, `#library`, `#library-styles`, `#send-answer`; light/dark; 380px panel) |
 | Real UI against the real extension | see "Live runs" in `test/README.md` (localhost + dev harness) |
 
 Live-run gotchas (all learned the hard way):
@@ -94,7 +99,7 @@ Live-run gotchas (all learned the hard way):
 | Next phase (Library: prompts, styles, notes, one picker) | `doc/plan/phase_3.2_library_plan.md` |
 | Anything in Projects | `doc/plan/phase_3.1_flow_plan.md`, then `phase_3_plan.md`; prompt wording rationale in `doc/experiments/memory_workflow/prompts_v2.md` |
 | What's done / next | `doc/roadmap.md` (the "Phase 3 (new)" section) |
-| Why something was done | latest `doc/log/*.md` (newest: `2026_10_26_16.md`) |
+| Why something was done | latest `doc/log/*.md` (newest: `2026_10_27_09.md`) |
 | Site selectors broke | `presets/*.json`, `background.js` default profiles, `doc/debug_skill.md` |
 | Original vision (dated) | `doc/specification.md` — Firefox-era spec; the Orchestrator/Context Transfer parts are superseded |
 

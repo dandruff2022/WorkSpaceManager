@@ -15,13 +15,13 @@ A Chrome MV3 extension has four places where code runs. Each file belongs to exa
 │   ├ ui/manager.js (shell, nav, Settings)     ├ importScripts: workflow_prompts.js,             │
 │   ├ ui/modules/projects.js                   │   project_store.js, workflow_engine.js           │
 │   ├ ui/modules/send.js                       ├ message router + security gate                  │
-│   ├ ui/modules/skills.js (Prompts page)      ├ side panel / window switching                   │
+│   ├ modules/library_page.js + skills.js      ├ side panel / window switching                   │
 │   └ utils/workflow_prompts.js (builders)     ├ tab tracking, "answer ready" notifications      │
 │              │  chrome.runtime messages      └ seeds site profiles on install/update            │
 │              └──────────────────────────────►            │ chrome.tabs.sendMessage              │
 │                                                          ▼                                     │
 │  Chat site tab (chatgpt.com, gemini.google.com, …)                                             │
-│   ├ isolated world: bridge.js (page primitives), utils/autocomplete.js (;; pop-up), content.js │
+│   ├ isolated world: bridge.js (page primitives), picker files (;; overlay), content.js         │
 │   └ MAIN world:     main_world.js (wraps clipboard writes, SPA navigation)                     │
 │                                                                                                │
 └────────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -72,10 +72,18 @@ All messages go through `chrome.runtime`. The background router (`background.js`
 
 ## 4. Features and their flows
 
-### Prompts (`;;` pop-up) — v0.6
-`utils/skills_registry.js` stores prompts (`skills` key; 4 protected built-ins `@redo @continue @shorten @check`).
-On chat sites, `utils/autocomplete.js` watches the input for the trigger (`;;`), asks the background
-(`querySkills`) for matches, and inserts the chosen text. The Prompts page (`ui/modules/skills.js`) edits them.
+### Library and the `;;` picker — v0.6, extended in Phase 3.2
+Kinds of saved text: Prompts `@` (`utils/skills_registry.js`, `skills` key; 15 starters, the original 4
+`@redo @continue @shorten @check` can't be deleted), Styles `≡` (`utils/styles_registry.js`, answer styles that become
+one last line `Output requirements: …`), Memory `◆` (project memory, labelled `[Project memory vN: Title]`), Notes `✎`
+(Step B). `utils/library.js` `query()` turns them into picker items; `utils/picker_core.js` renders the one picker.
+- Chat sites: `utils/autocomplete.js` (`SitePicker`) shows it as an overlay in a shadow root, asks the background
+  `library_query` (read-only; `querySkills` is an alias), inserts prompts/memory as a paragraph and writes/replaces/removes
+  the styles line. Stateless: the line in the box is the state (the last ticks are kept in `styleChoice.site`).
+- Our pages: `ui/modules/picker_tray.js` shows it as an inline tray above the box and adds the `≡ Answer` button
+  (Send, Projects steps, Combine). Stateful: ticks are `styleChoice.send` / `.projects`, applied when the message is built.
+- Library page (`ui/modules/library_page.js` + `skills.js`): tabs Prompts / Styles; built-ins editable with Reset; the ✎
+  in a picker row dispatches `wmOpenLibrary {group, id}` to open the item there.
 
 ### Send — v0.6
 `ui/modules/send.js` lists open chat tabs, sends one prompt to the ticked ones through `bridgeCommand`
@@ -133,7 +141,8 @@ setTasks updateTask removeTask run retryChore openChat getArchive devReload`.
 | `keepWorkerTabs` (false), `tempChatsForWork` (true), `choresAi` ('same') | Projects settings | engine reads them per step |
 | `devHarness` (false) | Settings (debug only) | allows localhost dev pages |
 | `siteProfiles` | background seed | site selectors |
-| `skills` | skills registry | saved prompts |
+| `skills`, `skillsDefaultsVersion` | skills registry | saved prompts; starters added once per version |
+| `styles` ({custom, edits}), `styleChoice` ({site, send, projects}) | styles registry | answer styles; ticks per place (Projects default: Short) |
 | `preferredMode` ('panel'), `panelDefaultV07`, `triggerMigratedV06` | background | view mode + one-time migrations |
 | `autocompleteTriggerChar` (';;'), `enableWebpageAutocomplete`, `notifyWhenDone` | Settings | v0.6 options |
 

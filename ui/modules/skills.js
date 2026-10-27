@@ -7,6 +7,17 @@
   // List of protected default system skills
   const SYSTEM_KEYWORDS = ["@redo", "@continue", "@shorten", "@check"];
 
+  // Starter prompts (all of SkillsRegistry.defaults) are "Built-in"; edited ones can be reset
+  function defaultOf(keyword) {
+    const defaults = (typeof SkillsRegistry !== 'undefined' && SkillsRegistry.defaults) || {};
+    return Object.values(defaults).find(d => d.keyword === keyword) || null;
+  }
+
+  function isEdited(skill) {
+    const d = defaultOf(skill.keyword);
+    return !!d && (d.prompt !== skill.prompt || (d.description || '') !== (skill.description || ''));
+  }
+
   window.SkillsModule = {
     async init(container) {
       console.log("[SkillsModule] Initializing Skills Registry UI...");
@@ -17,6 +28,7 @@
       const descInput = container.querySelector('#input-skill-desc');
       const promptTextarea = container.querySelector('#textarea-skill-prompt');
       const deleteBtn = container.querySelector('#btn-delete-skill');
+      const resetBtn = container.querySelector('#btn-reset-skill');
       const saveBtn = container.querySelector('#btn-save-skill');
       const addSkillBtn = container.querySelector('#btn-add-skill-trigger');
       // Trigger key and on/off switch live in the Settings view
@@ -84,6 +96,7 @@
           
           const card = document.createElement('div');
           card.className = 'prompt-card' + (selectedKeyword === skill.keyword ? ' selected' : '');
+          card.dataset.keyword = skill.keyword;
 
           const header = document.createElement('div');
           header.className = 'prompt-card-header';
@@ -93,8 +106,9 @@
           keyLabel.textContent = skill.keyword;
 
           const badge = document.createElement('span');
-          badge.className = 'tag';
-          badge.textContent = isSystem ? "Built-in" : "Yours";
+          const builtIn = !!defaultOf(skill.keyword);
+          badge.className = 'tag' + (isEdited(skill) ? ' tag-edited' : '');
+          badge.textContent = builtIn ? (isEdited(skill) ? "Built-in · edited" : "Built-in") : "Yours";
 
           header.appendChild(keyLabel);
           header.appendChild(badge);
@@ -137,6 +151,7 @@
         if (deleteBtn) {
           deleteBtn.style.display = isSystem ? "none" : "block";
         }
+        if (resetBtn) resetBtn.hidden = !isEdited(skill);
       }
 
       // 5. Setup Form for Adding a New Custom Skill
@@ -153,6 +168,16 @@
         if (descInput) descInput.value = "";
         if (promptTextarea) promptTextarea.value = "";
         if (deleteBtn) deleteBtn.style.display = "none";
+        if (resetBtn) resetBtn.hidden = true;
+      }
+
+      if (resetBtn) {
+        resetBtn.addEventListener('click', async () => {
+          const d = selectedKeyword && defaultOf(selectedKeyword);
+          if (!d) return;
+          await SkillsRegistry.addOrUpdateSkill(d.keyword, d.prompt, d.description || "");
+          selectSkill(d.keyword);
+        });
       }
 
       // 6. Form Submission Event Handler (Create / Update)
@@ -239,6 +264,15 @@
       if (addSkillBtn) {
         addSkillBtn.addEventListener('click', clearFormForNew);
       }
+
+      // Library page: open one prompt (the ✎ in a picker)
+      window.SkillsModule.select = async (keyword) => {
+        await SkillsRegistry.load();
+        if (!SkillsRegistry.getSkill(keyword)) return;
+        selectSkill(keyword);
+        const card = skillsList && skillsList.querySelector(`[data-keyword="${CSS.escape(keyword)}"]`);
+        if (card) { card.scrollIntoView({ block: 'nearest' }); card.classList.add('flash'); }
+      };
 
       // Initialize render list and load redos as default focused view
       renderSkillsList();
