@@ -11,7 +11,16 @@
     memory: { name: 'Memory', symbol: '◆' }
   };
 
-  const FOOTER = '↑↓ choose · Enter insert · Space tick style · Tab next group · Esc close';
+  const ORDER = ['prompts', 'styles', 'notes', 'memory'];
+  const STYLE_GROUP_ORDER = ['length', 'language', 'format', 'approach'];
+
+  // Footer hints per tab (styles differ between chat sites, where ticks apply on Enter, and our pages, where they're live)
+  function footerText(tab, liveStyles, tabs) {
+    const nav = tabs > 1 ? '←→ tabs · ' : '';
+    if (tab !== 'styles') return `${nav}↑↓ choose · Enter insert · Esc close`;
+    return liveStyles ? `${nav}↑↓ choose · Space or Enter tick · Esc close` : `${nav}↑↓ choose · Space tick · Enter apply · Esc close`;
+  }
+  const FOOTER = footerText('prompts', false, 4);
 
   // Kind colors (light / dark) are the same everywhere: prompts indigo, styles teal, notes amber, memory green
   const CSS = `
@@ -22,12 +31,20 @@
   display: flex; flex-direction: column; text-align: left; }
 .wmp.dark { --wmp-bg:#212124; --wmp-fg:#f4f4f5; --wmp-muted:#a1a1aa; --wmp-border:#3a3a40; --wmp-sel:rgba(255,255,255,.08);
   --k-prompts:#818cf8; --k-styles:#2dd4bf; --k-notes:#fbbf24; --k-memory:#4ade80; }
+.wmp-tabs { display: flex; gap: 2px; padding: 4px 6px 0; border-bottom: 1px solid var(--wmp-border); overflow-x: auto; }
+.wmp-tab { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; padding: 5px 8px; font: inherit; font-size: 12px; color: var(--wmp-muted); cursor: pointer; white-space: nowrap; }
+.wmp-tab:hover { color: var(--wmp-fg); }
+.wmp-tab.on { color: var(--wmp-fg); border-bottom-color: var(--k); font-weight: 600; }
+.wmp-tab.none { opacity: .45; }
+.wmp-tab .wmp-sym { color: var(--k); font-weight: 700; }
+.wmp-count { font-size: 11px; color: var(--wmp-muted); font-weight: 400; }
+.wmp-apply { margin-left: auto; align-self: center; font-size: 12px; font-weight: 600; color: var(--k-styles); background: none;
+  border: 1px solid var(--k-styles); border-radius: 6px; padding: 1px 8px; cursor: pointer; white-space: nowrap; }
 .wmp-list { overflow-y: auto; max-height: var(--wmp-max, 260px); padding: 4px; }
-.wmp-head { display: flex; align-items: center; gap: 6px; padding: 6px 8px 2px; font-size: 11px; font-weight: 600;
+.wmp-head { display: flex; align-items: baseline; gap: 6px; padding: 6px 8px 2px; font-size: 11px; font-weight: 600;
   text-transform: uppercase; letter-spacing: .04em; color: var(--wmp-muted); }
-.wmp-head .wmp-sym { color: var(--k); font-size: 13px; text-transform: none; }
-.wmp-apply { margin-left: auto; text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600;
-  color: var(--k); background: none; border: 1px solid var(--k); border-radius: 6px; padding: 1px 8px; cursor: pointer; }
+.wmp-head .wmp-rule { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .wmp-row { display: flex; align-items: baseline; gap: 8px; padding: 5px 8px; border-radius: 6px; cursor: pointer;
   border-left: 2px solid transparent; }
 .wmp-row.sel { background: var(--wmp-sel); border-left-color: var(--k); }
@@ -68,6 +85,16 @@
     return node;
   }
 
+  // Styles tab: sorted by style group (Length, Language, Format, Approach), each under a small header
+  function styleSections(list) {
+    const groups = (global.StylesRegistry && global.StylesRegistry.GROUPS) || {};
+    const order = STYLE_GROUP_ORDER.concat(Object.keys(groups).filter(g => !STYLE_GROUP_ORDER.includes(g)));
+    return list.slice().sort((a, b) => order.indexOf(a.styleGroup) - order.indexOf(b.styleGroup));
+  }
+
+  // The tab a picker opens on: the last one used in this page (people who mostly pick styles land there)
+  let lastTab = null;
+
   // options:
   //   root           element to render into
   //   dark           dark colors
@@ -76,52 +103,89 @@
   //   liveStyles     apply every tick at once (stateful pages) instead of on Enter / Apply (chat sites)
   //   doneButton     show "Done" in the footer (Answer button mode)
   //   onInsert(item), onApplyStyles(ids), onClose(), onEdit(item) (optional ✎ on rows)
+  // setItems(items, groups): items already filtered by the query; groups = the tabs to show (groups that have
+  // anything at all), so tabs don't come and go while typing.
   function create(options) {
     const o = options;
     const box = h('div', 'wmp' + (o.dark ? ' dark' : ''));
+    const tabsEl = h('div', 'wmp-tabs');
+    tabsEl.setAttribute('role', 'tablist');
     const listEl = h('div', 'wmp-list');
     const foot = h('div', 'wmp-foot');
-    foot.appendChild(h('span', '', FOOTER));
+    const footText = h('span', '');
+    foot.appendChild(footText);
     if (o.doneButton) {
       const done = h('button', 'wmp-done', 'Done');
       done.type = 'button';
       done.addEventListener('mousedown', (e) => { e.preventDefault(); o.onClose(); });
       foot.appendChild(done);
     }
-    box.append(listEl, foot);
+    box.append(tabsEl, listEl, foot);
     o.root.appendChild(box);
 
     let items = [];
+    let tabs = [];
+    let tab = null;
+    let shown = [];
     let index = 0;
     const normalize = o.normalize || (ids => ids);
     let ticks = normalize(o.ticks || []);
     let appliedTicks = ticks.join(',');
 
-    function rows() { return items; }
+    const inTab = (g) => items.filter(i => i.group === g);
+
+    function setTab(g, keepIndex) {
+      tab = g;
+      lastTab = g;
+      shown = g === 'styles' ? styleSections(inTab(g)) : inTab(g);
+      if (!keepIndex) index = 0;
+      index = Math.min(index, Math.max(0, shown.length - 1));
+      render();
+    }
+
+    function renderTabs() {
+      tabsEl.textContent = '';
+      tabsEl.hidden = tabs.length < 2;
+      for (const g of tabs) {
+        const count = inTab(g).length;
+        const b = h('button', `wmp-tab k-${g}` + (g === tab ? ' on' : '') + (count ? '' : ' none'));
+        b.type = 'button';
+        b.setAttribute('role', 'tab');
+        b.setAttribute('aria-selected', String(g === tab));
+        b.append(h('span', 'wmp-sym', KINDS[g].symbol), document.createTextNode(KINDS[g].name), h('span', 'wmp-count', String(count)));
+        b.addEventListener('mousedown', (e) => { e.preventDefault(); setTab(g); });
+        tabsEl.appendChild(b);
+      }
+      if (tab === 'styles' && !o.liveStyles && ticks.join(',') !== appliedTicks) {
+        const apply = h('button', 'wmp-apply', 'Apply ↵');
+        apply.type = 'button';
+        apply.addEventListener('mousedown', (e) => { e.preventDefault(); o.onApplyStyles(ticks.slice()); });
+        if (tabs.length < 2) { tabsEl.hidden = false; tabsEl.style.borderBottom = '0'; }
+        tabsEl.appendChild(apply);
+      }
+    }
 
     function render() {
+      renderTabs();
+      footText.textContent = footerText(tab, o.liveStyles, tabs.length);
       listEl.textContent = '';
-      if (!items.length) {
-        listEl.appendChild(h('div', 'wmp-empty', 'Nothing here yet — create one in Library.'));
+      if (!shown.length) {
+        listEl.appendChild(h('div', 'wmp-empty', items.length ? 'No matches here. Try another tab.' : 'Nothing here yet. Add some in Library.'));
         return;
       }
-      let group = null;
-      items.forEach((item, i) => {
-        if (item.group !== group) {
-          group = item.group;
-          const head = h('div', `wmp-head k-${group}`);
-          head.append(h('span', 'wmp-sym', KINDS[group].symbol), document.createTextNode(KINDS[group].name));
-          if (group === 'styles' && !o.liveStyles && ticks.join(',') !== appliedTicks) {
-            const apply = h('button', 'wmp-apply', 'Apply ↵');
-            apply.type = 'button';
-            apply.addEventListener('mousedown', (e) => { e.preventDefault(); o.onApplyStyles(ticks.slice()); });
-            head.appendChild(apply);
-          }
+      const ruleGroups = (global.StylesRegistry && global.StylesRegistry.GROUPS) || {};
+      let section = null;
+      shown.forEach((item, i) => {
+        if (item.group === 'styles' && item.styleGroup !== section) {
+          section = item.styleGroup;
+          const g = ruleGroups[section];
+          const head = h('div', 'wmp-head', g ? g.name : section);
+          if (g && g.oneOf) head.appendChild(h('span', 'wmp-rule', '· pick one'));
           listEl.appendChild(head);
         }
         const row = h('div', `wmp-row k-${item.group}` + (i === index ? ' sel' : '') + (item.group === 'styles' && ticks.includes(item.id) ? ' ticked' : ''));
         if (item.group === 'styles') row.appendChild(h('span', 'wmp-tick', '✓'));
-        row.appendChild(h('span', 'wmp-title', item.group === 'memory' ? item.title : item.title));
+        row.appendChild(h('span', 'wmp-title', item.title));
         row.appendChild(h('span', 'wmp-prev', item.preview || ''));
         if (item.size) row.appendChild(h('span', 'wmp-size', item.size));
         if (o.onEdit && item.group !== 'memory') {
@@ -154,7 +218,7 @@
 
     // byKey: Enter on a style applies (ticking the row first if nothing changed); a click only ticks
     function choose(byKey) {
-      const item = items[index];
+      const item = shown[index];
       if (!item) return;
       if (item.group !== 'styles') { o.onInsert(item); return; }
       if (!byKey || o.liveStyles) { toggleTick(item.id); return; }
@@ -162,35 +226,44 @@
       o.onApplyStyles(ticks.slice());
     }
 
-    function jumpGroup(dir) {
-      if (!items.length) return;
-      const groups = [...new Set(items.map(i => i.group))];
-      const cur = groups.indexOf(items[index].group);
-      const next = groups[(cur + dir + groups.length) % groups.length];
-      index = items.findIndex(i => i.group === next);
-      markSelected();
+    function switchTab(dir) {
+      if (tabs.length < 2) return;
+      const at = tabs.indexOf(tab);
+      setTab(tabs[(at + dir + tabs.length) % tabs.length]);
     }
 
     return {
       el: box,
-      setItems(next) {
-        const keep = items[index] && next.findIndex(i => i.group === items[index].group && i.id === items[index].id);
+      setItems(next, groups) {
+        const had = items.length > 0;
         items = next;
-        index = keep > 0 ? keep : 0;
-        render();
+        const present = ORDER.filter(g => next.some(i => i.group === g));
+        tabs = ORDER.filter(g => (groups || present).includes(g) || present.includes(g));
+        let want = tab || (tabs.includes(lastTab) ? lastTab : tabs[0]);
+        // While typing, jump to the first tab with matches if this one has none ("@…" means Prompts)
+        if (!inTab(want).length && present.length) want = present[0];
+        const keep = had && want === tab && shown[index] ? shown[index].id : null;
+        setTab(want || null);
+        if (keep) {
+          const i = shown.findIndex(x => x.id === keep);
+          if (i > 0) { index = i; markSelected(); }
+        }
       },
       setTicks(ids) { ticks = normalize(ids || []); appliedTicks = ticks.join(','); render(); },
       getTicks() { return ticks.slice(); },
+      tab() { return tab; },
       // Returns true when the key was used (the renderer then stops it from reaching the page)
       handleKey(e) {
         switch (e.key) {
-          case 'ArrowDown': if (items.length) { index = (index + 1) % items.length; markSelected(); } return true;
-          case 'ArrowUp': if (items.length) { index = (index - 1 + items.length) % items.length; markSelected(); } return true;
-          case 'Tab': jumpGroup(e.shiftKey ? -1 : 1); return true;
+          case 'ArrowDown': if (shown.length) { index = (index + 1) % shown.length; markSelected(); } return true;
+          case 'ArrowUp': if (shown.length) { index = (index - 1 + shown.length) % shown.length; markSelected(); } return true;
+          case 'ArrowRight': if (tabs.length < 2) return false; switchTab(1); return true;
+          case 'ArrowLeft': if (tabs.length < 2) return false; switchTab(-1); return true;
+          case 'Tab': switchTab(e.shiftKey ? -1 : 1); return true;
           case 'Enter': if (e.shiftKey || e.isComposing) return false; choose(true); return true;
           case 'Escape': o.onClose(); return true;
           case ' ':
-            if (items[index] && items[index].group === 'styles') { toggleTick(items[index].id); return true; }
+            if (shown[index] && shown[index].group === 'styles') { toggleTick(shown[index].id); return true; }
             return false;
           default: return false;
         }
@@ -199,7 +272,7 @@
     };
   }
 
-  const PickerCore = { KINDS, FOOTER, CSS, detectTrigger, create };
+  const PickerCore = { KINDS, ORDER, FOOTER, CSS, detectTrigger, create };
   global.PickerCore = PickerCore;
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = PickerCore;

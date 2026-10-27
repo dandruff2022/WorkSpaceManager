@@ -40,18 +40,28 @@
   const PAGES = {
     library: () => click('.nav-item[data-target="skills"]'),
     'library-styles': () => { click('.nav-item[data-target="skills"]'); click('.lib-tab[data-tab="styles"]'); setTimeout(() => click('#styles-list [data-id="my-formal"]'), 100); },
+    'send-picker': () => {
+      click('.nav-item[data-target="send"]');
+      const ta = document.querySelector('#send-prompt');
+      ta.focus(); ta.value = 'Plan a weekend trip ;;'; ta.setSelectionRange(ta.value.length, ta.value.length);
+      ta.dispatchEvent(new Event('input'));
+      setTimeout(() => ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })), 200);
+    },
     'send-answer': () => { click('.nav-item[data-target="send"]'); setTimeout(() => click('#view-send .answer-btn'), 100); }
   };
 
   // States: #empty, #new (just created), default (tasks running), #combine (tasks done), #combined (final answer + memory update)
   window.__seed = (async () => {
-    const state = location.hash.slice(1);
+    const hash = location.hash.slice(1);
+    // "#running-mem", "#combined-mem": that state with the Memory card open
+    const state = hash.replace(/-mem$/, '');
+    if (hash.endsWith('-mem')) window.addEventListener('load', () => setTimeout(() => click('#btn-proj-mem-toggle'), 400));
     if (state === 'empty') return;
     if (PAGES[state]) {
       data.styles = { custom: [{ id: 'my-formal', name: 'Formal tone', group: 'approach', text: 'Use a formal, polite tone.' }], edits: { short: { name: 'Short', text: 'Keep it short: under 100 words.' } } };
       data.styleChoice = { send: ['short', 'zh', 'sources'] };
       window.addEventListener('load', () => setTimeout(PAGES[state], 300));
-      return;
+      if (state !== 'send-picker') return;
     }
     const P = WorkflowPrompts;
     const v0 = P.emptyMemory('Saturday in Chicago', 'Plan a one-day trip to Chicago on Saturday, back by 9 pm, no car, about $80.');

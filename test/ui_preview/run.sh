@@ -28,5 +28,9 @@ shot library-styles-dark 850 1000 "_preview.html?mode=window#library-styles" dar
 panel library-styles-panel 1300 "#library-styles" light
 panel send-answer-panel 900 "#send-answer" light
 panel send-answer-panel-dark 900 "#send-answer" dark
+panel send-picker-panel 900 "#send-picker" light
+panel running-mem-panel 1500 "#running-mem" light
+panel combined-mem-panel-dark 1700 "#combined-mem" dark
+panel send-picker-panel-dark 900 "#send-picker" dark
 rm -f ui/_preview.html ui/_frame.html
 ls "$OUT"

@@ -997,8 +997,7 @@ body.state-detached-placeholder .app-container { display: none; }
 .picker-tray .wmp { --wmp-max: 220px; }
 .picker-tray:focus { outline: none; }
 .composer-actions { display: flex; gap: 8px; align-items: center; min-width: 0; }
-.answer-btn { display: inline-flex; align-items: center; gap: 4px; max-width: 220px; min-width: 0; }
-.answer-btn .answer-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.answer-btn { display: inline-flex; align-items: center; gap: 4px; flex: none; white-space: nowrap; }
 .answer-sym { color: var(--kind-styles); font-weight: 700; }
 .style-line { color: var(--text-muted); margin: 4px 0 0; overflow-wrap: anywhere; }
 .instruction-box { resize: vertical; min-height: 44px; }
@@ -1030,3 +1029,43 @@ body.state-detached-placeholder .app-container { display: none; }
 .tag.tag-edited { background: var(--accent-soft); color: var(--accent); }
 .prompt-card.flash { animation: lib-flash 1.2s ease-out; }
 @keyframes lib-flash { from { box-shadow: 0 0 0 2px var(--accent); } to { box-shadow: 0 0 0 2px transparent; } }
+
+/* Phase 3.2 A+: Answer button with a count, chips for picked styles */
+.answer-count {
+  font-size: 11px; font-weight: 600; min-width: 16px; padding: 0 5px; border-radius: 999px;
+  background: var(--kind-styles); color: var(--bg-surface); line-height: 16px; text-align: center;
+}
+.answer-control { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; flex: 1; }
+.answer-chips { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.answer-chips[hidden] { display: none; }
+#view-send .answer-chips { margin: 6px 0 0; }
+.answer-chip {
+  display: inline-flex; align-items: center; gap: 2px; font-size: 12px; padding: 1px 2px 1px 8px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--kind-styles) 45%, transparent);
+  background: color-mix(in srgb, var(--kind-styles) 10%, transparent); color: var(--text-primary); white-space: nowrap;
+}
+.answer-chip-x {
+  background: none; border: 0; cursor: pointer; color: var(--text-muted); font-size: 10px; padding: 0 4px; line-height: 16px;
+  border-radius: 999px;
+}
+.answer-chip-x:hover { color: var(--danger); background: var(--danger-soft); }
+
+/* Phase 3.2 A+: rendered memory (ui/modules/markdown_view.js) with the auto Progress section */
+.md-view { font-size: 13px; line-height: 1.45; color: var(--text-secondary); overflow-wrap: anywhere; }
+.md-view .md-h { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted);
+  margin: 12px 0 4px; }
+.md-view > .md-h:first-child { margin-top: 0; }
+.md-view .md-p { margin: 0 0 6px; }
+.md-view .md-list { margin: 0 0 6px; padding-left: 18px; }
+.md-view .md-list li { margin: 1px 0; }
+.md-view code { font-family: var(--font-mono); font-size: 12px; background: var(--bg-hover); padding: 0 4px; border-radius: 4px; }
+.md-view .md-pre { font-family: var(--font-mono); font-size: 12px; background: var(--bg-hover); padding: 8px; border-radius: 6px;
+  white-space: pre-wrap; margin: 0 0 6px; }
+.md-view a { color: var(--accent); }
+.md-view .md-tag { font-size: 11px; color: var(--text-muted); }
+.mem-view { padding: 4px 2px 8px; }
+.mem-progress { margin-top: 10px; padding: 6px 10px; border-radius: 6px; background: var(--bg-hover); }
+.mem-progress .md-h { margin-top: 2px; }
+.mem-actions { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; justify-content: flex-end; }
+/* In a step's actions the Answer control gets its own row; the send buttons follow below */
+.flow-actions .answer-control { flex: 1 1 100%; }

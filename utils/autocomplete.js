@@ -94,7 +94,7 @@
         const inBox = StylesRegistry.idsFromLine(this.styles, StylesRegistry.lastLine(this.text()));
         this.open(inBox.length ? inBox : (res.choice || []));
       }
-      this.picker.setItems(res.items);
+      this.picker.setItems(res.items, res.groups);
       this.position();
     }
 

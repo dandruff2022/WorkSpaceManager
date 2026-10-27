@@ -63,14 +63,46 @@
     return StylesRegistry.buildLine(list, await choice(place));
   }
 
-  // Answer buttons on the page; pages re-render, so drop the ones no longer shown
-  const answerButtons = new Set();
+  // Answer buttons and chip rows on the page; pages re-render, so drop the ones no longer shown
+  const watchers = new Set();
   document.addEventListener('wmStyleChoice', (e) => {
-    for (const b of answerButtons) {
-      if (!b.btn.isConnected) answerButtons.delete(b);
-      else if (b.place === e.detail.place) b.refresh(e.detail.ids);
+    for (const w of watchers) {
+      if (!w.node.isConnected) watchers.delete(w);
+      else if (w.place === e.detail.place) w.refresh(e.detail.ids);
     }
   });
+
+  // One chip per picked style ("Short ✕"); the full "Output requirements:" line is the row's tooltip
+  function chips(place) {
+    const row = document.createElement('span');
+    row.className = 'answer-chips';
+    async function refresh(ids) {
+      const list = await StylesStore.list();
+      const picked = ids || await choice(place);
+      row.replaceChildren();
+      row.hidden = !picked.length;
+      row.title = picked.length ? StylesRegistry.buildLine(list, picked) : '';
+      for (const id of picked) {
+        const style = list.find(s => s.id === id);
+        if (!style) continue;
+        const chip = document.createElement('span');
+        chip.className = 'answer-chip';
+        chip.textContent = style.name;
+        const x = document.createElement('button');
+        x.type = 'button';
+        x.className = 'answer-chip-x';
+        x.textContent = '✕';
+        x.title = `Remove "${style.name}"`;
+        x.setAttribute('aria-label', `Remove ${style.name}`);
+        x.addEventListener('click', () => setChoice(place, picked.filter(p => p !== id)));
+        chip.appendChild(x);
+        row.appendChild(chip);
+      }
+    }
+    watchers.add({ node: row, place, refresh });
+    refresh();
+    return row;
+  }
 
   function openInLibrary(item) {
     document.dispatchEvent(new CustomEvent('wmOpenLibrary', { detail: { group: item.group, id: item.id } }));
@@ -145,7 +177,8 @@
       const data = await loadData();
       const ticks = await choice(opts.place);
       if (mine !== seq) return;
-      const items = Library.query(data, { surface: opts.surface, projectId: opts.projectId ? opts.projectId() : null }, f.query);
+      const context = { surface: opts.surface, projectId: opts.projectId ? opts.projectId() : null };
+      const items = Library.query(data, context, f.query);
       if (!open) {
         open = makeTray(input, {
           ticks,
@@ -160,7 +193,7 @@
           onClose: dismiss
         });
       }
-      open.picker.setItems(items);
+      open.picker.setItems(items, Library.groupsWithItems(data, context));
     });
 
     input.addEventListener('keydown', (e) => {
@@ -187,16 +220,22 @@
     async function refresh(ids) {
       const list = await StylesStore.list();
       const picked = ids || await choice(opts.place);
-      const text = StylesRegistry.label(list, picked) || 'Normal';
       btn.replaceChildren();
       const sym = document.createElement('span');
       sym.className = 'answer-sym';
       sym.textContent = '≡';
       const label = document.createElement('span');
       label.className = 'answer-label';
-      label.textContent = `Answer: ${text}`;
-      btn.append(sym, label, document.createTextNode(' ▾'));
-      btn.title = picked.length ? StylesRegistry.buildLine(list, picked) : 'No answer style: the AI answers its usual way';
+      label.textContent = 'Answer';
+      btn.append(sym, label);
+      if (picked.length) {
+        const count = document.createElement('span');
+        count.className = 'answer-count';
+        count.textContent = String(picked.length);
+        btn.appendChild(count);
+      }
+      btn.appendChild(document.createTextNode(' ▾'));
+      btn.title = picked.length ? StylesRegistry.label(list, picked) : 'How the AI should answer (none picked: its usual way)';
     }
 
     function closeTray() {
@@ -228,15 +267,25 @@
     }
 
     btn.addEventListener('click', () => { if (tray) closeTray(); else openTray(); });
-    answerButtons.add({ btn, place: opts.place, refresh });
+    watchers.add({ node: btn, place: opts.place, refresh });
     refresh();
     if (opts.open) setTimeout(() => { if (btn.isConnected && !tray) openTray(); }, 0);
     return btn;
   }
 
+  // Button + its chips, wrapping together (Projects steps)
+  function answerControl(opts) {
+    const wrap = document.createElement('span');
+    wrap.className = 'answer-control';
+    wrap.append(answerButton(opts), chips(opts.place));
+    return wrap;
+  }
+
   window.PickerTray = {
     attach,
     answerButton,
+    answerControl,
+    chips,
     choice,
     setChoice,
     line,

@@ -45,7 +45,8 @@ ui/
   modules/projects.js    Projects step line (flowState() derives the steps from project data)
   modules/send.js        Send page
   modules/library_page.js, skills.js   Library page (tabs; Styles tab in library_page.js, Prompts tab in skills.js)
-  modules/picker_tray.js the picker as an inline tray in our boxes + the `≡ Answer` button
+  modules/picker_tray.js the picker as an inline tray in our boxes + the `≡ Answer` button and style chips
+  modules/markdown_view.js  small DOM-building Markdown renderer (memory read view)
 presets/*.json           site profile presets (selectors); background.js seeds the same defaults
 test/                    see test/README.md
 doc/                     plans, roadmap, logs, experiments (below)
@@ -59,7 +60,10 @@ sends `wf_run {kind, ai, message, taskId}`; kinds are `split`, `task`, `combine`
 must end in a fenced block (`tasks`, `result`, `mem`) except `combine` and `resume`. Plan, tasks and memory updates
 run in **temporary chats** by default (ChatGPT `?temporary-chat=true`; Gemini clicks its Temporary chat button);
 Combine and Continue are normal chats the user keeps. After Combine, the engine updates the memory by itself (one
-chore at a time per project, refused if the memory changed meanwhile).
+chore at a time per project, refused if the memory changed meanwhile); the Plan answer may also carry a `mem` block
+(saved the same way), and "Ask AI to tidy" (`wf_tidyMemory`) runs the chore by hand. **Progress** (plan, task
+status + first line of each result, next step) is built from project data by `WorkflowPrompts.buildProgress`, never
+stored, and added when the memory is shown, inserted with `;;` or used by Continue.
 
 ### Storage keys (`chrome.storage.local`)
 
@@ -100,10 +104,10 @@ Live-run gotchas (all learned the hard way):
 | Task | Read |
 |---|---|
 | How the pieces fit (contexts, messages, data model, dependencies, toolchain) | `doc/architecture.md` |
-| Next phase (Library: prompts, styles, notes, one picker) | `doc/plan/phase_3.2_library_plan.md` |
+| Next phase (Library: prompts, styles, notes, one picker) | `doc/plan/phase_3.2_library_plan.md`, then `phase_3.2a_polish_plan.md` |
 | Anything in Projects | `doc/plan/phase_3.1_flow_plan.md`, then `phase_3_plan.md`; prompt wording rationale in `doc/experiments/memory_workflow/prompts_v2.md` |
 | What's done / next | `doc/roadmap.md` (the "Phase 3 (new)" section) |
-| Why something was done | latest `doc/log/*.md` (newest: `2026_10_27_10.md`) |
+| Why something was done | latest `doc/log/*.md` (newest: `2026_10_27_12.md`) |
 | Site selectors broke | `presets/*.json`, `background.js` default profiles, `doc/debug_skill.md` |
 | Original vision (dated) | `doc/specification.md` — Firefox-era spec; the Orchestrator/Context Transfer parts are superseded |
 

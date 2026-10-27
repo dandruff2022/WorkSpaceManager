@@ -12,6 +12,7 @@
   <script src="../utils/library.js" defer></script>
   <script src="../utils/picker_core.js" defer></script>
   <script src="modules/picker_tray.js" defer></script>
+  <script src="modules/markdown_view.js" defer></script>
   <!-- Hidden in v0.6 (code kept): modules/context_transfer.js, modules/broadcast.js, modules/orchestrator.js -->
   <script src="../utils/workflow_prompts.js" defer></script>
   <script src="modules/projects.js" defer></script>
@@ -123,12 +124,16 @@
               </button>
               <div id="proj-mem-body" class="fold-body" hidden>
                 <div id="proj-mem-changes" class="mem-changes" hidden></div>
-                <textarea id="proj-memory" class="text-input mono mem-text" rows="12" spellcheck="false"></textarea>
+                <div id="proj-mem-view" class="md-view mem-view"></div>
+                <textarea id="proj-memory" class="text-input mono mem-text" rows="12" spellcheck="false" hidden></textarea>
                 <div class="composer-footer">
                   <span id="proj-mem-status" class="status-line"></span>
-                  <div>
+                  <div class="mem-actions">
+                    <button id="btn-proj-mem-edit" class="btn-link">Edit</button>
                     <button id="btn-proj-history" class="btn-link">Versions</button>
                     <button id="btn-proj-undo" class="btn-link">Undo last update</button>
+                    <button id="btn-proj-tidy" class="btn-link" title="A temporary chat rewrites the memory from the task results">Ask AI to tidy</button>
+                    <button id="btn-proj-mem-cancel" class="btn-link" hidden>Cancel</button>
                     <button id="btn-proj-mem-save" class="btn btn-small" hidden>Save as new version</button>
                   </div>
                 </div>
@@ -174,7 +179,7 @@
 
           <div class="card">
             <textarea id="send-prompt" class="text-input composer" placeholder="Type a prompt. Type ;; for saved prompts, styles and project memory. Press ⌘/Ctrl + Enter to send."></textarea>
-            <p id="send-style-line" class="style-line small" hidden></p>
+            <span id="send-style-line"></span>
             <div class="composer-footer">
               <span id="send-status" class="status-line"></span>
               <div class="composer-actions">

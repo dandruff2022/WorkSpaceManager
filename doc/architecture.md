@@ -95,7 +95,7 @@ Three layers:
 
 | Layer | File | Role |
 |---|---|---|
-| Prompts | `utils/workflow_prompts.js` | Fixed prompt text (`TEXT.split/task/combine/memUpdate/resume/short/fix`), message builders, block parsers (`extractBlock` with nesting), memory section parser and diff. Pure functions, shared by page and worker, Node-testable. |
+| Prompts | `utils/workflow_prompts.js` | Fixed prompt text (`TEXT.split/splitMem/task/combine/memUpdate/memStyle/resume/short/fix`), `buildProgress`/`withProgress`, message builders, block parsers (`extractBlock` with nesting), memory section parser and diff. Pure functions, shared by page and worker, Node-testable. |
 | Store | `utils/project_store.js` | `createProjectStore(area)` over `chrome.storage.local` (or a stub in tests). All writes go through a lock. |
 | Engine | `utils/workflow_engine.js` | Runs steps in the background, independent of the page being open. |
 | UI | `ui/modules/projects.js` | `flowState(project)` derives the step line; builds messages for the user to read/edit; sends `wf_run`. |
@@ -129,6 +129,11 @@ unfinished steps as interrupted.
 **After Combine**: the engine queues a memory update ("chore") per project: built from the latest memory + task
 results + the final answer, run on the chores AI (`choresAi`, default the project's main AI) in a temporary chat, and
 refused if the memory changed while it ran (`baseAt`).
+**Other memory updates**: the Plan answer may carry a `mem` block before `tasks` (saved only over the memory the plan
+started from, `baseAt` set by `startStep`); "Ask AI to tidy" (`wf_tidyMemory`) runs the same chore without a Combine.
+**Progress** (`WorkflowPrompts.buildProgress(project)`: plan, each task's status and first result line, Combine,
+next step) is derived from project data, never stored, and appended when the memory is shown (rendered by
+`ui/modules/markdown_view.js`), inserted with `;;`, or sent with Continue.
 
 **Message API** (`wf_*`): `list get create rename setOptions remove getCurrent setCurrent editMemory undoMemory
 setTasks updateTask removeTask run retryChore openChat getArchive devReload`.

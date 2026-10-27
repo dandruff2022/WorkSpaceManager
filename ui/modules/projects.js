@@ -106,6 +106,7 @@
       let project = null;
       let projects = [];
       let memoryDirty = false;
+      let memEditing = false;
       let busy = false;
       // Which flow step is open: null = the current one, 'none' = all folded
       let openKey = null;
@@ -139,6 +140,7 @@
         if ((project ? project.id : null) !== previousId) {
           // Drafts belong to the project they were written for
           memoryDirty = false;
+          memEditing = false;
           openKey = null;
           lastCurrent = null;
           drafts = { instruction: {}, edited: {}, openBoxes: new Set() };
@@ -251,7 +253,7 @@
       function describeBody() {
         return [
           el('p', { class: 'small' }, (P.parseMemory(currentMemory(project).text).sections.Goal || '').trim() || '(no goal written)'),
-          el('button', { class: 'btn-link', onclick: () => openMemory(true) }, 'Edit the goal in Memory')
+          el('button', { class: 'btn-link', onclick: () => openMemory(true, true) }, 'Edit the goal in Memory')
         ];
       }
 
@@ -424,7 +426,7 @@
           const results = project.tasks.filter(t => t.status === 'done' && t.result).map(t => ({ title: t.title, text: t.result }));
           return P.buildCombine(memory, results, drafts.instruction.combine || '', opts);
         }
-        return P.buildResume(memory, drafts.instruction.resume || resumeFallback, opts);
+        return P.buildResume(P.withProgress(memory, project), drafts.instruction.resume || resumeFallback, opts);
       }
 
       // Update the shown messages in place (no re-render, so typing and an open tray are kept)
@@ -463,7 +465,7 @@
 
       // "≡ Answer: Short ▾": one choice for all Projects messages (remembered); shown in each message's last line
       function answerToggle() {
-        return window.PickerTray ? PickerTray.answerButton({ place: 'projects', onClose: releaseRender }) : null;
+        return window.PickerTray ? PickerTray.answerControl({ place: 'projects', onClose: releaseRender }) : null;
       }
 
       // ---------- Sending ----------
@@ -546,18 +548,48 @@
 
       // ---------- Memory (folded by default) ----------
 
-      function openMemory(open) {
+      function openMemory(open, editing) {
+        if (editing) setEditing(true);
         $('proj-mem-body').hidden = !open;
         $('btn-proj-mem-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
         if (open) $('btn-proj-mem-toggle').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+
+      // Read view (rendered, with Progress) by default; Edit switches to the raw text
+      function setEditing(on) {
+        memEditing = on;
+        if (!on) { memoryDirty = false; setMemStatus(''); }
+        renderMemory();
+        if (on) memoryEl.focus();
+      }
+
+      function renderMemoryView(mem) {
+        const view = $('proj-mem-view');
+        const text = mem.text.replace(/^#\s*Project:.*\n?/i, '');
+        view.replaceChildren(MarkdownView.render(text));
+        const progress = el('div', { class: 'mem-progress' });
+        progress.appendChild(MarkdownView.render(P.buildProgress(project)));
+        view.appendChild(progress);
       }
 
       function renderMemory() {
         const mem = currentMemory(project);
         $('proj-mem-version').textContent = `v${mem.v} · ${mem.v === 0 ? 'written by you' : (mem.by === 'you' ? 'edited by you' : 'updated by ' + mem.by)} · ${timeOf(mem.at)}`;
         if (!memoryDirty) memoryEl.value = mem.text;
-        $('btn-proj-undo').hidden = project.memory.length < 2;
+        const editing = memEditing || memoryDirty;
+        memoryEl.hidden = !editing;
+        $('proj-mem-view').hidden = editing;
+        if (!editing && window.MarkdownView) renderMemoryView(mem);
+        $('btn-proj-mem-edit').hidden = editing;
+        $('btn-proj-mem-cancel').hidden = !editing;
+        $('btn-proj-tidy').hidden = editing || !project.tasks.some(t => t.status === 'done');
+        $('btn-proj-undo').hidden = editing || project.memory.length < 2;
         $('btn-proj-mem-save').hidden = !memoryDirty;
+        const tidy = project.steps.slice().reverse().find(s => s.kind === 'mem-update' && !s.parentId);
+        if (tidy && !editing && (tidy.startedAt || 0) > (mem.at || 0)) {
+          if (['sending', 'waiting', 'reading'].includes(tidy.status)) setMemStatus(`${AI_NAMES[tidy.ai] || tidy.ai} is tidying the memory…`);
+          else if (tidy.status !== 'done') setMemStatus(`Tidying failed: ${tidy.error || 'no answer'}`, 'error');
+        }
 
         // After an AI update, show what changed until the user says it looks good
         const unseen = mem.v > 0 && mem.by !== 'you' && mem.v > seenVersion(project);
@@ -605,6 +637,7 @@
         const res = await call('wf_editMemory', { projectId: project.id, text: memoryEl.value });
         if (res.status === 'success') {
           memoryDirty = false;
+          memEditing = false;
           setMemStatus('Saved.', 'ok');
         } else {
           setMemStatus(res.error, 'error');
@@ -683,6 +716,12 @@
         renderFlow();
       });
       $('btn-proj-mem-save').addEventListener('click', saveMemory);
+      $('btn-proj-mem-edit').addEventListener('click', () => setEditing(true));
+      $('btn-proj-mem-cancel').addEventListener('click', () => { setEditing(false); renderFlow(); });
+      $('btn-proj-tidy').addEventListener('click', async () => {
+        const res = await call('wf_tidyMemory', { projectId: project.id });
+        setMemStatus(res.status === 'success' ? 'Asked the AI to tidy the memory (temporary chat)…' : res.error, res.status === 'success' ? '' : 'error');
+      });
       $('btn-proj-undo').addEventListener('click', async () => {
         const mem = currentMemory(project);
         await call('wf_undoMemory', { projectId: project.id });

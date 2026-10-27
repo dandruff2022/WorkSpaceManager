@@ -323,8 +323,10 @@ chromeAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const styles = await StylesStore.list();
       const choice = await StylesStore.getChoice('site');
       const projects = await self.ProjectStore.list();
-      const items = Library.query({ skills: SkillsRegistry.skills, styles, projects }, message.context || { surface: 'site' }, message.text, message.group);
-      sendResponse({ items, styles, choice });
+      const data = { skills: SkillsRegistry.skills, styles, projects };
+      const context = message.context || { surface: 'site' };
+      const items = Library.query(data, context, message.text, message.group);
+      sendResponse({ items, groups: Library.groupsWithItems(data, context), styles, choice });
     })().catch(err => sendResponse({ items: [], error: err.message }));
     return true;
   }

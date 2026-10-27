@@ -209,6 +209,9 @@ Replaces the old Phase 3–4 below, which stay on hold.
   - [ ] Step A: Styles (answer styles) + one `;;` picker everywhere (site overlay, inline tray in the panel),
         Answer button in Send and Projects, Library page (Prompts / Styles)
     - [x] Code: styles registry, library query, picker core, site overlay, tray + Answer button, Library page
+    - [x] Claude's own live test (ChatGPT, Gemini, manager); fixed: removing styles sent the message on ChatGPT
+    - [x] Polish ([`phase_3.2a_polish_plan.md`](plan/phase_3.2a_polish_plan.md)): picker tabs, Answer chips,
+          memory Progress, plan may update memory, shorter memory, rendered memory view, "Ask AI to tidy"
     - [ ] Live test with the user (ChatGPT, Gemini, Send, Projects)
   - [ ] Step B: Notes page, AI edit on request (diff + undo), bring a note into a project, Save-to-Notes on answers
 - [ ] Idea to discuss: AI suggests the next step, UI highlights it ([`doc/plan/idea_next_step_suggestions.md`](plan/idea_next_step_suggestions.md))

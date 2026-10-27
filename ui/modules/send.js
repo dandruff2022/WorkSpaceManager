@@ -55,15 +55,10 @@
       let styleLine = '';
       async function refreshStyleLine() {
         styleLine = await PickerTray.line('send');
-        styleLineEl.hidden = !styleLine;
-        styleLineEl.replaceChildren();
-        const sym = document.createElement('span');
-        sym.className = 'answer-sym';
-        sym.textContent = '≡ ';
-        styleLineEl.append(sym, `Added as the last line: ${styleLine}`);
       }
       if (window.PickerTray) {
         container.querySelector('#send-answer-slot').replaceWith(PickerTray.answerButton({ place: 'send' }));
+        styleLineEl.replaceWith(PickerTray.chips('send'));
         PickerTray.attach(promptInput, { surface: 'send', place: 'send' });
         document.addEventListener('wmStyleChoice', (e) => { if (e.detail.place === 'send') refreshStyleLine(); });
         refreshStyleLine();

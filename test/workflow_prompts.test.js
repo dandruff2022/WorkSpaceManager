@@ -374,6 +374,46 @@ test('16. Combine message has memory, every result and the instruction', () => {
   assert(!WorkflowPrompts.buildCombine('m', [], '').includes('\n\n\n'));
 });
 
+test('17. Progress follows the project at every stage', () => {
+  const P = WorkflowPrompts;
+  const base = { memory: [], steps: [], tasks: [] };
+  assert(P.buildProgress(base).includes('Not planned yet.'));
+  assert(P.buildProgress({ ...base, planSkipped: true }).includes('No plan'));
+  const running = {
+    ...base,
+    tasks: [
+      { title: 'Weather', status: 'done', ai: 'gemini', result: '## Result\n**12°C**, rain after 2 pm\nSource: x' },
+      { title: 'Museums', status: 'running', ai: 'chatgpt' },
+      { title: 'Food', status: 'todo' }
+    ]
+  };
+  const p1 = P.buildProgress(running);
+  assert(p1.startsWith(P.PROGRESS_HEADING));
+  assert(p1.includes('Plan: 3 tasks, 1 done.'));
+  assert(p1.includes('Done: Weather (Gemini): 12°C, rain after 2 pm'), p1);
+  assert(p1.includes('Running: Museums (ChatGPT)') && p1.includes('To do: Food'));
+  assert(p1.includes('Next: Finish the tasks.'));
+  const done = { ...running, tasks: running.tasks.map(t => ({ ...t, status: 'done' })) };
+  assert(P.buildProgress(done).includes('Next: Combine the results.'));
+  const combined = { ...done, steps: [{ kind: 'combine', status: 'done', ai: 'chatgpt' }] };
+  assert(P.buildProgress(combined).includes('Combined into a final answer (ChatGPT).'));
+  assert(P.buildProgress(combined).includes('Next: Keep going in a new chat.'));
+  const w = P.withProgress('## Goal\ng', combined);
+  assert(w.startsWith('## Goal\ng\n\n' + P.PROGRESS_HEADING));
+});
+
+test('18. Plan may carry a mem block; only a labelled one counts', () => {
+  const P = WorkflowPrompts;
+  const mem = '## Goal\ng\n## Preferences\n- no car\n## Decisions\n(none)\n## Current state\nPlanned.\n## Open questions\n(none)';
+  const answer = 'Plan.\n\n```mem\n' + mem + '\n```\n\n```tasks\nTitle: A\nTask: a\nNeeds: Goal\nReturn: r\n```';
+  assert.strictEqual(P.parseMemoryAnswer(answer, { labelledOnly: true }), mem);
+  assert.strictEqual(P.parseTasks(answer).length, 1);
+  const noMem = 'Plan.\n\n```\n' + mem + '\n```\n\n```tasks\nTitle: A\nTask: a\nNeeds: Goal\nReturn: r\n```';
+  assert.strictEqual(P.parseMemoryAnswer(noMem, { labelledOnly: true }), null);
+  assert(P.buildSplit('m', { requirements: '' }).includes(P.TEXT.splitMem));
+  assert(P.buildMemUpdate('m', []).includes(P.TEXT.memStyle));
+});
+
 console.log(`\nTests completed: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
   process.exit(1);

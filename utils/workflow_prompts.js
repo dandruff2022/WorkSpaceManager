@@ -6,9 +6,11 @@
 
   const TEXT = {
     split: "Split this project into at most 2 independent subtasks for separate fresh chats. Explain briefly, then end with one fenced block labeled tasks: tasks separated by a line ===, each with Title:, Task: (self-contained), Needs: (section names from: Goal, Preferences, Decisions, Current state, Open questions), Return: (what the hand-off must keep, including source links).",
+    splitMem: "If planning settles preferences, decisions or open questions, put the whole updated memory in a fenced block labeled mem (same headings, short bullet points) before the tasks block; otherwise leave it out.",
     task: "You handle one subtask of a larger project. Use only the context below; if something essential is missing, say so. In the result block keep every item listed in Return, with source links and what you could not verify.",
     result: "End your answer with exactly one fenced block labeled result. Put nothing after it, no follow-up question.",
     memUpdate: "Update the project memory using ONLY the old memory and the new material below; ignore anything else. Output only one fenced block labeled mem with the same headings. Mark each new decision with 〔AI · basis: …〕. If you remove an open question, add one line saying why. Leave everything else unchanged.",
+    memStyle: "Write every section as short bullet points, one line each; keep the whole memory under 250 words. Current state says where things stand in one or two lines.",
     resume: "This is the memory of a project done in other chats. Decisions are settled; do not re-derive them. Continue from Current state.",
     combine: "This is the memory of a project and the results of its subtasks, each done in a separate chat. Combine them into one final answer for the Goal. Decisions are settled; do not re-derive them. Keep source links. Point out where results conflict and what is still missing.",
     short: "Keep the answer under 150 words outside the block.",
@@ -210,9 +212,58 @@
     return parts.concat(line ? [line] : []).filter(p => p && p.trim().length > 0).join('\n\n');
   }
 
+  // Progress: what the project has done so far, written from its data (no AI), so the memory makes sense at any
+  // moment. Not stored; added when the memory is shown, inserted elsewhere or used to continue.
+  const PROGRESS_HEADING = '## Progress (kept by the extension)';
+  const AI_NAMES = { chatgpt: 'ChatGPT', gemini: 'Gemini' };
+
+  function oneLine(text, max = 140) {
+    const lines = String(text || '').split('\n').filter(l => !/^\s*(#|`{3,}|~{3,})/.test(l));
+    const line = lines.map(l => l.replace(/^[>*\-\s]+/, '').replace(/[*_`]/g, '').trim()).find(Boolean) || '';
+    return line.length > max ? line.slice(0, max - 1) + '…' : line;
+  }
+
+  function buildProgress(project) {
+    if (!project) return '';
+    const tasks = project.tasks || [];
+    const steps = project.steps || [];
+    const last = (test) => steps.slice().reverse().find(test) || null;
+    const lines = [];
+    if (tasks.length === 0) {
+      lines.push(project.planSkipped ? '- No plan: working in one chat.' : '- Not planned yet.');
+    } else {
+      const done = tasks.filter(t => t.status === 'done').length;
+      lines.push(`- Plan: ${tasks.length} task${tasks.length === 1 ? '' : 's'}, ${done} done.`);
+      for (const t of tasks) {
+        const ai = AI_NAMES[t.ai] ? ` (${AI_NAMES[t.ai]})` : '';
+        if (t.status === 'done') lines.push(`- Done: ${t.title}${ai}: ${oneLine(t.result) || 'no result text'}`);
+        else if (t.status === 'running') lines.push(`- Running: ${t.title}${ai}`);
+        else if (t.status === 'needs-you') lines.push(`- Needs a look: ${t.title}${ai}`);
+        else lines.push(`- To do: ${t.title}`);
+      }
+    }
+    const combine = last(s => s.kind === 'combine');
+    if (combine && combine.status === 'done') lines.push(`- Combined into a final answer${AI_NAMES[combine.ai] ? ' (' + AI_NAMES[combine.ai] + ')' : ''}.`);
+    const resume = last(s => s.kind === 'resume' && s.status === 'done');
+    if (resume) lines.push(`- Continued in a new chat${AI_NAMES[resume.ai] ? ' (' + AI_NAMES[resume.ai] + ')' : ''}.`);
+    let next;
+    if (tasks.length === 0) next = project.planSkipped ? 'Keep going in a new chat.' : 'Plan the work, or skip planning.';
+    else if (!tasks.every(t => t.status === 'done')) next = 'Finish the tasks.';
+    else if (!combine || combine.status !== 'done') next = 'Combine the results.';
+    else next = 'Keep going in a new chat.';
+    lines.push(`- Next: ${next}`);
+    return PROGRESS_HEADING + '\n' + lines.join('\n');
+  }
+
+  // Memory text plus Progress (for reading, inserting and continuing; never sent to the memory update itself)
+  function withProgress(memory, project) {
+    const progress = buildProgress(project);
+    return [(memory || '').trim(), progress].filter(Boolean).join('\n\n');
+  }
+
   // Builder for split prompt
   function buildSplit(memory, options) {
-    if (hasLine(options)) return withLine([TEXT.split, (memory || '').trim()], options);
+    if (hasLine(options)) return withLine([TEXT.split + ' ' + TEXT.splitMem, (memory || '').trim()], options);
     const short = !!(options && options.short);
     let msg = TEXT.split + '\n\n' + (memory || '').trim();
     if (short) {
@@ -245,7 +296,7 @@
   // Builder for memory update prompt
   function buildMemUpdate(memory, results) {
     const parts = [
-      TEXT.memUpdate,
+      TEXT.memUpdate + ' ' + TEXT.memStyle,
       'Old memory:\n' + (memory || '').trim()
     ];
     const matBlocks = (results || []).map(r => `### ${r.title}\n${(r.text || '').trim()}`);
@@ -466,10 +517,11 @@
     return tasks;
   }
 
-  // Parse memory update answer, validating required sections
-  function parseMemoryAnswer(text) {
+  // Parse memory update answer, validating required sections.
+  // options.labelledOnly: only a block labelled mem counts (the plan answer, whose last block is the tasks block)
+  function parseMemoryAnswer(text, options) {
     if (typeof text !== 'string') return null;
-    const block = parseBlock(text, 'mem', { fallback: true });
+    const block = parseBlock(text, 'mem', { fallback: !(options && options.labelledOnly) });
     if (!block) return null;
     const stripped = stripFence(block);
     if (!stripped) return null;
@@ -589,8 +641,11 @@
   const WorkflowPrompts = {
     SECTIONS,
     TEXT,
+    PROGRESS_HEADING,
     emptyMemory,
     parseMemory,
+    buildProgress,
+    withProgress,
     pickSections,
     stripFence,
     buildSplit,

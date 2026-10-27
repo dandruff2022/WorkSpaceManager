@@ -188,11 +188,21 @@
     return text;
   }
 
-  async function applyResult(projectId, step, parsed) {
+  async function applyResult(projectId, step, parsed, answer) {
     const store = self.ProjectStore;
     if (step.kind === 'split') {
       // Alternate AIs so the plan uses both providers by default; the user can change it before running
       await store.setTasks(projectId, parsed.map((t, i) => ({ ...t, ai: i % 2 === 0 ? 'chatgpt' : 'gemini' })));
+      // The plan may also settle preferences or decisions (an optional mem block before the tasks block).
+      // Saved only if the memory is still the one the plan was made from.
+      const mem = self.WorkflowPrompts.parseMemoryAnswer(answer || '', { labelledOnly: true });
+      if (mem) {
+        const project = await store.get(projectId);
+        const latest = project.memory[project.memory.length - 1];
+        if ((!step.baseAt || latest.at === step.baseAt) && mem.trim() !== latest.text.trim()) {
+          await store.addMemoryVersion(projectId, mem, SITES[step.ai].name, 'with the plan');
+        }
+      }
     } else if (step.kind === 'task' && step.taskId) {
       await store.updateTask(projectId, step.taskId, { status: 'done', result: parsed });
     } else if (step.kind === 'mem-update') {
@@ -275,7 +285,7 @@
         tabId = null; // keep the tab so the user can look
         return;
       }
-      await applyResult(projectId, step, parsed);
+      await applyResult(projectId, step, parsed, archived);
       await update({ status: 'done', archiveId });
     } catch (err) {
       await markTask(projectId, step, { status: 'needs-you' });
@@ -307,7 +317,7 @@
     return SITES[choresAi] ? choresAi : (project.mainAi || 'chatgpt');
   }
 
-  // After Combine: rewrite the memory from the task results and the final answer.
+  // After Combine (or "Ask AI to tidy"): rewrite the memory from the task results and the final answer, if any.
   // One chore per project at a time; each builds its message from the memory as it is when its turn comes.
   const choreChains = new Map();
   function startMemoryChore(projectId, combineStep, finalAnswer) {
@@ -316,11 +326,11 @@
       if (!project) return;
       const P = self.WorkflowPrompts;
       const results = project.tasks.filter(t => t.status === 'done' && t.result).map(t => ({ title: t.title, text: t.result }));
-      results.push({ title: 'Final answer (combined)', text: finalAnswer });
+      if (finalAnswer) results.push({ title: 'Final answer (combined)', text: finalAnswer });
       const latest = project.memory[project.memory.length - 1];
       const step = await startStep(projectId, {
         kind: 'mem-update', ai: await choresAiFor(project), message: P.buildMemUpdate(latest.text, results),
-        parentId: combineStep.id, baseAt: latest.at
+        parentId: combineStep ? combineStep.id : null, baseAt: latest.at
       });
       await step.finished;
     });
@@ -336,6 +346,19 @@
     const answer = await self.ProjectStore.getArchive(combine.archiveId);
     startMemoryChore(projectId, combine, answer).catch(async (err) => {
       await self.ProjectStore.addStep(projectId, { kind: 'mem-update', ai: combine.ai, parentId: combine.id, status: 'error', error: err.message });
+      notifyUi(projectId);
+    });
+  }
+
+  // "Ask AI to tidy": the same chore without a Combine, from whatever results the project has
+  async function tidyMemory(projectId) {
+    const project = await self.ProjectStore.get(projectId);
+    if (!project) throw new Error('Project not found');
+    if (project.steps.some(s => s.kind === 'mem-update' && ['sending', 'waiting', 'reading'].includes(s.status))) {
+      throw new Error('A memory update is already running');
+    }
+    startMemoryChore(projectId, null, null).catch(async (err) => {
+      await self.ProjectStore.addStep(projectId, { kind: 'mem-update', ai: project.mainAi || 'chatgpt', status: 'error', error: err.message });
       notifyUi(projectId);
     });
   }
@@ -363,6 +386,11 @@
       if (!task) throw new Error('Task not found');
       if (task.status === 'running') throw new Error(`"${task.title}" is already running`);
       await self.ProjectStore.updateTask(projectId, taskId, { status: 'running', result: null });
+    }
+    if (kind === 'split' && !baseAt) {
+      // Remember which memory the plan was made from (its optional mem block is only saved over that one)
+      const project = await self.ProjectStore.get(projectId);
+      if (project && project.memory.length) baseAt = project.memory[project.memory.length - 1].at;
     }
     const step = await self.ProjectStore.addStep(projectId, { kind, ai, taskId, parentId, baseAt, message, status: 'sending' });
     notifyUi(projectId);
@@ -415,6 +443,7 @@
     wf_removeTask: async (p) => { await self.ProjectStore.removeTask(p.projectId, p.taskId); return {}; },
     wf_run: async (p) => ({ step: await startStep(p.projectId, p) }),
     wf_retryChore: async (p) => { await retryChore(p.projectId, p.combineStepId); return {}; },
+    wf_tidyMemory: async (p) => { await tidyMemory(p.projectId); return {}; },
     wf_openChat: async (p) => { await openStepChat(p.projectId, p.stepId); return {}; },
     wf_getArchive: async (p) => ({ text: await self.ProjectStore.getArchive(p.archiveId) }),
     // Dev harness: pick up code changes without visiting chrome://extensions

@@ -26,8 +26,11 @@
   }
 
   // Labelled blocks tell the AI "this is material", and tell the user where it came from
+  // Progress (utils/workflow_prompts.js) goes along when it's loaded, so the memory makes sense at any stage
   function labelMemory(project, version) {
-    return `[Project memory v${version.v}: ${project.title}]\n${(version.text || '').trim()}`;
+    const P = global.WorkflowPrompts;
+    const text = P && P.withProgress ? P.withProgress(version.text, project) : (version.text || '').trim();
+    return `[Project memory v${version.v}: ${project.title}]\n${text}`;
   }
 
   const providers = {
@@ -94,6 +97,11 @@
     return out;
   }
 
+  // The picker's tabs: groups with anything in them for this surface (before any query)
+  function groupsWithItems(data, context) {
+    return [...new Set(query(data, context, '').map(i => i.group))];
+  }
+
   // Text to insert at the caret so the item sits in its own paragraph
   function paragraphText(before, after, text) {
     const b = before || '';
@@ -104,7 +112,7 @@
     return prefix + body + suffix;
   }
 
-  const Library = { GROUP_ORDER, SURFACE_GROUPS, providers, query, paragraphText, labelMemory, firstLine, words };
+  const Library = { GROUP_ORDER, SURFACE_GROUPS, providers, query, groupsWithItems, paragraphText, labelMemory, firstLine, words };
 
   global.Library = Library;
   if (typeof module !== 'undefined' && module.exports) {
