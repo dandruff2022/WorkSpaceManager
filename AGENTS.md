@@ -91,6 +91,7 @@ Live-run gotchas (all learned the hard way):
 | Task | Read |
 |---|---|
 | How the pieces fit (contexts, messages, data model, dependencies, toolchain) | `doc/architecture.md` |
+| Next phase (Library: prompts, styles, notes, one picker) | `doc/plan/phase_3.2_library_plan.md` |
 | Anything in Projects | `doc/plan/phase_3.1_flow_plan.md`, then `phase_3_plan.md`; prompt wording rationale in `doc/experiments/memory_workflow/prompts_v2.md` |
 | What's done / next | `doc/roadmap.md` (the "Phase 3 (new)" section) |
 | Why something was done | latest `doc/log/*.md` (newest: `2026_10_26_16.md`) |
