@@ -49,13 +49,13 @@ async function setupViewMode() {
     if (chromeAPI && chromeAPI.storage && chromeAPI.storage.local) {
       try {
         const data = await chromeAPI.storage.local.get(['preferredMode']);
-        mode = data.preferredMode || 'window';
+        mode = data.preferredMode || 'panel';
       } catch (err) {
         console.warn("Could not read preferredMode from local storage:", err);
-        mode = 'window';
+        mode = 'panel';
       }
     } else {
-      mode = 'window';
+      mode = 'panel';
     }
   }
 

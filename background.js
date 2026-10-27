@@ -160,9 +160,13 @@ chromeAPI.runtime.onInstalled.addListener(async () => {
   // Seed storage.local with default preferredMode and siteProfiles
   // Keep the user's saved window/panel choice; v0.6 moves the prompt pop-up key from "@" (which the chat sites
   // use for their own menus) to ";;" once
-  const stored = await chromeAPI.storage.local.get(['preferredMode', 'triggerMigratedV06']);
+  // v0.7 makes the side panel the default and switches existing installs to it once
+  const stored = await chromeAPI.storage.local.get(['preferredMode', 'triggerMigratedV06', 'panelDefaultV07']);
   const seed = { siteProfiles: defaultProfiles };
-  if (!stored.preferredMode) seed.preferredMode = 'window';
+  if (!stored.preferredMode || !stored.panelDefaultV07) {
+    seed.preferredMode = 'panel';
+    seed.panelDefaultV07 = true;
+  }
   if (!stored.triggerMigratedV06) {
     seed.autocompleteTriggerChar = ';;';
     seed.triggerMigratedV06 = true;
@@ -179,11 +183,15 @@ chromeAPI.runtime.onInstalled.addListener(async () => {
 });
 
 // Listen to the toolbar extension icon click
-chromeAPI.action.onClicked.addListener(async (tab) => {
-  const data = await chromeAPI.storage.local.get(['preferredMode']);
-  const preferredMode = data.preferredMode || 'window';
+// Cached so the click handler can open the side panel without an await (sidePanel.open needs the user gesture)
+let preferredModeCache = 'panel';
+chromeAPI.storage.local.get(['preferredMode']).then(data => { preferredModeCache = data.preferredMode || 'panel'; });
+chromeAPI.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.preferredMode) preferredModeCache = changes.preferredMode.newValue || 'panel';
+});
 
-  if (preferredMode === 'panel') {
+chromeAPI.action.onClicked.addListener((tab) => {
+  if (preferredModeCache === 'panel') {
     openSidePanel(tab);
   } else {
     openDetachedWindow();
