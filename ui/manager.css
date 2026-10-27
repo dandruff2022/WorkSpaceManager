@@ -989,3 +989,16 @@ body.state-detached-placeholder .app-container { display: none; }
 
 .console-log-error { color: var(--danger); }
 .console-log-success { color: var(--ok); }
+
+/* Phase 3.2: picker tray, Answer button (styles = teal, symbol ≡) */
+:root { --kind-styles: #0f766e; }
+@media (prefers-color-scheme: dark) { :root { --kind-styles: #2dd4bf; } }
+.picker-tray { margin: 0 0 8px; }
+.picker-tray .wmp { --wmp-max: 220px; }
+.picker-tray:focus { outline: none; }
+.composer-actions { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.answer-btn { display: inline-flex; align-items: center; gap: 4px; max-width: 220px; min-width: 0; }
+.answer-btn .answer-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.answer-sym { color: var(--kind-styles); font-weight: 700; }
+.style-line { color: var(--text-muted); margin: 4px 0 0; overflow-wrap: anywhere; }
+.instruction-box { resize: vertical; min-height: 44px; }

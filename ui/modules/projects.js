@@ -110,8 +110,11 @@
       // Which flow step is open: null = the current one, 'none' = all folded
       let openKey = null;
       let lastCurrent = null;
-      // Drafts: instructions the user typed, messages they edited, the short-answers choice, open message boxes
-      let drafts = { instruction: {}, edited: {}, short: true, openBoxes: new Set() };
+      // Drafts: instructions the user typed, messages they edited, open message boxes
+      let drafts = { instruction: {}, edited: {}, openBoxes: new Set() };
+      // Answer styles for Projects messages (Answer button), as the ready "Output requirements:" line
+      let styleLine = '';
+      let renderHeld = false;
 
       function setStatus(text, kind = '') {
         $('proj-status').textContent = text;
@@ -138,7 +141,7 @@
           memoryDirty = false;
           openKey = null;
           lastCurrent = null;
-          drafts = { instruction: {}, edited: {}, short: true, openBoxes: new Set() };
+          drafts = { instruction: {}, edited: {}, openBoxes: new Set() };
           setStatus('');
           setMemStatus('');
         }
@@ -167,6 +170,9 @@
       }
 
       function renderFlow() {
+        // An open picker tray would be thrown away by a re-render; render when it closes
+        if (window.PickerTray && PickerTray.isOpenIn(flowEl)) { renderHeld = true; return; }
+        renderHeld = false;
         const flow = flowState(project);
         if (flow.current !== lastCurrent) {
           // The project moved on: show the new current step
@@ -262,9 +268,9 @@
         parts.push(el('p', { class: 'muted small' },
           state !== 'done' ? `${AI_NAMES[mainAi()]} splits the work into up to 2 tasks that run in separate chats.`
             : working ? 'You can plan again when the running tasks finish.' : 'Planning again replaces the current tasks.'));
-        parts.push(messageBox('split', P.buildSplit(memoryText(), { short: drafts.short })));
+        parts.push(messageBox('split', builtMessage('split')));
         parts.push(el('div', { class: 'flow-actions' },
-          shortToggle(),
+          answerToggle(),
           el('span', { class: 'spacer' }),
           state === 'done' ? null : el('button', { class: 'btn', disabled: busy, onclick: () => setOptions({ planSkipped: true }) }, 'Skip — do it in one chat'),
           el('button', { class: 'btn btn-primary', disabled: busy || working, onclick: () => send('split') },
@@ -279,9 +285,9 @@
         const todo = project.tasks.filter(t => t.status === 'todo');
         if (todo.length > 0) {
           parts.push(el('p', { class: 'muted small' }, 'Each task goes to a new chat on its AI, with only the memory parts it needs.'));
-          parts.push(...todo.map(t => messageBox(`task:${t.id}`, P.buildTask(memoryText(), t, { short: drafts.short }), `Message for “${t.title}” → ${AI_NAMES[t.ai]}`)));
+          parts.push(...todo.map(t => messageBox(`task:${t.id}`, builtMessage(`task:${t.id}`), `Message for “${t.title}” → ${AI_NAMES[t.ai]}`)));
           parts.push(el('div', { class: 'flow-actions' },
-            shortToggle(),
+            answerToggle(),
             el('span', { class: 'spacer' }),
             el('button', { class: 'btn btn-primary', disabled: busy, onclick: () => send('task') },
               todo.length === 1 ? 'Run the task' : `Run ${todo.length} tasks`)));
@@ -331,13 +337,12 @@
           parts.push(el('p', { class: 'muted small' }, 'Opens when every task is done.'));
           return parts;
         }
-        const results = project.tasks.filter(t => t.status === 'done' && t.result).map(t => ({ title: t.title, text: t.result }));
-        const instruction = drafts.instruction.combine || '';
         parts.push(el('p', { class: 'muted small' },
           `${AI_NAMES[mainAi()]} merges the task results into one answer, in a chat you can keep talking in. The memory is updated after that.`));
         parts.push(instructionBox('combine', 'Anything to add? e.g. one page, as a table (optional)'));
-        parts.push(messageBox('combine', P.buildCombine(memoryText(), results, instruction)));
+        parts.push(messageBox('combine', builtMessage('combine')));
         parts.push(el('div', { class: 'flow-actions' },
+          answerToggle(),
           el('span', { class: 'spacer' }),
           el('button', { class: 'btn btn-primary', disabled: busy, onclick: () => send('combine') },
             `${state === 'done' ? 'Combine again' : 'Combine'} with ${AI_NAMES[mainAi()]}`)));
@@ -356,9 +361,9 @@
             '.'));
         }
         parts.push(instructionBox('resume', 'What should the AI do next? e.g. Turn this into a checklist'));
-        parts.push(messageBox('resume', P.buildResume(memoryText(), drafts.instruction.resume || '(write your instruction above)', { short: drafts.short })));
+        parts.push(messageBox('resume', builtMessage('resume')));
         parts.push(el('div', { class: 'flow-actions' },
-          shortToggle(),
+          answerToggle(),
           el('span', { class: 'spacer' }),
           Object.entries(AI_NAMES).map(([ai, name]) => el('button', {
             class: ai === mainAi() ? 'btn btn-primary' : 'btn', disabled: busy, onclick: () => send('resume', ai)
@@ -395,14 +400,43 @@
       }
 
       function instructionBox(key, placeholder) {
-        return el('input', {
-          type: 'text', class: 'text-input', placeholder, 'data-key': `instr:${key}`, value: drafts.instruction[key] || '',
+        const box = el('textarea', {
+          class: 'text-input instruction-box', rows: 2, placeholder: placeholder + ' — ;; for saved prompts and notes',
+          'data-key': `instr:${key}`, value: drafts.instruction[key] || '',
           oninput: (e) => {
             drafts.instruction[key] = e.target.value;
-            // Keep the assembled message in step with the instruction unless the user edited the message
-            if (!(key in drafts.edited)) renderFlow();
+            refreshMessages();
           }
         });
+        if (window.PickerTray) {
+          PickerTray.attach(box, { surface: 'instruction', place: 'projects', projectId: () => project && project.id, onClose: releaseRender });
+        }
+        return box;
+      }
+
+      // The message a step would send, from the current memory, instruction and answer styles
+      function builtMessage(key, resumeFallback = '(write your instruction above)') {
+        const memory = memoryText();
+        const opts = { requirements: styleLine };
+        if (key === 'split') return P.buildSplit(memory, opts);
+        if (key.startsWith('task:')) return P.buildTask(memory, project.tasks.find(t => `task:${t.id}` === key) || {}, opts);
+        if (key === 'combine') {
+          const results = project.tasks.filter(t => t.status === 'done' && t.result).map(t => ({ title: t.title, text: t.result }));
+          return P.buildCombine(memory, results, drafts.instruction.combine || '', opts);
+        }
+        return P.buildResume(memory, drafts.instruction.resume || resumeFallback, opts);
+      }
+
+      // Update the shown messages in place (no re-render, so typing and an open tray are kept)
+      function refreshMessages() {
+        flowEl.querySelectorAll('textarea[data-key^="msg:"]').forEach(area => {
+          const key = area.dataset.key.slice(4);
+          if (!(key in drafts.edited)) area.value = builtMessage(key);
+        });
+      }
+
+      function releaseRender() {
+        if (renderHeld) setTimeout(() => { if (!PickerTray.isOpenIn(flowEl)) renderFlow(); }, 0);
       }
 
       // The assembled message, editable; edits are kept until it is sent or reset
@@ -427,10 +461,9 @@
         return box;
       }
 
-      function shortToggle() {
-        const box = el('input', { type: 'checkbox', onchange: (e) => { drafts.short = e.target.checked; renderFlow(); } });
-        box.checked = drafts.short;
-        return el('label', { class: 'small short-toggle' }, box, ' Short answers');
+      // "≡ Answer: Short ▾": one choice for all Projects messages (remembered); shown in each message's last line
+      function answerToggle() {
+        return window.PickerTray ? PickerTray.answerButton({ place: 'projects', onClose: releaseRender }) : null;
       }
 
       // ---------- Sending ----------
@@ -456,19 +489,17 @@
             if (memoryDirty) return;
             await load(project.id);
           }
-          const memory = memoryText();
           const runs = [];
           if (kind === 'split') {
-            runs.push({ key: 'split', ai: mainAi(), message: messageFor('split', P.buildSplit(memory, { short: drafts.short })) });
+            runs.push({ key: 'split', ai: mainAi(), message: messageFor('split', builtMessage('split')) });
           } else if (kind === 'task') {
             for (const t of project.tasks.filter(t => t.status === 'todo')) {
-              runs.push({ key: `task:${t.id}`, ai: t.ai, taskId: t.id, message: messageFor(`task:${t.id}`, P.buildTask(memory, t, { short: drafts.short })) });
+              runs.push({ key: `task:${t.id}`, ai: t.ai, taskId: t.id, message: messageFor(`task:${t.id}`, builtMessage(`task:${t.id}`)) });
             }
           } else if (kind === 'combine') {
-            const results = project.tasks.filter(t => t.status === 'done' && t.result).map(t => ({ title: t.title, text: t.result }));
-            runs.push({ key: 'combine', ai: mainAi(), message: messageFor('combine', P.buildCombine(memory, results, drafts.instruction.combine || '')) });
+            runs.push({ key: 'combine', ai: mainAi(), message: messageFor('combine', builtMessage('combine')) });
           } else {
-            runs.push({ key: 'resume', ai, message: messageFor('resume', P.buildResume(memory, drafts.instruction.resume || '', { short: drafts.short })) });
+            runs.push({ key: 'resume', ai, message: messageFor('resume', builtMessage('resume', '')) });
           }
           for (const run of runs) {
             const res = await call('wf_run', { projectId: project.id, kind, ai: run.ai, message: run.message, taskId: run.taskId || null });
@@ -677,6 +708,12 @@
         load(null);
       });
       $('btn-proj-archive-close').addEventListener('click', () => $('proj-archive').close());
+
+      if (window.PickerTray) {
+        const loadStyles = async () => { styleLine = await PickerTray.line('projects'); if (project) refreshMessages(); };
+        document.addEventListener('wmStyleChoice', (e) => { if (e.detail.place === 'projects') loadStyles(); });
+        loadStyles();
+      }
 
       // The engine reports progress; reload the shown project
       chromeAPI.runtime.onMessage.addListener((message) => {

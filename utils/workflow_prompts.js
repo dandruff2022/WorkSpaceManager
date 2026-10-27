@@ -199,8 +199,20 @@
     return lines.slice(1, -1).join('\n').trim();
   }
 
+  // Answer styles arrive as one ready line (options.requirements, from StylesRegistry.buildLine) and always go
+  // last; the older options.short keeps its original layout.
+  function hasLine(options) {
+    return !!options && typeof options.requirements === 'string';
+  }
+
+  function withLine(parts, options) {
+    const line = (options.requirements || '').trim();
+    return parts.concat(line ? [line] : []).filter(p => p && p.trim().length > 0).join('\n\n');
+  }
+
   // Builder for split prompt
   function buildSplit(memory, options) {
+    if (hasLine(options)) return withLine([TEXT.split, (memory || '').trim()], options);
     const short = !!(options && options.short);
     let msg = TEXT.split + '\n\n' + (memory || '').trim();
     if (short) {
@@ -215,6 +227,7 @@
     const t = task || {};
     const pickedMem = pickSections(memory, t.needs);
     const taskBlock = `Title: ${t.title || ''}\nTask: ${t.task || ''}\nReturn: ${t.ret || t.return || ''}`.trim();
+    if (hasLine(options)) return withLine([TEXT.task, pickedMem, taskBlock, TEXT.result], options);
     const reqs = short
       ? `Output requirements:\n${TEXT.short}\n${TEXT.result}`
       : `Output requirements:\n${TEXT.result}`;
@@ -243,6 +256,7 @@
 
   // Builder for resume prompt
   function buildResume(memory, instruction, options) {
+    if (hasLine(options)) return withLine([TEXT.resume, (memory || '').trim(), (instruction || '').trim()], options);
     const short = !!(options && options.short);
     const parts = [
       TEXT.resume,
@@ -259,6 +273,9 @@
   function buildCombine(memory, results, instruction, options) {
     const short = !!(options && options.short);
     const matBlocks = (results || []).map(r => `### ${r.title}\n${(r.text || '').trim()}`);
+    if (hasLine(options)) {
+      return withLine([TEXT.combine, (memory || '').trim(), 'Subtask results:\n' + matBlocks.join('\n\n'), (instruction || '').trim()], options);
+    }
     const parts = [
       TEXT.combine,
       (memory || '').trim(),

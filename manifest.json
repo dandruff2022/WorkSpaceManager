@@ -52,6 +52,9 @@
       ],
       "js": [
         "bridge.js",
+        "utils/styles_registry.js",
+        "utils/library.js",
+        "utils/picker_core.js",
         "utils/autocomplete.js",
         "content.js"
       ],

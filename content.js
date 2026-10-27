@@ -65,7 +65,7 @@ chromeAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-// Dynamic binding of Skills Autocomplete on active input focus
+// Attach the ";;" picker (utils/autocomplete.js) to a message box on a supported chat site when it gets focus
 document.addEventListener("focusin", (e) => {
   const el = e.target;
   if (!el) return;
@@ -101,22 +101,10 @@ document.addEventListener("focusin", (e) => {
           return; // Skip non-supported website
         }
 
-        if (typeof SkillsAutocomplete !== "undefined") {
-          new SkillsAutocomplete(el, {
-            onQuery: (prefix) => {
-              return new Promise((resolve) => {
-                chromeAPI.runtime.sendMessage({ action: "querySkills", prefix }, (response) => {
-                  if (response && response.matches) {
-                    resolve(response.matches);
-                  } else {
-                    resolve([]);
-                  }
-                });
-              });
-            }
-          });
+        if (typeof SitePicker !== "undefined" && !el.__agy_autocomplete_attached) {
+          new SitePicker(el);
           el.__agy_autocomplete_attached = true;
-          console.log("[Workspace Manager] Autocomplete attached to element:", el);
+          console.log("[Workspace Manager] Picker attached to element:", el);
         }
       });
     }

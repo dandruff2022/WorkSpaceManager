@@ -49,6 +49,25 @@
       const sendBtn = container.querySelector('#btn-send');
       const selectAllBtn = container.querySelector('#btn-send-select-all');
       const statusLine = container.querySelector('#send-status');
+      const styleLineEl = container.querySelector('#send-style-line');
+
+      // Answer styles: chosen with the Answer button (or ;; → Styles), added as the message's last line
+      let styleLine = '';
+      async function refreshStyleLine() {
+        styleLine = await PickerTray.line('send');
+        styleLineEl.hidden = !styleLine;
+        styleLineEl.replaceChildren();
+        const sym = document.createElement('span');
+        sym.className = 'answer-sym';
+        sym.textContent = '≡ ';
+        styleLineEl.append(sym, `Added as the last line: ${styleLine}`);
+      }
+      if (window.PickerTray) {
+        container.querySelector('#send-answer-slot').replaceWith(PickerTray.answerButton({ place: 'send' }));
+        PickerTray.attach(promptInput, { surface: 'send', place: 'send' });
+        document.addEventListener('wmStyleChoice', (e) => { if (e.detail.place === 'send') refreshStyleLine(); });
+        refreshStyleLine();
+      }
 
       const observedTabs = new Set();
       const unchecked = new Set(); // tabs the user deselected; new tabs start selected
@@ -197,7 +216,7 @@
           promptInput.focus();
           return;
         }
-        const ok = await sendToTabs(selectedTabIds(), text);
+        const ok = await sendToTabs(selectedTabIds(), StylesRegistry.applyLine(text, styleLine));
         if (ok) promptInput.value = "";
       });
 

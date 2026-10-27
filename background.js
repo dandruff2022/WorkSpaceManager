@@ -1,7 +1,7 @@
 // Import Registries in worker context
 if (typeof importScripts === 'function') {
   importScripts('utils/site_profiles_registry.js');
-  importScripts('utils/skills_registry.js');
+  importScripts('utils/skills_registry.js', 'utils/styles_registry.js', 'utils/library.js');
   importScripts('utils/workflow_prompts.js', 'utils/project_store.js', 'utils/workflow_engine.js');
 }
 
@@ -316,6 +316,20 @@ chromeAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // What the ";;" picker can insert here (Prompts, Styles, Memory); read-only, used by chat-site content scripts
+  if (message.action === 'library_query') {
+    (async () => {
+      await SkillsRegistry.load();
+      const styles = await StylesStore.list();
+      const choice = await StylesStore.getChoice('site');
+      const projects = await self.ProjectStore.list();
+      const items = Library.query({ skills: SkillsRegistry.skills, styles, projects }, message.context || { surface: 'site' }, message.text, message.group);
+      sendResponse({ items, styles, choice });
+    })().catch(err => sendResponse({ items: [], error: err.message }));
+    return true;
+  }
+
+  // v0.6 name, kept for one release
   if (message.action === 'querySkills') {
     if (typeof SkillsRegistry !== 'undefined') {
       SkillsRegistry.load().then(() => {
@@ -446,7 +460,7 @@ async function ensureContentScript(tabId) {
   // Inject scripts dynamically
   await chromeAPI.scripting.executeScript({
     target: { tabId },
-    files: ["bridge.js", "utils/autocomplete.js", "content.js"]
+    files: ["bridge.js", "utils/styles_registry.js", "utils/library.js", "utils/picker_core.js", "utils/autocomplete.js", "content.js"]
   });
   await chromeAPI.scripting.executeScript({
     target: { tabId },

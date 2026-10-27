@@ -217,7 +217,6 @@ function initializeModules() {
   }
 
   setupDebugModeVisibility();
-  setupPopupAutocomplete();
   setupNotificationSetting();
   setupCheckboxSetting('checkbox-keep-worker-tabs', 'keepWorkerTabs', false);
   setupCheckboxSetting('checkbox-temp-chats', 'tempChatsForWork', true);
@@ -255,24 +254,6 @@ function setupNotificationSetting() {
   });
   checkbox.addEventListener('change', () => {
     chromeAPI.storage.local.set({ notifyWhenDone: checkbox.checked });
-  });
-}
-
-function setupPopupAutocomplete() {
-  const targetIds = ["send-prompt"];
-  targetIds.forEach(id => {
-    const el = document.getElementById(id);
-    if (el && typeof SkillsAutocomplete !== 'undefined') {
-      new SkillsAutocomplete(el, {
-        onQuery: async (prefix) => {
-          if (typeof SkillsRegistry !== 'undefined') {
-            await SkillsRegistry.load();
-            return SkillsRegistry.getMatchingSkills(prefix, 6);
-          }
-          return [];
-        }
-      });
-    }
   });
 }
 

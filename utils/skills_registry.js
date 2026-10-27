@@ -24,13 +24,72 @@
       keyword: "@check",
       prompt: "Critically review your most recent response. List any factual errors, weak reasoning, or missing points, then give a corrected version. If nothing needs fixing, say so in one sentence.",
       description: "Ask the AI to check and correct its last answer."
+    },
+    summarize: {
+      keyword: "@summarize",
+      prompt: "Summarize our conversation so far: the question, the key points and conclusions, and anything still open. Use short bullet points.",
+      description: "Recap the conversation so far."
+    },
+    explain: {
+      keyword: "@explain",
+      prompt: "Explain the following in plain language, as if to a smart beginner. Start with a one-sentence summary, then the key ideas, then one concrete example. Define any jargon you use.\n\n",
+      description: "Explain something simply, with an example."
+    },
+    improve: {
+      keyword: "@improve",
+      prompt: "Improve the writing below: make it clearer and more concise, fix grammar, keep my meaning and tone. Give the revised version first, then list the main changes in up to 3 bullets.\n\n",
+      description: "Polish a piece of writing."
+    },
+    translate: {
+      keyword: "@translate",
+      prompt: "Translate the text below. If it is in Chinese, translate it into natural English; otherwise into natural Simplified Chinese. Keep the formatting. Output only the translation.\n\n",
+      description: "Translate between Chinese and English."
+    },
+    compare: {
+      keyword: "@compare",
+      prompt: "Compare the options below in a table: key differences, pros, cons, cost and who each is best for. Then recommend one for my situation and say why in two sentences.\n\n",
+      description: "Compare options and recommend one."
+    },
+    critique: {
+      keyword: "@critique",
+      prompt: "Act as a tough but fair critic of the idea or plan below. List its weakest assumptions, the main risks and what could go wrong, most serious first. Then suggest how to fix the top three.\n\n",
+      description: "Find the weak spots in an idea or plan."
+    },
+    checklist: {
+      keyword: "@checklist",
+      prompt: "Turn your last answer into a step-by-step checklist I can follow, with checkboxes. Keep each step to one line.",
+      description: "Make the last answer an actionable checklist."
+    },
+    ask_me: {
+      keyword: "@ask_me",
+      prompt: "Before you answer, ask me the questions you need to give a really good answer (at most 5, most important first). Wait for my replies.",
+      description: "Let the AI ask clarifying questions first."
+    },
+    better_prompt: {
+      keyword: "@better_prompt",
+      prompt: "Rewrite the prompt below so an AI assistant gives the best possible answer: state the goal, context, constraints and the output format. Output only the improved prompt.\n\n",
+      description: "Turn a rough request into a strong prompt."
+    },
+    code_review: {
+      keyword: "@code_review",
+      prompt: "Review the code below. List bugs, edge cases, security issues and readability problems, most serious first, each with a one-line fix. Then give the corrected code.\n\n",
+      description: "Review code for bugs and fixes."
+    },
+    debug: {
+      keyword: "@debug",
+      prompt: "Help me debug. Below are the error and the relevant code. Explain the most likely cause, how to confirm it, and the fix. If you need more information, say exactly what.\n\n",
+      description: "Find the cause of an error."
     }
   };
+
+  // Bump when new starter prompts are added; existing users get the missing ones once
+  const DEFAULTS_VERSION = 2;
 
   const LEGACY_DEFAULT_KEYS = ["breakdown", "transfer", "format", "merge"];
 
   const SkillsRegistry = {
     skills: {},
+    defaults: defaultSkills,
 
     // Load skills from local storage
     async load() {
@@ -42,14 +101,22 @@
           return;
         }
 
-        chromeAPI.storage.local.get("skills", async (data) => {
+        chromeAPI.storage.local.get(["skills", "skillsDefaultsVersion"], async (data) => {
           if (!data.skills || Object.keys(data.skills).length === 0) {
             // Seed defaults if empty
             this.skills = { ...defaultSkills };
             await this.save();
+            chromeAPI.storage.local.set({ skillsDefaultsVersion: DEFAULTS_VERSION });
             console.log("[SkillsRegistry] Storage empty. Seeded defaults.");
           } else {
             this.skills = data.skills;
+            if ((data.skillsDefaultsVersion || 1) < DEFAULTS_VERSION) {
+              for (const key in defaultSkills) {
+                if (!this.skills[key]) this.skills[key] = { ...defaultSkills[key] };
+              }
+              await this.save();
+              chromeAPI.storage.local.set({ skillsDefaultsVersion: DEFAULTS_VERSION });
+            }
             // v0.6: drop workflow-only defaults from hidden modules (Context Transfer, Orchestrator)
             let migrated = false;
             for (const key of LEGACY_DEFAULT_KEYS) {
@@ -149,4 +216,5 @@
 
   // Export globally
   global.SkillsRegistry = SkillsRegistry;
+  if (typeof module !== 'undefined' && module.exports) module.exports = SkillsRegistry;
 })(typeof self !== 'undefined' ? self : this);

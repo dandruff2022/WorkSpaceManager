@@ -8,7 +8,10 @@
   <link rel="stylesheet" href="manager.css">
   <script src="../utils/site_profiles_registry.js" defer></script>
   <script src="../utils/skills_registry.js" defer></script>
-  <script src="../utils/autocomplete.js" defer></script>
+  <script src="../utils/styles_registry.js" defer></script>
+  <script src="../utils/library.js" defer></script>
+  <script src="../utils/picker_core.js" defer></script>
+  <script src="modules/picker_tray.js" defer></script>
   <!-- Hidden in v0.6 (code kept): modules/context_transfer.js, modules/broadcast.js, modules/orchestrator.js -->
   <script src="../utils/workflow_prompts.js" defer></script>
   <script src="modules/projects.js" defer></script>
@@ -169,10 +172,14 @@
           </div>
 
           <div class="card">
-            <textarea id="send-prompt" class="text-input composer" placeholder="Type a prompt. Type ;; to insert a saved prompt. Press ⌘/Ctrl + Enter to send."></textarea>
+            <textarea id="send-prompt" class="text-input composer" placeholder="Type a prompt. Type ;; for saved prompts, styles and project memory. Press ⌘/Ctrl + Enter to send."></textarea>
+            <p id="send-style-line" class="style-line small" hidden></p>
             <div class="composer-footer">
               <span id="send-status" class="status-line"></span>
-              <button id="btn-send" class="btn btn-primary">Send</button>
+              <div class="composer-actions">
+                <span id="send-answer-slot"></span>
+                <button id="btn-send" class="btn btn-primary">Send</button>
+              </div>
             </div>
           </div>
         </div>
