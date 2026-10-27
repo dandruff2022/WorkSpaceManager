@@ -211,6 +211,7 @@ Replaces the old Phase 3–4 below, which stay on hold.
     - [x] Code: styles registry, library query, picker core, site overlay, tray + Answer button, Library page
     - [ ] Live test with the user (ChatGPT, Gemini, Send, Projects)
   - [ ] Step B: Notes page, AI edit on request (diff + undo), bring a note into a project, Save-to-Notes on answers
+- [ ] Idea to discuss: AI suggests the next step, UI highlights it ([`doc/plan/idea_next_step_suggestions.md`](plan/idea_next_step_suggestions.md))
 - [ ] Decide on the tab flicker (send, Gemini peek) and the many-chats-per-task question
 - [ ] Release v0.7.0
 
