@@ -1,13 +1,14 @@
 // Workspace Manager - Projects Module
-// One piece of work = memory (versioned) + tasks + activity. Each "Next step" button assembles a message the user
-// can edit, then the background engine sends it, waits, reads the answer and saves the result.
+// One piece of work shown as a line of steps: Describe → Plan → Run tasks → Combine → Continue.
+// The current step is open and highlighted; each step shows the message it will send (editable) before sending.
+// The background engine sends it, waits, reads the answer and saves the result. Memory updates run as chores.
 
 (() => {
   const chromeAPI = typeof chrome !== 'undefined' ? chrome : (typeof browser !== 'undefined' ? browser : null);
   const P = window.WorkflowPrompts;
 
   const AI_NAMES = { chatgpt: 'ChatGPT', gemini: 'Gemini' };
-  const KIND_NAMES = { split: 'Split into tasks', task: 'Task', 'mem-update': 'Update memory', resume: 'Continue' };
+  const KIND_NAMES = { split: 'Plan', task: 'Task', combine: 'Combine', 'mem-update': 'Memory update', resume: 'Continue' };
   const STEP_STATUS = {
     sending: { text: 'Sending…', cls: 'status-working' },
     waiting: { text: 'Waiting for answer…', cls: 'status-working' },
@@ -22,12 +23,8 @@
     done: { text: 'Done', cls: 'status-done' },
     'needs-you': { text: 'Needs you', cls: 'status-error' }
   };
-  const HELP = {
-    split: 'Asks the AI to split the project into up to 2 tasks that can run in separate chats. The tasks appear below.',
-    task: 'Each task goes to a new chat on the AI picked in its card, with only the memory parts it needs.',
-    'mem-update': 'A brand-new chat updates the memory from the finished task results. You can see what changed and undo it.',
-    resume: 'Opens a new chat with the memory and your instruction, then takes you there to keep talking.'
-  };
+  const FLOW = ['describe', 'plan', 'tasks', 'combine', 'continue'];
+  const FLOW_NAMES = { describe: 'Describe', plan: 'Plan', tasks: 'Run tasks', combine: 'Combine', continue: 'Continue' };
 
   function call(action, payload = {}) {
     return new Promise((resolve) => {
@@ -42,10 +39,11 @@
     const node = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
       if (k === 'class') node.className = v;
+      else if (k === 'value') node.value = v;
       else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
       else if (v !== undefined && v !== null && v !== false) node.setAttribute(k, v === true ? '' : v);
     }
-    for (const c of children.flat()) if (c !== null && c !== undefined) node.append(c);
+    for (const c of children.flat()) if (c !== null && c !== undefined && c !== false) node.append(c);
     return node;
   }
 
@@ -58,24 +56,63 @@
   }
 
   const currentMemory = (project) => project.memory[project.memory.length - 1];
+  const isActive = (step) => step && ['sending', 'waiting', 'reading'].includes(step.status);
+  const lastStep = (project, test) => project.steps.slice().reverse().find(test) || null;
+
+  // Where the project is, worked out from what it has: each flow step is done, current, running, future or skipped
+  function flowState(project) {
+    const tasks = project.tasks;
+    const split = lastStep(project, s => s.kind === 'split');
+    const combine = lastStep(project, s => s.kind === 'combine');
+    const skipped = !!project.planSkipped && tasks.length === 0;
+    const tasksDone = tasks.length > 0 && tasks.every(t => t.status === 'done');
+    const lastTaskEnd = Math.max(0, ...project.steps.filter(s => s.kind === 'task' && s.status === 'done').map(s => s.endedAt || 0));
+    const combineDone = !!combine && combine.status === 'done' && (combine.endedAt || 0) >= lastTaskEnd;
+
+    const state = { describe: 'done' };
+    if (skipped) state.plan = 'skipped';
+    else if (isActive(split)) state.plan = 'running';
+    else state.plan = tasks.length > 0 ? 'done' : 'current';
+
+    if (skipped) state.tasks = 'skipped';
+    else if (tasks.length === 0) state.tasks = 'future';
+    else if (tasks.some(t => t.status === 'running')) state.tasks = 'running';
+    else state.tasks = tasksDone ? 'done' : 'current';
+
+    if (skipped) state.combine = 'skipped';
+    else if (isActive(combine)) state.combine = 'running';
+    else if (!tasksDone) state.combine = 'future';
+    else state.combine = combineDone ? 'done' : 'current';
+
+    state.continue = (skipped || combineDone) ? 'current' : 'future';
+    const current = FLOW.find(k => state[k] === 'current' || state[k] === 'running');
+    return { state, current, split, combine, tasksDone };
+  }
+
+  function seenKey(project) { return `wm_mem_seen_${project.id}`; }
+  function seenVersion(project) { return parseInt(localStorage.getItem(seenKey(project)) || '0', 10); }
 
   window.ProjectsModule = {
     init(container) {
       const $ = id => container.querySelector('#' + id);
       const selectEl = $('proj-select');
       const memoryEl = $('proj-memory');
-      const composer = $('proj-composer');
-      const messagesEl = $('proj-messages');
-      const aiSelect = $('proj-ai');
-      const shortBox = $('proj-short');
-      const instructionEl = $('proj-instruction');
+      const flowEl = $('proj-flow');
 
       let project = null;
       let projects = [];
-      let composerKind = null;
       let memoryDirty = false;
-      let shownChangesFor = null; // memory version whose diff is on screen
-      let sending = false;
+      let busy = false;
+      // Which flow step is open: null = the current one, 'none' = all folded
+      let openKey = null;
+      let lastCurrent = null;
+      // Drafts: instructions the user typed, messages they edited, the short-answers choice, open message boxes
+      let drafts = { instruction: {}, edited: {}, short: true, openBoxes: new Set() };
+
+      function setStatus(text, kind = '') {
+        $('proj-status').textContent = text;
+        $('proj-status').className = `status-line ${kind}`;
+      }
 
       function setMemStatus(text, kind = '') {
         $('proj-mem-status').textContent = text;
@@ -85,7 +122,7 @@
       async function load(projectId) {
         const list = await call('wf_list');
         if (list.status !== 'success') {
-          setMemStatus(`Could not load projects: ${list.error}`, 'error');
+          setStatus(`Could not load projects: ${list.error}`, 'error');
           return;
         }
         projects = list.projects;
@@ -95,8 +132,10 @@
         if ((project ? project.id : null) !== previousId) {
           // Drafts belong to the project they were written for
           memoryDirty = false;
-          shownChangesFor = null;
-          if (composerKind !== null) closeComposer();
+          openKey = null;
+          lastCurrent = null;
+          drafts = { instruction: {}, edited: {}, short: true, openBoxes: new Set() };
+          setStatus('');
           setMemStatus('');
         }
         render();
@@ -109,10 +148,362 @@
         $('proj-main').hidden = !project;
         if (!project) return;
         selectEl.value = project.id;
+        $('proj-main-ai').value = project.mainAi || 'chatgpt';
+        renderFlow();
         renderMemory();
-        renderTasks();
         renderSteps();
-        highlightNextStep();
+      }
+
+      // ---------- Step line ----------
+
+      function mainAi() { return project.mainAi || 'chatgpt'; }
+
+      function memoryText() {
+        return memoryDirty ? memoryEl.value : currentMemory(project).text;
+      }
+
+      function renderFlow() {
+        const flow = flowState(project);
+        if (flow.current !== lastCurrent) {
+          // The project moved on: show the new current step
+          lastCurrent = flow.current;
+          openKey = null;
+        }
+        // Keep focus and caret in the box the user is typing in across re-renders
+        const active = document.activeElement;
+        const focusKey = active && flowEl.contains(active) ? active.dataset.key : null;
+        const caret = focusKey ? [active.selectionStart, active.selectionEnd] : null;
+
+        flowEl.replaceChildren(...FLOW.map((key, i) => {
+          const state = flow.state[key];
+          const open = openKey === null ? key === flow.current : openKey === key;
+          const dot = state === 'done' ? '✓' : state === 'skipped' ? '–' : String(i + 1);
+          const head = el('button', {
+            class: 'flow-head', 'aria-expanded': open ? 'true' : 'false',
+            onclick: () => { openKey = open ? 'none' : key; renderFlow(); }
+          },
+          el('span', { class: 'flow-dot' }, dot),
+          el('span', { class: 'flow-name' }, FLOW_NAMES[key]),
+          el('span', { class: 'flow-summary muted small' }, summaryOf(key, state, flow)));
+          return el('li', { class: `flow-step flow-${state}${open ? ' flow-open' : ''}` },
+            head, open ? el('div', { class: 'flow-body' }, bodyOf(key, state, flow)) : null);
+        }));
+
+        if (focusKey) {
+          const box = flowEl.querySelector(`[data-key="${focusKey}"]`);
+          if (box) {
+            box.focus();
+            if (caret && box.setSelectionRange) box.setSelectionRange(caret[0], caret[1]);
+          }
+        }
+      }
+
+      function summaryOf(key, state, flow) {
+        const tasks = project.tasks;
+        if (key === 'describe') return goalLine();
+        if (key === 'plan') {
+          if (state === 'skipped') return 'Skipped — one chat';
+          if (state === 'running') return `${AI_NAMES[flow.split.ai]} is planning…`;
+          if (state === 'done') return `${tasks.length} task${tasks.length === 1 ? '' : 's'}${flow.split ? ' · ' + AI_NAMES[flow.split.ai] : ''}`;
+          return flow.split && !isActive(flow.split) && flow.split.status !== 'done' ? 'Last try failed' : 'Split the work into tasks';
+        }
+        if (key === 'tasks') {
+          if (state === 'skipped') return '';
+          if (state === 'future') return 'After the plan';
+          const done = tasks.filter(t => t.status === 'done').length;
+          const running = tasks.filter(t => t.status === 'running').length;
+          return `${done}/${tasks.length} done${running ? ` · ${running} running` : ''}`;
+        }
+        if (key === 'combine') {
+          if (state === 'skipped') return '';
+          if (state === 'future') return 'Merge the task results into the final answer';
+          if (state === 'running') return `${AI_NAMES[flow.combine.ai]} is combining…`;
+          if (state === 'done') return `Final answer · ${AI_NAMES[flow.combine.ai]}`;
+          return flow.combine && flow.combine.status !== 'done' ? 'Last try failed' : 'Merge the task results into the final answer';
+        }
+        return 'Keep going in a new chat with the memory';
+      }
+
+      function goalLine() {
+        const goal = (P.parseMemory(currentMemory(project).text).sections.Goal || '').trim().split('\n')[0];
+        return goal ? `“${goal.length > 70 ? goal.slice(0, 70) + '…' : goal}”` : project.title;
+      }
+
+      function bodyOf(key, state, flow) {
+        if (key === 'describe') return describeBody();
+        if (key === 'plan') return planBody(state, flow);
+        if (key === 'tasks') return tasksBody(state);
+        if (key === 'combine') return combineBody(state, flow);
+        return continueBody(flow);
+      }
+
+      function describeBody() {
+        return [
+          el('p', { class: 'small' }, (P.parseMemory(currentMemory(project).text).sections.Goal || '').trim() || '(no goal written)'),
+          el('button', { class: 'btn-link', onclick: () => openMemory(true) }, 'Edit the goal in Memory')
+        ];
+      }
+
+      function planBody(state, flow) {
+        const parts = [];
+        if (flow.split) parts.push(stepLine(flow.split));
+        if (state === 'running') return parts;
+        if (state === 'skipped') {
+          parts.push(el('p', { class: 'muted small' }, 'No plan: the work happens in one chat (Continue).'),
+            el('div', { class: 'flow-actions' }, el('button', { class: 'btn', onclick: () => setOptions({ planSkipped: false }) }, 'Plan it after all')));
+          return parts;
+        }
+        parts.push(el('p', { class: 'muted small' },
+          state === 'done' ? 'Planning again replaces the current tasks.' : `${AI_NAMES[mainAi()]} splits the work into up to 2 tasks that run in separate chats.`));
+        parts.push(messageBox('split', P.buildSplit(memoryText(), { short: drafts.short })));
+        parts.push(el('div', { class: 'flow-actions' },
+          shortToggle(),
+          el('span', { class: 'spacer' }),
+          state === 'done' ? null : el('button', { class: 'btn', disabled: busy, onclick: () => setOptions({ planSkipped: true }) }, 'Skip — do it in one chat'),
+          el('button', { class: 'btn btn-primary', disabled: busy, onclick: () => send('split') },
+            `${state === 'done' ? 'Plan again' : 'Plan'} with ${AI_NAMES[mainAi()]}`)));
+        return parts;
+      }
+
+      function tasksBody(state) {
+        if (state === 'skipped') return el('p', { class: 'muted small' }, 'Skipped.');
+        if (state === 'future') return el('p', { class: 'muted small' }, 'The tasks appear here after the plan.');
+        const parts = [el('div', { class: 'task-list' }, project.tasks.map(taskRow))];
+        const todo = project.tasks.filter(t => t.status === 'todo');
+        if (todo.length > 0) {
+          parts.push(el('p', { class: 'muted small' }, 'Each task goes to a new chat on its AI, with only the memory parts it needs.'));
+          parts.push(...todo.map(t => messageBox(`task:${t.id}`, P.buildTask(memoryText(), t, { short: drafts.short }), `Message for “${t.title}” → ${AI_NAMES[t.ai]}`)));
+          parts.push(el('div', { class: 'flow-actions' },
+            shortToggle(),
+            el('span', { class: 'spacer' }),
+            el('button', { class: 'btn btn-primary', disabled: busy, onclick: () => send('task') },
+              todo.length === 1 ? 'Run the task' : `Run ${todo.length} tasks`)));
+        }
+        return parts;
+      }
+
+      function taskRow(task) {
+        const aiPick = el('select', {
+          class: 'select', 'aria-label': 'AI for this task', disabled: task.status === 'running',
+          onchange: () => call('wf_updateTask', { projectId: project.id, taskId: task.id, patch: { ai: aiPick.value } })
+        }, Object.entries(AI_NAMES).map(([v, n]) => el('option', { value: v }, n)));
+        aiPick.value = task.ai;
+        const step = task.stepId && project.steps.find(s => s.id === task.stepId);
+
+        return el('div', { class: 'task-card' },
+          el('div', { class: 'task-head' }, el('strong', { class: 'task-title' }, task.title), aiPick, chip(TASK_STATUS[task.status] || TASK_STATUS.todo)),
+          step && task.status !== 'todo' ? stepLine(step, { compact: true }) : null,
+          el('details', {},
+            el('summary', { class: 'muted small' }, 'Task details'),
+            el('p', { class: 'small' }, task.task),
+            el('p', { class: 'small muted' }, `Uses memory: ${task.needs.join(', ') || 'all'}`),
+            el('p', { class: 'small muted' }, `Must return: ${task.ret}`)),
+          task.result ? el('details', {}, el('summary', { class: 'small' }, 'Result'), el('pre', { class: 'result-text' }, task.result)) : null,
+          el('div', { class: 'task-actions' },
+            task.status === 'done' || task.status === 'needs-you'
+              ? el('button', { class: 'btn-link', onclick: () => call('wf_updateTask', { projectId: project.id, taskId: task.id, patch: { status: 'todo' } }) }, 'Run again')
+              : null,
+            task.status !== 'running'
+              ? el('button', { class: 'btn-link danger-link', onclick: () => call('wf_removeTask', { projectId: project.id, taskId: task.id }) }, 'Remove')
+              : null));
+      }
+
+      function combineBody(state, flow) {
+        if (state === 'skipped') return el('p', { class: 'muted small' }, 'Skipped.');
+        const parts = [];
+        if (flow.combine) {
+          parts.push(stepLine(flow.combine, { answerLabel: 'Final answer' }));
+          const chore = lastStep(project, s => s.kind === 'mem-update' && s.parentId === flow.combine.id);
+          if (chore) parts.push(choreLine(chore));
+        }
+        if (state === 'running') return parts;
+        if (state === 'future') {
+          parts.push(el('p', { class: 'muted small' }, 'Opens when every task is done.'));
+          return parts;
+        }
+        const results = project.tasks.filter(t => t.status === 'done' && t.result).map(t => ({ title: t.title, text: t.result }));
+        const instruction = drafts.instruction.combine || '';
+        parts.push(el('p', { class: 'muted small' },
+          `${AI_NAMES[mainAi()]} merges the task results into one answer, in a chat you can keep talking in. The memory is updated after that.`));
+        parts.push(instructionBox('combine', 'Anything to add? e.g. one page, as a table (optional)'));
+        parts.push(messageBox('combine', P.buildCombine(memoryText(), results, instruction)));
+        parts.push(el('div', { class: 'flow-actions' },
+          el('span', { class: 'spacer' }),
+          el('button', { class: 'btn btn-primary', disabled: busy, onclick: () => send('combine') },
+            `${state === 'done' ? 'Combine again' : 'Combine'} with ${AI_NAMES[mainAi()]}`)));
+        return parts;
+      }
+
+      function continueBody(flow) {
+        const parts = [];
+        const resumes = project.steps.filter(s => s.kind === 'resume').slice(-3).reverse();
+        parts.push(el('p', { class: 'muted small' }, 'Starts a new chat with the memory and your instruction, then takes you there.'));
+        if (flow.combine && flow.combine.status === 'done') {
+          parts.push(el('p', { class: 'small' },
+            flow.combine.archiveId ? el('button', { class: 'btn-link inline-link', onclick: () => showArchive(flow.combine, 'Combine') }, 'Read the final answer') : null,
+            (flow.combine.tabId !== null || flow.combine.url) ? [', or keep talking in the ',
+              el('button', { class: 'btn-link inline-link', onclick: () => openChat(flow.combine) }, 'Combine chat')] : null,
+            '.'));
+        }
+        parts.push(instructionBox('resume', 'What should the AI do next? e.g. Turn this into a checklist'));
+        parts.push(messageBox('resume', P.buildResume(memoryText(), drafts.instruction.resume || '(write your instruction above)', { short: drafts.short })));
+        parts.push(el('div', { class: 'flow-actions' },
+          shortToggle(),
+          el('span', { class: 'spacer' }),
+          Object.entries(AI_NAMES).map(([ai, name]) => el('button', {
+            class: ai === mainAi() ? 'btn btn-primary' : 'btn', disabled: busy, onclick: () => send('resume', ai)
+          }, `Continue in ${name}`))));
+        if (resumes.length) parts.push(el('div', { class: 'flow-past' }, resumes.map(s => stepLine(s))));
+        return parts;
+      }
+
+      // One sent step: status, AI, and links to its chat and full answer
+      function stepLine(step, { compact = false, answerLabel = 'Full answer' } = {}) {
+        const name = KIND_NAMES[step.kind];
+        return el('div', { class: 'step-line' },
+          compact ? null : chip(STEP_STATUS[step.status] || STEP_STATUS.error),
+          el('span', { class: 'small' }, compact
+            ? `Sent ${timeOf(step.startedAt)}`
+            : `${name} · ${AI_NAMES[step.ai] || step.ai}${step.temporary ? ' · temporary chat' : ''} · ${timeOf(step.startedAt)}`),
+          step.error ? el('span', { class: 'small step-error' }, step.error) : null,
+          el('span', { class: 'step-links' },
+            (step.tabId !== null || (step.url && !step.temporary)) ? el('button', { class: 'btn-link', onclick: () => openChat(step) }, 'Open chat') : null,
+            step.archiveId ? el('button', { class: 'btn-link', onclick: () => showArchive(step, name) }, answerLabel) : null));
+      }
+
+      function choreLine(chore) {
+        const mem = currentMemory(project);
+        const saved = chore.status === 'done';
+        return el('div', { class: 'step-line chore-line' },
+          chip(STEP_STATUS[chore.status] || STEP_STATUS.error),
+          el('span', { class: 'small' }, saved ? `Memory updated to v${mem.v} by ${AI_NAMES[chore.ai]}` : `Updating memory · ${AI_NAMES[chore.ai]}${chore.temporary ? ' · temporary chat' : ''}`),
+          chore.error ? el('span', { class: 'small step-error' }, chore.error) : null,
+          el('span', { class: 'step-links' },
+            saved ? el('button', { class: 'btn-link', onclick: () => openMemory(true) }, 'See changes') : null,
+            !saved && chore.tabId !== null ? el('button', { class: 'btn-link', onclick: () => openChat(chore) }, 'Open chat') : null,
+            !isActive(chore) && !saved ? el('button', { class: 'btn-link', onclick: () => retryChore(chore) }, 'Try again') : null));
+      }
+
+      function instructionBox(key, placeholder) {
+        return el('input', {
+          type: 'text', class: 'text-input', placeholder, 'data-key': `instr:${key}`, value: drafts.instruction[key] || '',
+          oninput: (e) => {
+            drafts.instruction[key] = e.target.value;
+            // Keep the assembled message in step with the instruction unless the user edited the message
+            if (!(key in drafts.edited)) renderFlow();
+          }
+        });
+      }
+
+      // The assembled message, editable; edits are kept until it is sent or reset
+      function messageBox(key, built, label = 'Message that will be sent (you can edit it)') {
+        const edited = key in drafts.edited;
+        const area = el('textarea', {
+          class: 'text-input mono step-message', rows: 8, spellcheck: 'false', 'data-key': `msg:${key}`,
+          value: edited ? drafts.edited[key] : built,
+          oninput: (e) => {
+            const first = !(key in drafts.edited);
+            drafts.edited[key] = e.target.value;
+            if (first) renderFlow();
+          }
+        });
+        const box = el('details', {
+          open: drafts.openBoxes.has(key),
+          ontoggle: (e) => { if (e.target.open) drafts.openBoxes.add(key); else drafts.openBoxes.delete(key); }
+        },
+        el('summary', { class: 'small' }, label, edited ? el('span', { class: 'muted' }, ' · edited') : null),
+        area,
+        edited ? el('button', { class: 'btn-link', onclick: () => { delete drafts.edited[key]; renderFlow(); } }, 'Undo my edits') : null);
+        return box;
+      }
+
+      function shortToggle() {
+        const box = el('input', { type: 'checkbox', onchange: (e) => { drafts.short = e.target.checked; renderFlow(); } });
+        box.checked = drafts.short;
+        return el('label', { class: 'small short-toggle' }, box, ' Short answers');
+      }
+
+      // ---------- Sending ----------
+
+      function messageFor(key, built) {
+        return key in drafts.edited ? drafts.edited[key] : built;
+      }
+
+      async function send(kind, ai) {
+        if (busy) return;
+        if (kind === 'resume' && !(drafts.instruction.resume || '').trim() && !('resume' in drafts.edited)) {
+          setStatus('Write what the AI should do next.', 'error');
+          const box = flowEl.querySelector('[data-key="instr:resume"]');
+          if (box) box.focus();
+          return;
+        }
+        busy = true;
+        setStatus('');
+        renderFlow();
+        try {
+          if (memoryDirty) await saveMemory();
+          const memory = memoryText();
+          const runs = [];
+          if (kind === 'split') {
+            runs.push({ key: 'split', ai: mainAi(), message: messageFor('split', P.buildSplit(memory, { short: drafts.short })) });
+          } else if (kind === 'task') {
+            for (const t of project.tasks.filter(t => t.status === 'todo')) {
+              runs.push({ key: `task:${t.id}`, ai: t.ai, taskId: t.id, message: messageFor(`task:${t.id}`, P.buildTask(memory, t, { short: drafts.short })) });
+            }
+          } else if (kind === 'combine') {
+            const results = project.tasks.filter(t => t.status === 'done' && t.result).map(t => ({ title: t.title, text: t.result }));
+            runs.push({ key: 'combine', ai: mainAi(), message: messageFor('combine', P.buildCombine(memory, results, drafts.instruction.combine || '')) });
+          } else {
+            runs.push({ key: 'resume', ai, message: messageFor('resume', P.buildResume(memory, drafts.instruction.resume || '', { short: drafts.short })) });
+          }
+          for (const run of runs) {
+            const res = await call('wf_run', { projectId: project.id, kind, ai: run.ai, message: run.message, taskId: run.taskId || null });
+            if (res.status !== 'success') {
+              setStatus(`Could not start: ${res.error}`, 'error');
+              break;
+            }
+            delete drafts.edited[run.key];
+            drafts.openBoxes.delete(run.key);
+          }
+          if (kind === 'combine' || kind === 'resume') drafts.instruction[kind] = '';
+        } finally {
+          busy = false;
+          await load(project.id);
+        }
+      }
+
+      async function retryChore(chore) {
+        const res = await call('wf_run', { projectId: project.id, kind: 'mem-update', ai: chore.ai, message: chore.message, parentId: chore.parentId });
+        if (res.status !== 'success') setStatus(`Could not start: ${res.error}`, 'error');
+      }
+
+      async function setOptions(patch) {
+        const res = await call('wf_setOptions', { projectId: project.id, patch });
+        if (res.status !== 'success') setStatus(res.error, 'error');
+      }
+
+      async function openChat(step) {
+        const res = await call('wf_openChat', { projectId: project.id, stepId: step.id });
+        if (res.status !== 'success') setStatus(res.error, 'error');
+      }
+
+      async function showArchive(step, what) {
+        const res = await call('wf_getArchive', { archiveId: step.archiveId });
+        showText(`${what} — full answer from ${AI_NAMES[step.ai]}`, res.text || res.error || '(empty)');
+      }
+
+      function showText(title, text) {
+        $('proj-archive-title').textContent = title;
+        $('proj-archive-text').textContent = text;
+        $('proj-archive').showModal();
+      }
+
+      // ---------- Memory (folded by default) ----------
+
+      function openMemory(open) {
+        $('proj-mem-body').hidden = !open;
+        $('btn-proj-mem-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) $('btn-proj-mem-toggle').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       }
 
       function renderMemory() {
@@ -122,18 +513,17 @@
         $('btn-proj-undo').hidden = project.memory.length < 2;
         $('btn-proj-mem-save').hidden = !memoryDirty;
 
-        // After an AI update, show what changed until the user dismisses it
+        // After an AI update, show what changed until the user says it looks good
+        const unseen = mem.v > 0 && mem.by !== 'you' && mem.v > seenVersion(project);
+        $('proj-mem-new').hidden = !unseen;
         const changes = $('proj-mem-changes');
-        if (mem.v > 0 && mem.by !== 'you' && shownChangesFor !== -mem.v) {
-          shownChangesFor = mem.v;
+        changes.hidden = !unseen;
+        if (unseen) {
           changes.replaceChildren(
             el('div', { class: 'card-header' },
               el('strong', {}, `What ${mem.by} changed in v${mem.v}`),
-              el('button', { class: 'btn-link', onclick: () => { shownChangesFor = -mem.v; changes.hidden = true; } }, 'Looks good')),
+              el('button', { class: 'btn-link', onclick: () => { localStorage.setItem(seenKey(project), String(mem.v)); renderMemory(); } }, 'Looks good')),
             renderDiff(project.memory[project.memory.length - 2].text, mem.text));
-          changes.hidden = false;
-        } else if (shownChangesFor !== mem.v) {
-          changes.hidden = true;
         }
         if (!$('proj-history').hidden) renderHistory();
       }
@@ -165,198 +555,6 @@
         box.replaceChildren(...items);
       }
 
-      function renderTasks() {
-        const list = $('proj-tasks');
-        if (project.tasks.length === 0) {
-          list.replaceChildren(el('p', { class: 'muted small' }, 'No tasks yet. Use "Split into tasks", or just "Continue in…" for small work.'));
-          return;
-        }
-        list.replaceChildren(...project.tasks.map(task => {
-          const aiPick = el('select', {
-            class: 'select', 'aria-label': 'AI for this task',
-            onchange: () => call('wf_updateTask', { projectId: project.id, taskId: task.id, patch: { ai: aiPick.value } })
-          }, Object.entries(AI_NAMES).map(([v, n]) => el('option', { value: v }, n)));
-          aiPick.value = task.ai;
-          aiPick.disabled = task.status === 'running';
-
-          const redo = task.status === 'done' || task.status === 'needs-you'
-            ? el('button', { class: 'btn-link', onclick: () => call('wf_updateTask', { projectId: project.id, taskId: task.id, patch: { status: 'todo' } }) }, 'Run again')
-            : null;
-          const remove = task.status !== 'running'
-            ? el('button', { class: 'btn-link danger-link', onclick: () => call('wf_removeTask', { projectId: project.id, taskId: task.id }) }, 'Remove')
-            : null;
-
-          return el('div', { class: 'task-card' },
-            el('div', { class: 'task-head' }, el('strong', { class: 'task-title' }, task.title), aiPick, chip(TASK_STATUS[task.status] || TASK_STATUS.todo)),
-            el('details', {},
-              el('summary', { class: 'muted small' }, 'Task details'),
-              el('p', { class: 'small' }, task.task),
-              el('p', { class: 'small muted' }, `Uses memory: ${task.needs.join(', ') || 'all'}`),
-              el('p', { class: 'small muted' }, `Must return: ${task.ret}`)),
-            task.result ? el('details', {}, el('summary', { class: 'small' }, 'Result'), el('pre', { class: 'result-text' }, task.result)) : null,
-            el('div', { class: 'task-actions' }, redo, remove));
-        }));
-      }
-
-      function renderSteps() {
-        const list = $('proj-steps');
-        if (project.steps.length === 0) {
-          list.replaceChildren(el('p', { class: 'muted small' }, 'Nothing sent yet.'));
-          return;
-        }
-        list.replaceChildren(...project.steps.slice().reverse().map(step => {
-          const task = step.taskId && project.tasks.find(t => t.id === step.taskId);
-          const what = step.kind === 'task' ? `Task: ${task ? task.title : '(removed)'}` : KIND_NAMES[step.kind];
-          return el('div', { class: 'step-row' },
-            el('span', { class: 'step-time muted small' }, timeOf(step.startedAt)),
-            el('span', { class: 'step-what' }, what, el('span', { class: 'muted' }, ` · ${AI_NAMES[step.ai] || step.ai}`),
-              step.error ? el('div', { class: 'small step-error' }, step.error) : null),
-            chip(STEP_STATUS[step.status] || STEP_STATUS.error),
-            el('span', { class: 'step-links' },
-              (step.tabId !== null || step.url) ? el('button', { class: 'btn-link', onclick: () => openChat(step) }, 'Open chat') : null,
-              step.archiveId ? el('button', { class: 'btn-link', onclick: () => showArchive(step, what) }, 'Full answer') : null,
-              el('button', { class: 'btn-link', onclick: () => showText('Message sent', step.message) }, 'Sent')));
-        }));
-      }
-
-      async function openChat(step) {
-        const res = await call('wf_openChat', { projectId: project.id, stepId: step.id });
-        if (res.status !== 'success') setMemStatus(res.error, 'error');
-      }
-
-      async function showArchive(step, what) {
-        const res = await call('wf_getArchive', { archiveId: step.archiveId });
-        showText(`${what} — full answer from ${AI_NAMES[step.ai]}`, res.text || res.error || '(empty)');
-      }
-
-      function showText(title, text) {
-        $('proj-archive-title').textContent = title;
-        $('proj-archive-text').textContent = text;
-        $('proj-archive').showModal();
-      }
-
-      // Suggest the natural next step without forcing it
-      function suggestedStep() {
-        const tasks = project.tasks;
-        if (tasks.some(t => t.status === 'running') || project.steps.some(s => ['sending', 'waiting', 'reading'].includes(s.status))) return null;
-        if (tasks.length === 0) return 'split';
-        if (tasks.some(t => t.status === 'todo')) return 'task';
-        const lastTaskDone = Math.max(0, ...project.steps.filter(s => s.kind === 'task' && s.status === 'done').map(s => s.endedAt || 0));
-        if (lastTaskDone > currentMemory(project).at) return 'mem-update';
-        return 'resume';
-      }
-
-      function highlightNextStep() {
-        const next = suggestedStep();
-        container.querySelectorAll('.step-btn').forEach(btn => {
-          btn.classList.toggle('btn-primary', btn.dataset.kind === next && composerKind === null);
-          btn.classList.toggle('selected', btn.dataset.kind === composerKind);
-        });
-      }
-
-      // Composer: build the message(s) for a step so the user can read and edit them before sending
-      function memoryText() {
-        return memoryDirty ? memoryEl.value : currentMemory(project).text;
-      }
-
-      function buildMessages(kind) {
-        const opts = { short: shortBox.checked };
-        const memory = memoryText();
-        if (kind === 'split') return [{ text: P.buildSplit(memory, opts) }];
-        if (kind === 'task') {
-          return project.tasks.filter(t => t.status === 'todo').map(t => ({ task: t, text: P.buildTask(memory, t, opts) }));
-        }
-        if (kind === 'mem-update') {
-          const results = project.tasks.filter(t => t.status === 'done' && t.result).map(t => ({ title: t.title, text: t.result }));
-          return [{ text: P.buildMemUpdate(memory, results), empty: results.length === 0 }];
-        }
-        return [{ text: P.buildResume(memory, instructionEl.value.trim() || '(write your instruction here)', opts) }];
-      }
-
-      function openComposer(kind) {
-        composerKind = kind;
-        $('proj-composer-help').textContent = HELP[kind];
-        instructionEl.hidden = kind !== 'resume';
-        $('proj-ai-wrap').hidden = kind === 'task';
-        shortBox.parentElement.hidden = kind === 'mem-update';
-        if (kind === 'resume') {
-          // Default to the other AI than the last step, to make switching provider the easy path
-          const last = project.steps[project.steps.length - 1];
-          if (last) aiSelect.value = last.ai === 'chatgpt' ? 'gemini' : 'chatgpt';
-        }
-        fillMessages();
-        composer.hidden = false;
-        highlightNextStep();
-        if (kind === 'resume') instructionEl.focus();
-      }
-
-      function closeComposer() {
-        composerKind = null;
-        composer.hidden = true;
-        highlightNextStep();
-      }
-
-      // Rebuild the assembled messages (memory, options or tasks changed); messages the user edited are kept
-      function fillMessages() {
-        const edited = {};
-        messagesEl.querySelectorAll('textarea.step-message').forEach(a => { if (a.dataset.edited) edited[a.dataset.taskId] = a.value; });
-        const msgs = buildMessages(composerKind);
-        const sendBtn = $('btn-proj-send');
-        if (composerKind === 'task' && msgs.length === 0) {
-          messagesEl.replaceChildren(el('p', { class: 'muted small' }, 'No tasks to run. Split into tasks first, or click "Run again" on a task.'));
-          sendBtn.disabled = true;
-          return;
-        }
-        sendBtn.disabled = false;
-        sendBtn.textContent = msgs.length > 1 ? `Send ${msgs.length} tasks` : 'Send';
-        messagesEl.replaceChildren(...msgs.map(m => {
-          const area = el('textarea', { class: 'text-input mono step-message', rows: 8, spellcheck: 'false' });
-          area.dataset.taskId = m.task ? m.task.id : '';
-          const key = area.dataset.taskId;
-          area.value = key in edited ? edited[key] : m.text;
-          if (key in edited) area.dataset.edited = '1';
-          const wrap = msgs.length > 1
-            ? el('details', {}, el('summary', { class: 'small' }, `${m.task.title} → ${AI_NAMES[m.task.ai]}`), area)
-            : el('details', {}, el('summary', { class: 'small' }, 'Message that will be sent (you can edit it)'), area);
-          if (m.empty) return el('div', {}, el('p', { class: 'status-line error' }, 'No finished task results yet. The memory will not change much.'), wrap);
-          return wrap;
-        }));
-      }
-
-      async function send() {
-        if (sending) return;
-        sending = true;
-        $('btn-proj-send').disabled = true;
-        try {
-          await sendMessages();
-        } finally {
-          sending = false;
-          $('btn-proj-send').disabled = false;
-        }
-      }
-
-      async function sendMessages() {
-        const areas = Array.from(messagesEl.querySelectorAll('textarea.step-message'));
-        if (composerKind === 'resume' && !instructionEl.value.trim()) {
-          instructionEl.focus();
-          setMemStatus('Write what the AI should do next.', 'error');
-          return;
-        }
-        if (memoryDirty) await saveMemory();
-        const kind = composerKind;
-        for (const area of areas) {
-          const task = area.dataset.taskId && project.tasks.find(t => t.id === area.dataset.taskId);
-          const res = await call('wf_run', {
-            projectId: project.id, kind, ai: task ? task.ai : aiSelect.value, message: area.value, taskId: task ? task.id : null
-          });
-          if (res.status !== 'success') {
-            setMemStatus(`Could not start: ${res.error}`, 'error');
-            break;
-          }
-        }
-        closeComposer();
-      }
-
       async function saveMemory() {
         const res = await call('wf_editMemory', { projectId: project.id, text: memoryEl.value });
         if (res.status === 'success') {
@@ -367,41 +565,76 @@
         }
       }
 
-      // Events
+      // ---------- History (every step, folded) ----------
+
+      function renderSteps() {
+        const list = $('proj-steps');
+        $('proj-log-count').textContent = project.steps.length ? `${project.steps.length} step${project.steps.length === 1 ? '' : 's'}` : '';
+        if (project.steps.length === 0) {
+          list.replaceChildren(el('p', { class: 'muted small' }, 'Nothing sent yet.'));
+          return;
+        }
+        list.replaceChildren(...project.steps.slice().reverse().map(step => {
+          const task = step.taskId && project.tasks.find(t => t.id === step.taskId);
+          const what = step.kind === 'task' ? `Task: ${task ? task.title : '(removed)'}` : KIND_NAMES[step.kind];
+          return el('div', { class: 'step-row' },
+            el('span', { class: 'step-time muted small' }, timeOf(step.startedAt)),
+            el('span', { class: 'step-what' }, what, el('span', { class: 'muted' }, ` · ${AI_NAMES[step.ai] || step.ai}${step.temporary ? ' · temporary' : ''}`),
+              step.error ? el('div', { class: 'small step-error' }, step.error) : null),
+            chip(STEP_STATUS[step.status] || STEP_STATUS.error),
+            el('span', { class: 'step-links' },
+              (step.tabId !== null || (step.url && !step.temporary)) ? el('button', { class: 'btn-link', onclick: () => openChat(step) }, 'Open chat') : null,
+              step.archiveId ? el('button', { class: 'btn-link', onclick: () => showArchive(step, what) }, 'Full answer') : null,
+              el('button', { class: 'btn-link', onclick: () => showText('Message sent', step.message) }, 'Sent')));
+        }));
+      }
+
+      // ---------- Events ----------
+
       selectEl.addEventListener('change', async () => {
-        memoryDirty = false;
-        closeComposer();
         await call('wf_setCurrent', { projectId: selectEl.value });
         load(selectEl.value);
       });
 
+      $('proj-main-ai').addEventListener('change', (e) => setOptions({ mainAi: e.target.value }));
+
       $('btn-proj-new').addEventListener('click', () => {
         $('proj-new-form').hidden = false;
         $('proj-empty').hidden = true;
-        $('proj-new-title').focus();
+        $('proj-new-goal').focus();
       });
       $('btn-proj-new-cancel').addEventListener('click', () => {
         $('proj-new-form').hidden = true;
         render();
       });
       $('btn-proj-create').addEventListener('click', async () => {
-        const title = $('proj-new-title').value.trim() || 'Untitled project';
-        const res = await call('wf_create', { title, memory: P.emptyMemory(title, $('proj-new-goal').value.trim()) });
-        if (res.status !== 'success') return setMemStatus(res.error, 'error');
+        const goal = $('proj-new-goal').value.trim();
+        if (!goal) {
+          $('proj-new-goal').focus();
+          return;
+        }
+        const firstLine = goal.split('\n')[0];
+        const title = $('proj-new-title').value.trim() || (firstLine.length > 48 ? firstLine.slice(0, 48) + '…' : firstLine);
+        const res = await call('wf_create', { title, memory: P.emptyMemory(title, goal) });
+        if (res.status !== 'success') return setStatus(res.error, 'error');
         $('proj-new-title').value = $('proj-new-goal').value = '';
         $('proj-new-form').hidden = true;
         await call('wf_setCurrent', { projectId: res.project.id });
-        memoryDirty = false;
         await load(res.project.id);
-        memoryEl.focus();
-        setMemStatus('Add preferences and open questions if you like, then pick a next step.');
+      });
+
+      $('btn-proj-mem-toggle').addEventListener('click', () => openMemory($('proj-mem-body').hidden));
+      $('btn-proj-log-toggle').addEventListener('click', () => {
+        const body = $('proj-log-body');
+        body.hidden = !body.hidden;
+        $('btn-proj-log-toggle').setAttribute('aria-expanded', body.hidden ? 'false' : 'true');
       });
 
       memoryEl.addEventListener('input', () => {
         memoryDirty = memoryEl.value !== currentMemory(project).text;
         $('btn-proj-mem-save').hidden = !memoryDirty;
         setMemStatus(memoryDirty ? 'Unsaved changes (saved when you send)' : '');
-        if (composerKind !== null) fillMessages();
+        renderFlow();
       });
       $('btn-proj-mem-save').addEventListener('click', saveMemory);
       $('btn-proj-undo').addEventListener('click', async () => {
@@ -428,18 +661,6 @@
         await call('wf_remove', { projectId: project.id });
         load(null);
       });
-
-      container.querySelectorAll('.step-btn').forEach(btn => btn.addEventListener('click', () => {
-        if (composerKind === btn.dataset.kind) closeComposer(); else openComposer(btn.dataset.kind);
-      }));
-      $('btn-proj-cancel').addEventListener('click', closeComposer);
-      $('btn-proj-send').addEventListener('click', send);
-      shortBox.addEventListener('change', fillMessages);
-      instructionEl.addEventListener('input', () => {
-        // Keep the resume message in sync with the instruction unless the user already edited the message
-        fillMessages();
-      });
-      messagesEl.addEventListener('input', (e) => { if (e.target.matches('textarea')) e.target.dataset.edited = '1'; });
       $('btn-proj-archive-close').addEventListener('click', () => $('proj-archive').close());
 
       // The engine reports progress; reload the shown project

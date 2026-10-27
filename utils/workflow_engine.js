@@ -1,6 +1,7 @@
 // Workspace Manager - Workflow Engine (background)
 // Runs one Projects step: open a chat tab, send the message, wait for the answer, read it with the copy button,
 // parse the expected block (asking once with %fix if missing) and save the result into the project.
+// A finished Combine starts the memory update by itself, as a chore in a temporary chat.
 // Needs WorkflowPrompts and ProjectStore (loaded before this file with importScripts).
 
 (() => {
@@ -10,7 +11,7 @@
     chatgpt: { name: 'ChatGPT', newChatUrl: 'https://chatgpt.com/', tempChatUrl: 'https://chatgpt.com/?temporary-chat=true' },
     gemini: { name: 'Gemini', newChatUrl: 'https://gemini.google.com/app' }
   };
-  const LABELS = { split: 'tasks', task: 'result', 'mem-update': 'mem', resume: null };
+  const LABELS = { split: 'tasks', task: 'result', combine: null, 'mem-update': 'mem', resume: null };
   const ANSWER_TIMEOUT_MS = 5 * 60 * 1000;
   const POLL_MS = 2000;
 
@@ -64,15 +65,25 @@
     return res.status === 'success' ? res.snapshot : null;
   }
 
-  async function openChat(ai, kind) {
+  // Temporary chats keep chores out of the user's chat history. ChatGPT has a URL for it; Gemini has a button.
+  // Returns whether the chat really is temporary (if Gemini's button is missing, the chore runs in a normal chat).
+  async function openChat(ai, { temporary = false } = {}) {
     const site = SITES[ai];
     if (!site) throw new Error(`Unsupported AI: ${ai}`);
-    const url = (kind === 'mem-update' && site.tempChatUrl) ? site.tempChatUrl : site.newChatUrl;
+    const url = (temporary && site.tempChatUrl) ? site.tempChatUrl : site.newChatUrl;
     const win = await chromeAPI.windows.getLastFocused({ windowTypes: ['normal'] }).catch(() => null);
     const tab = await chromeAPI.tabs.create({ url, active: false, ...(win ? { windowId: win.id } : {}) });
     await waitUntil(async () => (await chromeAPI.tabs.get(tab.id)).status === 'complete', 30000, `${site.name} to load`);
     await waitUntil(async () => !!(await snapshot(tab.id))?.hasInput, 20000, `the ${site.name} message box`);
-    return tab.id;
+    let isTemporary = temporary && !!site.tempChatUrl;
+    if (temporary && !site.tempChatUrl) {
+      isTemporary = (await bridge(tab.id, 'startTemporaryChat')).status === 'success';
+      if (isTemporary) {
+        await sleep(1000);
+        await waitUntil(async () => !!(await snapshot(tab.id))?.hasInput, 10000, `the ${site.name} message box`);
+      }
+    }
+    return { tabId: tab.id, temporary: isTemporary };
   }
 
   // Bring the tab to the front of its window, type, send, then give the front back to the tab that had it
@@ -205,8 +216,9 @@
 
     try {
       await markTask(projectId, step, { status: 'running', result: null, stepId: step.id });
-      tabId = await openChat(step.ai, step.kind);
-      await update({ tabId });
+      const chat = await openChat(step.ai, { temporary: step.kind === 'mem-update' });
+      tabId = chat.tabId;
+      await update({ tabId, temporary: chat.temporary });
       const base = (await snapshot(tabId))?.copyCount || 0;
       await typeAndSend(tabId, step.message);
 
@@ -243,6 +255,15 @@
       }
 
       const archiveId = await store.saveArchive(archived);
+      if (step.kind === 'combine') {
+        // The user may keep talking in this chat, so it stays open; the memory catches up in a chore
+        await update({ status: 'done', archiveId });
+        tabId = null;
+        await startMemoryChore(projectId, step, answer).catch(async (err) => {
+          await store.addStep(projectId, { kind: 'mem-update', ai: step.ai, parentId: step.id, status: 'error', error: err.message });
+        });
+        return;
+      }
       if (!parsed) {
         await markTask(projectId, step, { status: 'needs-you' });
         await update({ status: 'needs-you', archiveId, error: `No ${label} block in the answer` });
@@ -264,9 +285,24 @@
     }
   }
 
+  async function choresAiFor(project) {
+    const { choresAi } = await chromeAPI.storage.local.get(['choresAi']);
+    return SITES[choresAi] ? choresAi : (project.mainAi || 'chatgpt');
+  }
+
+  // After Combine: rewrite the memory from the task results and the final answer
+  async function startMemoryChore(projectId, combineStep, finalAnswer) {
+    const project = await self.ProjectStore.get(projectId);
+    const P = self.WorkflowPrompts;
+    const results = project.tasks.filter(t => t.status === 'done' && t.result).map(t => ({ title: t.title, text: t.result }));
+    results.push({ title: 'Final answer (combined)', text: finalAnswer });
+    const message = P.buildMemUpdate(self.currentMemory(project), results);
+    return startStep(projectId, { kind: 'mem-update', ai: await choresAiFor(project), message, parentId: combineStep.id });
+  }
+
   const claimedTasks = new Set();
 
-  async function startStep(projectId, { kind, ai, message, taskId = null }) {
+  async function startStep(projectId, { kind, ai, message, taskId = null, parentId = null }) {
     if (!LABELS.hasOwnProperty(kind)) throw new Error(`Unknown step kind: ${kind}`);
     if (!SITES[ai]) throw new Error(`Unsupported AI: ${ai}`);
     if (!message || !message.trim()) throw new Error('Empty message');
@@ -281,7 +317,7 @@
       if (task.status === 'running') throw new Error(`"${task.title}" is already running`);
       await self.ProjectStore.updateTask(projectId, taskId, { status: 'running', result: null });
     }
-    const step = await self.ProjectStore.addStep(projectId, { kind, ai, taskId, message, status: 'sending' });
+    const step = await self.ProjectStore.addStep(projectId, { kind, ai, taskId, parentId, message, status: 'sending' });
     notifyUi(projectId);
     runStep(projectId, step); // runs on; progress goes to storage and workflowUpdate messages
     return step;
@@ -319,6 +355,7 @@
     wf_get: async (p) => ({ project: await self.ProjectStore.get(p.projectId) }),
     wf_create: async (p) => ({ project: await self.ProjectStore.create(p.title, p.memory) }),
     wf_rename: async (p) => { await self.ProjectStore.rename(p.projectId, p.title); return {}; },
+    wf_setOptions: async (p) => ({ project: await self.ProjectStore.setOptions(p.projectId, p.patch || {}) }),
     wf_remove: async (p) => { await self.ProjectStore.remove(p.projectId); return {}; },
     wf_getCurrent: async () => ({ projectId: await self.ProjectStore.getCurrentId() }),
     wf_setCurrent: async (p) => { await self.ProjectStore.setCurrentId(p.projectId); return {}; },

@@ -221,6 +221,18 @@ function initializeModules() {
   setupNotificationSetting();
   setupCheckboxSetting('checkbox-keep-worker-tabs', 'keepWorkerTabs', false);
   setupCheckboxSetting('checkbox-dev-harness', 'devHarness', false);
+  setupSelectSetting('select-chores-ai', 'choresAi', 'same');
+}
+
+function setupSelectSetting(id, key, defaultValue) {
+  const select = document.getElementById(id);
+  if (!select || !chromeAPI || !chromeAPI.storage) return;
+  chromeAPI.storage.local.get([key], (data) => {
+    select.value = data[key] || defaultValue;
+  });
+  select.addEventListener('change', () => {
+    chromeAPI.storage.local.set({ [key]: select.value });
+  });
 }
 
 function setupCheckboxSetting(id, key, defaultValue) {

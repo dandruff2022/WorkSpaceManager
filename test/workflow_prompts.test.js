@@ -364,6 +364,16 @@ test('15. Partial memory answer is rejected', () => {
   assert.strictEqual(WorkflowPrompts.parseMemoryAnswer("```mem\n## Goal\ng\n## Preferences\np\n## Current state\nc\n```"), null);
 });
 
+test('16. Combine message has memory, every result and the instruction', () => {
+  const msg = WorkflowPrompts.buildCombine('## Goal\nPick a note app', [{ title: 'A', text: 'res a' }, { title: 'B', text: 'res b' }], 'One page please', { short: true });
+  assert(msg.startsWith(WorkflowPrompts.TEXT.combine));
+  assert(msg.includes('## Goal\nPick a note app'));
+  assert(msg.includes('### A\nres a') && msg.includes('### B\nres b'));
+  assert(msg.includes('One page please'));
+  assert(msg.includes(WorkflowPrompts.TEXT.short));
+  assert(!WorkflowPrompts.buildCombine('m', [], '').includes('\n\n\n'));
+});
+
 console.log(`\nTests completed: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
   process.exit(1);

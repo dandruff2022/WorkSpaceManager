@@ -86,11 +86,11 @@
 
           <div id="proj-new-form" class="card form" hidden>
             <h2>New project</h2>
-            <label for="proj-new-title">Name</label>
-            <input type="text" id="proj-new-title" class="text-input" placeholder="Saturday in Chicago">
             <label for="proj-new-goal">What do you want to get done?</label>
-            <textarea id="proj-new-goal" class="text-input" rows="3" placeholder="Plan a one-day trip on Saturday, back by 9 pm, no car, about $80."></textarea>
-            <p class="muted small">This becomes the Goal in the project memory. You can add preferences and open questions next.</p>
+            <textarea id="proj-new-goal" class="text-input" rows="3" placeholder="Plan a one-day trip to Chicago on Saturday, back by 9 pm, no car, about $80."></textarea>
+            <label for="proj-new-title">Name <span class="muted">(optional)</span></label>
+            <input type="text" id="proj-new-title" class="text-input" placeholder="Saturday in Chicago">
+            <p class="muted small">That's all. The AI plans the work and keeps the project memory up to date as it goes.</p>
             <div class="form-actions">
               <button type="button" id="btn-proj-new-cancel" class="btn">Cancel</button>
               <button type="button" id="btn-proj-create" class="btn btn-primary">Create</button>
@@ -99,63 +99,47 @@
 
           <div id="proj-empty" class="card empty-state" hidden>
             <p>No projects yet.</p>
-            <p class="muted">A project keeps one piece of work: a memory of what is decided so far, the tasks, and every step any AI did.</p>
+            <p class="muted">Write what you want to get done in one sentence. The AI plans it, runs the parts in separate chats (ChatGPT and Gemini), combines the results and keeps a memory you can take to any chat.</p>
           </div>
 
           <div id="proj-main" hidden>
             <div class="card">
               <div class="card-header">
-                <h2>Memory <span id="proj-mem-version" class="muted small"></span></h2>
-                <div>
-                  <button id="btn-proj-history" class="btn-link">History</button>
-                  <button id="btn-proj-undo" class="btn-link">Undo last update</button>
-                </div>
+                <h2>Steps</h2>
+                <label class="main-ai small">Main AI <select id="proj-main-ai" class="select"><option value="chatgpt">ChatGPT</option><option value="gemini">Gemini</option></select></label>
               </div>
-              <div id="proj-mem-changes" class="mem-changes" hidden></div>
-              <textarea id="proj-memory" class="text-input mono mem-text" rows="12" spellcheck="false"></textarea>
-              <div class="composer-footer">
-                <span id="proj-mem-status" class="status-line"></span>
-                <button id="btn-proj-mem-save" class="btn btn-small" hidden>Save as new version</button>
-              </div>
-              <div id="proj-history" class="history-list" hidden></div>
+              <ol id="proj-flow" class="flow"></ol>
+              <p id="proj-status" class="status-line"></p>
             </div>
 
             <div class="card">
-              <h2>Next step</h2>
-              <div class="step-buttons">
-                <button class="btn step-btn" data-kind="split">Split into tasks</button>
-                <button class="btn step-btn" data-kind="task">Run tasks</button>
-                <button class="btn step-btn" data-kind="mem-update">Update memory</button>
-                <button class="btn step-btn" data-kind="resume">Continue in…</button>
-              </div>
-              <div id="proj-composer" class="step-composer" hidden>
-                <p id="proj-composer-help" class="muted small"></p>
-                <input type="text" id="proj-instruction" class="text-input" placeholder="What should the AI do next? e.g. Write the final day plan" hidden>
-                <div id="proj-messages"></div>
+              <button id="btn-proj-mem-toggle" class="fold-head" aria-expanded="false">
+                <span class="fold-arrow">▸</span> Memory <span id="proj-mem-version" class="muted small"></span>
+                <span id="proj-mem-new" class="status-chip status-working" hidden>new changes</span>
+              </button>
+              <div id="proj-mem-body" class="fold-body" hidden>
+                <div id="proj-mem-changes" class="mem-changes" hidden></div>
+                <textarea id="proj-memory" class="text-input mono mem-text" rows="12" spellcheck="false"></textarea>
                 <div class="composer-footer">
-                  <div class="composer-options">
-                    <label id="proj-ai-wrap">AI <select id="proj-ai" class="select"><option value="chatgpt">ChatGPT</option><option value="gemini">Gemini</option></select></label>
-                    <label><input type="checkbox" id="proj-short" checked> Short answers</label>
-                  </div>
+                  <span id="proj-mem-status" class="status-line"></span>
                   <div>
-                    <button id="btn-proj-cancel" class="btn">Cancel</button>
-                    <button id="btn-proj-send" class="btn btn-primary">Send</button>
+                    <button id="btn-proj-history" class="btn-link">Versions</button>
+                    <button id="btn-proj-undo" class="btn-link">Undo last update</button>
+                    <button id="btn-proj-mem-save" class="btn btn-small" hidden>Save as new version</button>
                   </div>
                 </div>
+                <div id="proj-history" class="history-list" hidden></div>
               </div>
             </div>
 
             <div class="card">
-              <div class="card-header"><h2>Tasks</h2></div>
-              <div id="proj-tasks" class="task-list"></div>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <h2>Activity</h2>
-                <button id="btn-proj-delete" class="btn-link danger-link">Delete project</button>
+              <button id="btn-proj-log-toggle" class="fold-head" aria-expanded="false">
+                <span class="fold-arrow">▸</span> History <span id="proj-log-count" class="muted small"></span>
+              </button>
+              <div id="proj-log-body" class="fold-body" hidden>
+                <div id="proj-steps" class="step-list"></div>
+                <div class="task-actions"><button id="btn-proj-delete" class="btn-link danger-link">Delete project</button></div>
               </div>
-              <div id="proj-steps" class="step-list"></div>
             </div>
           </div>
 
@@ -272,7 +256,16 @@
               <label for="checkbox-keep-worker-tabs">Keep chat tabs open after a step</label>
               <input type="checkbox" id="checkbox-keep-worker-tabs">
             </div>
-            <p class="muted small">Off: tabs opened for a step close once the answer is saved. You can reopen any chat from Activity.</p>
+            <p class="muted small">Off: tabs opened for a step close once the answer is saved. You can reopen any chat from History.</p>
+            <div class="setting-row">
+              <label for="select-chores-ai">AI for chores (memory updates)</label>
+              <select id="select-chores-ai" class="select">
+                <option value="same">Same as the project's main AI</option>
+                <option value="chatgpt">ChatGPT</option>
+                <option value="gemini">Gemini</option>
+              </select>
+            </div>
+            <p class="muted small">Chores run in a temporary chat, so they don't fill up your chat history.</p>
             <div class="setting-row debug-mode-only">
               <label for="checkbox-dev-harness">Dev harness (lets http://localhost pages drive chat tabs)</label>
               <input type="checkbox" id="checkbox-dev-harness">

@@ -658,13 +658,107 @@ body.mode-panel .prompts-layout { flex-direction: column; height: auto; }
 .history-row:hover { background: var(--bg-hover); }
 .history-diff { padding: 4px 8px 10px; }
 
-.step-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
-.step-btn.selected { border-color: var(--accent); color: var(--accent); }
-.step-composer { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--border-color); padding-top: 10px; }
-.step-composer p { margin: 0; }
 .step-message { font-size: 12px; margin-top: 6px; }
-.composer-options { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 13px; }
-.composer-options label { display: flex; gap: 6px; align-items: center; }
+
+/* Step line: done steps fold with ✓, the current one is open and highlighted, later ones are grey */
+.main-ai { display: flex; gap: 6px; align-items: center; }
+.flow { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.flow-step { position: relative; padding-left: 0; }
+.flow-step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 30px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--border-color);
+}
+.flow-step.flow-done:not(:last-child)::before { background: var(--ok); opacity: 0.5; }
+.flow-head {
+  font: inherit;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 4px 6px 0;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.flow-head:hover { background: var(--bg-hover); }
+.flow-dot {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  border: 2px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  position: relative;
+  z-index: 1;
+}
+.flow-name { font-weight: 600; font-size: 14px; white-space: nowrap; }
+.flow-summary { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flow-done .flow-dot { border-color: var(--ok); background: var(--ok); color: var(--bg-surface); }
+.flow-done .flow-name { color: var(--text-secondary); font-weight: 500; }
+.flow-current .flow-dot, .flow-running .flow-dot { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.flow-running .flow-dot { animation: flow-pulse 1.6s ease-in-out infinite; }
+.flow-future .flow-name, .flow-skipped .flow-name { color: var(--text-muted); font-weight: 500; }
+.flow-skipped .flow-name { text-decoration: line-through; }
+@keyframes flow-pulse { 50% { box-shadow: 0 0 0 4px var(--accent-soft); } }
+.flow-body {
+  margin: 2px 0 10px 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+.flow-current > .flow-body, .flow-running > .flow-body {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 6px 6px 0;
+  padding: 10px 12px;
+  margin-left: 30px;
+}
+.flow-body p { margin: 0; }
+.flow-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.flow-actions .spacer { flex: 1; }
+.short-toggle { display: flex; gap: 6px; align-items: center; }
+.flow-past { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--border-color); padding-top: 6px; }
+.step-line { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.step-line .step-links { display: inline-flex; gap: 4px; }
+.step-line .btn-link { padding: 0 6px 0 0; }
+.chore-line { padding-left: 12px; border-left: 2px dashed var(--border-color); }
+.inline-link { padding: 0; font-size: inherit; }
+
+.fold-head {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.fold-head .muted { font-weight: 400; }
+.fold-head .status-chip { margin-left: auto; white-space: nowrap; }
+.fold-arrow { display: inline-block; transition: transform 0.15s; color: var(--text-muted); }
+.fold-head[aria-expanded="true"] .fold-arrow { transform: rotate(90deg); }
+.fold-body { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 
 .task-list, .step-list { display: flex; flex-direction: column; }
 .task-card { border-top: 1px solid var(--border-color); padding: 8px 0; display: flex; flex-direction: column; gap: 4px; }

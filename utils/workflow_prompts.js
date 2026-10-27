@@ -10,6 +10,7 @@
     result: "End your answer with exactly one fenced block labeled result. Put nothing after it, no follow-up question.",
     memUpdate: "Update the project memory using ONLY the old memory and the new material below; ignore anything else. Output only one fenced block labeled mem with the same headings. Mark each new decision with 〔AI · basis: …〕. If you remove an open question, add one line saying why. Leave everything else unchanged.",
     resume: "This is the memory of a project done in other chats. Decisions are settled; do not re-derive them. Continue from Current state.",
+    combine: "This is the memory of a project and the results of its subtasks, each done in a separate chat. Combine them into one final answer for the Goal. Decisions are settled; do not re-derive them. Keep source links. Point out where results conflict and what is still missing.",
     short: "Keep the answer under 150 words outside the block.",
     fix: function (label) {
       return `Your last answer did not end with the required fenced block labeled ${label}. Output only that block now, with no text before or after it.`;
@@ -248,6 +249,22 @@
       (memory || '').trim(),
       (instruction || '').trim()
     ];
+    if (short) {
+      parts.push('Output requirements:\n' + TEXT.short);
+    }
+    return parts.join('\n\n');
+  }
+
+  // Builder for combine prompt: the answer is the final result in plain text, no block needed
+  function buildCombine(memory, results, instruction, options) {
+    const short = !!(options && options.short);
+    const matBlocks = (results || []).map(r => `### ${r.title}\n${(r.text || '').trim()}`);
+    const parts = [
+      TEXT.combine,
+      (memory || '').trim(),
+      'Subtask results:\n' + matBlocks.join('\n\n'),
+      (instruction || '').trim()
+    ].filter(p => p.length > 0);
     if (short) {
       parts.push('Output requirements:\n' + TEXT.short);
     }
@@ -563,6 +580,7 @@
     buildTask,
     buildMemUpdate,
     buildResume,
+    buildCombine,
     buildFix,
     parseBlock,
     parseTasks,

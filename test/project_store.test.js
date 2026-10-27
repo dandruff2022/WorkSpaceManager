@@ -359,6 +359,18 @@ async function runTests() {
     }, { message: 'Step not found' });
   });
 
+  await test('project options: main AI and skipped plan', async () => {
+    const area = createStubArea();
+    const store = createProjectStore(area);
+    const p = await store.create('Opts', 'm');
+    assert.strictEqual(p.mainAi, 'chatgpt');
+    assert.strictEqual(p.planSkipped, false);
+    await store.setOptions(p.id, { mainAi: 'gemini' });
+    const q = await store.setOptions(p.id, { planSkipped: true });
+    assert.strictEqual(q.mainAi, 'gemini');
+    assert.strictEqual(q.planSkipped, true);
+  });
+
   console.log(`\nTests completed: ${passed} passed, ${failed} failed`);
   if (failed > 0) {
     process.exit(1);

@@ -469,6 +469,15 @@ ${parentChain}
     return true;
   }
 
+  // Sites without a temporary-chat URL (Gemini) have a button on the new-chat page instead
+  function startTemporaryChat() {
+    const selector = (activeProfile && activeProfile.selectors.temporaryChatButtonSelector) || 'button[aria-label="Temporary chat"]';
+    const btn = Array.from(document.querySelectorAll(selector)).find(b => b.offsetWidth > 0 || b.offsetHeight > 0);
+    if (!btn) return false;
+    if (btn.getAttribute('aria-pressed') !== 'true') btn.click();
+    return true;
+  }
+
   function clickStopButton() {
     if (!activeProfile) return false;
     const btns = document.querySelectorAll(activeProfile.selectors.stopButtonSelector);
@@ -631,6 +640,10 @@ ${parentChain}
         case "clickNewChat":
           const resetOk = clickNewChat();
           sendResponse({ status: resetOk ? "success" : "error" });
+          break;
+        case "startTemporaryChat":
+          const tempOk = startTemporaryChat();
+          sendResponse({ status: tempOk ? "success" : "error", error: tempOk ? undefined : "No temporary chat button" });
           break;
         case "clickStopButton":
           const stopOk = clickStopButton();

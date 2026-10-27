@@ -16,11 +16,12 @@ panel() { # name height hash scheme
   echo "<body style=\"margin:0;background:#888\"><iframe src=\"_preview.html?mode=window$3\" width=380 height=$2 style=\"border:0\"></iframe>" > ui/_frame.html
   shot "$1" 600 "$2" _frame.html "$4"
 }
-shot window-light 850 1400 "_preview.html?mode=window" light
-shot window-dark 850 1400 "_preview.html?mode=window" dark
-shot updated-light 850 1500 "_preview.html?mode=window#updated" light
+shot new-light 850 1100 "_preview.html?mode=window#new" light
+shot running-light 850 1300 "_preview.html?mode=window" light
+shot combine-light 850 1300 "_preview.html?mode=window#combine" light
+shot combined-dark 850 1300 "_preview.html?mode=window#combined" dark
 shot empty-light 850 600 "_preview.html?mode=window#empty" light
-panel panel-light 1600 "" light
-panel updated-dark-panel 1700 "#updated" dark
+panel new-panel 1300 "#new" light
+panel combined-panel-dark 1500 "#combined" dark
 rm -f ui/_preview.html ui/_frame.html
 ls "$OUT"

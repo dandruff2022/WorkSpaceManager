@@ -96,6 +96,7 @@
           inputSelector: profileObj.selectors.inputSelector,
           sendButtonSelector: profileObj.selectors.sendButtonSelector,
           newChatButtonSelector: profileObj.selectors.newChatButtonSelector || "",
+          temporaryChatButtonSelector: profileObj.selectors.temporaryChatButtonSelector || "",
           copyButtonSelector: profileObj.selectors.copyButtonSelector || "",
           userCopyButtonSelector: profileObj.selectors.userCopyButtonSelector || "",
           stopButtonSelector: profileObj.selectors.stopButtonSelector || "",

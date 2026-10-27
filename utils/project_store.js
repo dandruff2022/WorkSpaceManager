@@ -84,6 +84,8 @@
                 note: 'initial'
               }
             ],
+            mainAi: 'chatgpt',
+            planSkipped: false,
             tasks: [],
             steps: []
           };
@@ -108,6 +110,21 @@
       },
 
       // Remove project and associated step archives
+      // Project-level settings the UI may change; other fields have their own methods
+      async setOptions(id, patch) {
+        return withLock(async () => {
+          const data = await readKeys(['projects']);
+          const projects = data.projects || {};
+          const project = projects[id];
+          if (!project) throw new Error('Project not found');
+          if (patch.mainAi !== undefined) project.mainAi = String(patch.mainAi);
+          if (patch.planSkipped !== undefined) project.planSkipped = !!patch.planSkipped;
+          project.updatedAt = Date.now();
+          await area.set({ projects });
+          return clone(project);
+        });
+      },
+
       async remove(id) {
         return withLock(async () => {
           const data = await readKeys(['projects', 'archives', 'currentProjectId']);
@@ -284,6 +301,8 @@
             kind: stepObj.kind || 'task',
             ai: stepObj.ai || 'chatgpt',
             taskId: stepObj.taskId !== undefined ? stepObj.taskId : null,
+            parentId: stepObj.parentId !== undefined ? stepObj.parentId : null,
+            temporary: !!stepObj.temporary,
             status: stepObj.status || 'sending',
             message: stepObj.message || '',
             url: stepObj.url !== undefined ? stepObj.url : null,

@@ -126,6 +126,7 @@ chromeAPI.runtime.onInstalled.addListener(async () => {
         inputSelector: "div[contenteditable=\"true\"]",
         sendButtonSelector: "button[aria-label*=\"send\" i], button.send-button",
         newChatButtonSelector: "a[href*=\"/app\" i][aria-label*=\"new\" i], [aria-label*=\"new chat\" i], [data-testid*=\"new-chat\" i], button.new-chat-button",
+        temporaryChatButtonSelector: "button[aria-label=\"Temporary chat\"]",
         copyButtonSelector: "button[aria-label*=\"copy\" i]",
         userCopyButtonSelector: "button[aria-label*=\"copy prompt\" i]",
         stopButtonSelector: "button[aria-label*=\"stop\" i]",
