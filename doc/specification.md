@@ -1,5 +1,8 @@
 # Workspace Manager: Firefox Extension Specification
 
+> **Dated (written mid-2026).** Kept for the original vision. The current product and design are in `AGENTS.md`
+> and `doc/plan/phase_3*.md`; Context Transfer, Broadcast and the Orchestrator below were replaced by Projects.
+
 This document details the conceptualization, UI/UX structure, and technical requirements for the **Workspace Manager** Firefox Extension. The extension aims to bridge multiple AI chat tools (ChatGPT, Claude, Gemini, etc.) directly in the browser, enabling seamless data transfer, enhanced clipboard actions, custom skills execution, and automated interactions.
 
 ---

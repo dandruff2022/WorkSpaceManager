@@ -202,6 +202,8 @@ Replaces the old Phase 3–4 below, which stay on hold.
 - [x] Phase 3.1: step line (Plan → Run tasks → Combine → Continue), main AI, Combine step, memory update as a chore
       in a temporary chat (ChatGPT URL, Gemini button), chores AI setting
       ([`doc/plan/phase_3.1_flow_plan.md`](plan/phase_3.1_flow_plan.md))
+- [x] Plan and tasks in temporary chats by default (setting)
+- [x] Agent docs: `AGENTS.md` (+ `CLAUDE.md`), `test/README.md`
 - [ ] User tries the step line by hand
 - [ ] Decide on the tab flicker (send, Gemini peek) and the many-chats-per-task question
 - [ ] Release v0.7.0
