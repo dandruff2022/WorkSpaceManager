@@ -265,14 +265,18 @@
     const fallback = !!(options && options.fallback);
     const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
 
+    // Find this block's own closing fence: tagged fences inside (```python) open nested blocks, bare ones close them
     function extractBlock(openIdx, fenceChar, fenceLen) {
-      const closeRe = new RegExp('^\\s*' + (fenceChar === '~' ? '~' : '`') + '{' + fenceLen + ',}\\s*$');
+      const ch = fenceChar === '~' ? '~' : '`';
+      const nestedOpenRe = new RegExp('^\\s*' + ch + '{3,}\\s*\\S+\\s*$');
+      const closeRe = new RegExp('^\\s*' + ch + '{' + fenceLen + ',}\\s*$');
+      const bareRe = new RegExp('^\\s*' + ch + '{3,}\\s*$');
+      let depth = 0;
       let closeIdx = -1;
-      for (let i = lines.length - 1; i > openIdx; i--) {
-        if (closeRe.test(lines[i])) {
-          closeIdx = i;
-          break;
-        }
+      for (let i = openIdx + 1; i < lines.length; i++) {
+        if (nestedOpenRe.test(lines[i])) depth++;
+        else if (depth > 0 && bareRe.test(lines[i])) depth--;
+        else if (closeRe.test(lines[i])) { closeIdx = i; break; }
       }
       const innerLines = closeIdx !== -1
         ? lines.slice(openIdx + 1, closeIdx)
@@ -320,12 +324,12 @@
 
         if (tag) {
           if (nesting === 0) {
-            currentOpen = { idx: i, char: fenceChar, len: fenceLen };
+            currentOpen = { idx: i, char: fenceChar, len: fenceLen, tag };
           }
           nesting++;
         } else {
           if (nesting === 0) {
-            currentOpen = { idx: i, char: fenceChar, len: fenceLen };
+            currentOpen = { idx: i, char: fenceChar, len: fenceLen, tag: '' };
             nesting = 1;
           } else {
             nesting--;
@@ -346,14 +350,17 @@
       return null;
     }
 
-    const lastBlock = topBlocks[topBlocks.length - 1];
+    // Only plain or markdown fences count as a mislabelled hand-off; a ```python block is never the answer
+    const plain = topBlocks.filter(b => /^(|markdown|md|text|plaintext)$/i.test(b.tag || ''));
+    if (plain.length === 0) return null;
+    const lastBlock = plain[plain.length - 1];
     return extractBlock(lastBlock.idx, lastBlock.char, lastBlock.len);
   }
 
   // Parse tasks block into array of subtask descriptors
   function parseTasks(text) {
     if (typeof text !== 'string') return null;
-    const blockText = parseBlock(text, 'tasks');
+    const blockText = parseBlock(text, 'tasks', { fallback: true });
     if (blockText === null) return null;
 
     const blockLines = blockText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
@@ -401,8 +408,10 @@
       const title = fieldLines.title.join('\n').trim();
       if (!title) continue;
 
+      // A task without instructions or a return list can't be run; treat the whole plan as malformed
       const task = fieldLines.task.join('\n').trim();
       const ret = fieldLines.ret.join('\n').trim();
+      if (!task || !ret) return null;
       const rawNeeds = fieldLines.needs.join(' ').trim();
       const needs = [];
       if (rawNeeds) {
@@ -440,7 +449,8 @@
       }
     }
 
-    if (sectionCount < 3) return null;
+    // A partial memory would silently drop sections, so all five are required
+    if (sectionCount < SECTIONS.length) return null;
     return stripped;
   }
 

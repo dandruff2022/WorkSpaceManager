@@ -75,6 +75,7 @@
       let composerKind = null;
       let memoryDirty = false;
       let shownChangesFor = null; // memory version whose diff is on screen
+      let sending = false;
 
       function setMemStatus(text, kind = '') {
         $('proj-mem-status').textContent = text;
@@ -89,7 +90,15 @@
         }
         projects = list.projects;
         if (projectId === undefined) projectId = (await call('wf_getCurrent')).projectId;
+        const previousId = project ? project.id : null;
         project = projects.find(p => p.id === projectId) || projects[0] || null;
+        if ((project ? project.id : null) !== previousId) {
+          // Drafts belong to the project they were written for
+          memoryDirty = false;
+          shownChangesFor = null;
+          if (composerKind !== null) closeComposer();
+          setMemStatus('');
+        }
         render();
       }
 
@@ -287,7 +296,10 @@
         highlightNextStep();
       }
 
+      // Rebuild the assembled messages (memory, options or tasks changed); messages the user edited are kept
       function fillMessages() {
+        const edited = {};
+        messagesEl.querySelectorAll('textarea.step-message').forEach(a => { if (a.dataset.edited) edited[a.dataset.taskId] = a.value; });
         const msgs = buildMessages(composerKind);
         const sendBtn = $('btn-proj-send');
         if (composerKind === 'task' && msgs.length === 0) {
@@ -299,8 +311,10 @@
         sendBtn.textContent = msgs.length > 1 ? `Send ${msgs.length} tasks` : 'Send';
         messagesEl.replaceChildren(...msgs.map(m => {
           const area = el('textarea', { class: 'text-input mono step-message', rows: 8, spellcheck: 'false' });
-          area.value = m.text;
           area.dataset.taskId = m.task ? m.task.id : '';
+          const key = area.dataset.taskId;
+          area.value = key in edited ? edited[key] : m.text;
+          if (key in edited) area.dataset.edited = '1';
           const wrap = msgs.length > 1
             ? el('details', {}, el('summary', { class: 'small' }, `${m.task.title} → ${AI_NAMES[m.task.ai]}`), area)
             : el('details', {}, el('summary', { class: 'small' }, 'Message that will be sent (you can edit it)'), area);
@@ -310,6 +324,18 @@
       }
 
       async function send() {
+        if (sending) return;
+        sending = true;
+        $('btn-proj-send').disabled = true;
+        try {
+          await sendMessages();
+        } finally {
+          sending = false;
+          $('btn-proj-send').disabled = false;
+        }
+      }
+
+      async function sendMessages() {
         const areas = Array.from(messagesEl.querySelectorAll('textarea.step-message'));
         if (composerKind === 'resume' && !instructionEl.value.trim()) {
           instructionEl.focus();
@@ -317,7 +343,6 @@
           return;
         }
         if (memoryDirty) await saveMemory();
-        $('btn-proj-send').disabled = true;
         const kind = composerKind;
         for (const area of areas) {
           const task = area.dataset.taskId && project.tasks.find(t => t.id === area.dataset.taskId);
@@ -330,7 +355,6 @@
           }
         }
         closeComposer();
-        $('btn-proj-send').disabled = false;
       }
 
       async function saveMemory() {
@@ -376,7 +400,8 @@
       memoryEl.addEventListener('input', () => {
         memoryDirty = memoryEl.value !== currentMemory(project).text;
         $('btn-proj-mem-save').hidden = !memoryDirty;
-        setMemStatus(memoryDirty ? 'Unsaved changes' : '');
+        setMemStatus(memoryDirty ? 'Unsaved changes (saved when you send)' : '');
+        if (composerKind !== null) fillMessages();
       });
       $('btn-proj-mem-save').addEventListener('click', saveMemory);
       $('btn-proj-undo').addEventListener('click', async () => {
@@ -412,8 +437,7 @@
       shortBox.addEventListener('change', fillMessages);
       instructionEl.addEventListener('input', () => {
         // Keep the resume message in sync with the instruction unless the user already edited the message
-        const area = messagesEl.querySelector('textarea.step-message');
-        if (area && !area.dataset.edited) area.value = buildMessages('resume')[0].text;
+        fillMessages();
       });
       messagesEl.addEventListener('input', (e) => { if (e.target.matches('textarea')) e.target.dataset.edited = '1'; });
       $('btn-proj-archive-close').addEventListener('click', () => $('proj-archive').close());

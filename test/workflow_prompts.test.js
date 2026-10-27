@@ -344,6 +344,26 @@ test('11. \\r\\n input handling', () => {
   assert.deepStrictEqual(goalDiff.removed, ['Old Goal']);
 });
 
+test('12. Block followed by commentary and another fence -> only its own body', () => {
+  const answer = "Intro\n```result\nA\n```python\nprint(1)\n```\nB\n```\nSome notes\n```text\nnot part of it\n```";
+  assert.strictEqual(WorkflowPrompts.parseBlock(answer, 'result'), "A\n```python\nprint(1)\n```\nB");
+});
+
+test('13. Fallback never picks a code block', () => {
+  assert.strictEqual(WorkflowPrompts.parseBlock("Here:\n```python\nx = 1\n```", 'result', { fallback: true }), null);
+  assert.strictEqual(WorkflowPrompts.parseBlock("Here:\n```markdown\nok\n```", 'result', { fallback: true }), 'ok');
+});
+
+test('14. Task plan missing Task or Return is rejected; unlabelled tasks block accepted', () => {
+  assert.strictEqual(WorkflowPrompts.parseTasks("```tasks\nTitle: only title\n```"), null);
+  const t = WorkflowPrompts.parseTasks("```\nTitle: A\nTask: do a\nNeeds: Goal\nReturn: list\n```");
+  assert(t && t.length === 1 && t[0].title === 'A');
+});
+
+test('15. Partial memory answer is rejected', () => {
+  assert.strictEqual(WorkflowPrompts.parseMemoryAnswer("```mem\n## Goal\ng\n## Preferences\np\n## Current state\nc\n```"), null);
+});
+
 console.log(`\nTests completed: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
   process.exit(1);

@@ -114,21 +114,26 @@
     throw new Error('No answer after 5 minutes');
   }
 
+  // Prefer the site's own copy (raw Markdown with the fences the parsers need). If that only gave rendered DOM
+  // text, retry once with the tab and its window in front, since some sites only write the clipboard when focused.
   async function readLastAnswer(tabId) {
     let res = await bridge(tabId, 'clickCopyButton', { type: 'ai', index: -1 });
-    if (res.status !== 'success' || !res.text) {
-      // Some sites only copy from the front tab
-      res = await withFocus(async () => {
+    if (res.status !== 'success' || !res.text || res.source !== 'clipboard') {
+      const focused = await withFocus(async () => {
         const tab = await chromeAPI.tabs.get(tabId);
         const [previous] = await chromeAPI.tabs.query({ active: true, windowId: tab.windowId });
+        const previousWindow = await chromeAPI.windows.getLastFocused().catch(() => null);
         await chromeAPI.tabs.update(tabId, { active: true });
+        await chromeAPI.windows.update(tab.windowId, { focused: true }).catch(() => {});
         try {
-          await sleep(300);
+          await sleep(400);
           return await bridge(tabId, 'clickCopyButton', { type: 'ai', index: -1 });
         } finally {
           if (previous && previous.id !== tabId) await chromeAPI.tabs.update(previous.id, { active: true }).catch(() => {});
+          if (previousWindow && previousWindow.id !== tab.windowId) await chromeAPI.windows.update(previousWindow.id, { focused: true }).catch(() => {});
         }
       });
+      if (focused.status === 'success' && focused.text && (focused.source === 'clipboard' || !res.text)) res = focused;
     }
     if (res.status !== 'success' || !res.text) throw new Error(`Could not read the answer: ${res.error || 'empty'}`);
     return res.text;
@@ -137,7 +142,7 @@
   function parseAnswer(kind, text) {
     const P = self.WorkflowPrompts;
     if (kind === 'split') return P.parseTasks(text);
-    if (kind === 'task') return P.parseBlock(text, 'result');
+    if (kind === 'task') return P.parseBlock(text, 'result', { fallback: true });
     if (kind === 'mem-update') return P.parseMemoryAnswer(text);
     return text;
   }
@@ -180,6 +185,7 @@
         const tab = await chromeAPI.tabs.update(tabId, { active: true });
         await chromeAPI.windows.update(tab.windowId, { focused: true }).catch(() => {});
         await update({ status: 'done', url: tab.url || null });
+        tabId = null; // the user's chat now, never auto-closed
         return;
       }
 
@@ -222,10 +228,23 @@
     }
   }
 
+  const claimedTasks = new Set();
+
   async function startStep(projectId, { kind, ai, message, taskId = null }) {
     if (!LABELS.hasOwnProperty(kind)) throw new Error(`Unknown step kind: ${kind}`);
     if (!SITES[ai]) throw new Error(`Unsupported AI: ${ai}`);
     if (!message || !message.trim()) throw new Error('Empty message');
+    if (taskId) {
+      // Checked synchronously first so two quick requests can't both pass the stored-status check
+      if (claimedTasks.has(taskId)) throw new Error('This task is already being started');
+      claimedTasks.add(taskId);
+      setTimeout(() => claimedTasks.delete(taskId), 3000);
+      const project = await self.ProjectStore.get(projectId);
+      const task = project && project.tasks.find(t => t.id === taskId);
+      if (!task) throw new Error('Task not found');
+      if (task.status === 'running') throw new Error(`"${task.title}" is already running`);
+      await self.ProjectStore.updateTask(projectId, taskId, { status: 'running', result: null });
+    }
     const step = await self.ProjectStore.addStep(projectId, { kind, ai, taskId, message, status: 'sending' });
     notifyUi(projectId);
     runStep(projectId, step); // runs on; progress goes to storage and workflowUpdate messages

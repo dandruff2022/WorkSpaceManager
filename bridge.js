@@ -7,6 +7,7 @@
   const chromeAPI = typeof chrome !== 'undefined' ? chrome : browser;
   let activeProfile = null;
   let activeObserver = null;
+  let lastCopySource = null; // 'clipboard' (raw Markdown from the site's copy) or 'dom' (rendered text fallback)
 
   // 1. Load and Match Site Profile
   async function initProfile() {
@@ -348,6 +349,7 @@
         // Event listener for main-world custom clipboard relay event
         const onCopyEvent = (e) => {
           copyInterceptionHandled = true;
+          lastCopySource = 'clipboard';
           document.removeEventListener('agyCopyCaptured', onCopyEvent);
           relayLog(`[CopyAction] Successful intercept! Detail text (first 100 chars): "${e.detail.substring(0, 100)}"`, 'success');
           resolve(e.detail);
@@ -370,6 +372,7 @@
               const text = contentEl.innerText || contentEl.textContent || "";
               relayLog(`[ScraperFallback] Extracted text (first 120 chars): "${text.substring(0, 120)}"`);
               if (text) {
+                lastCopySource = 'dom';
                 resolve(text);
               } else {
                 let parentChain = "";
@@ -604,8 +607,9 @@ ${parentChain}
           sendResponse({ status: sendOk ? "success" : "error" });
           break;
         case "clickCopyButton":
+          lastCopySource = null;
           const text = await clickCopyButton(payload.type, payload.index);
-          sendResponse({ status: "success", text });
+          sendResponse({ status: "success", text, source: lastCopySource });
           break;
         case "getCopyButtonsList":
           const list = await getCopyButtonsList();
