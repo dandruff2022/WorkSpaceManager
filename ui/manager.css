@@ -591,7 +591,7 @@ body.mode-panel .sidebar {
 body.mode-panel .sidebar-header { margin: 0; padding: 0 4px; }
 body.mode-panel .brand-title { display: none; }
 body.mode-panel .nav-menu { flex-direction: row; flex: 1; }
-body.mode-panel .nav-item { flex: 1; justify-content: center; padding: 6px 8px; font-size: 13px; }
+body.mode-panel .nav-item { flex: 1; justify-content: center; padding: 6px 4px; font-size: 13px; min-width: 0; }
 body.mode-panel .content-area { height: auto; flex: 1; }
 body.mode-panel .module-view { padding: 14px; }
 body.mode-panel .prompts-layout { flex-direction: column; height: auto; }
@@ -610,10 +610,111 @@ body.mode-panel .prompts-layout { flex-direction: column; height: auto; }
   .sidebar-header { margin: 0; padding: 0 4px; }
   .brand-title { display: none; }
   .nav-menu { flex-direction: row; flex: 1; }
-  .nav-item { flex: 1; justify-content: center; padding: 6px 8px; font-size: 13px; }
+  .nav-item { flex: 1; justify-content: center; padding: 6px 4px; font-size: 13px; min-width: 0; }
   .content-area { height: auto; flex: 1; }
   .module-view { padding: 14px; }
   .prompts-layout { flex-direction: column; height: auto; }
+}
+
+/* ---------- Projects ---------- */
+
+[hidden] { display: none !important; }
+
+#proj-main { display: flex; flex-direction: column; gap: 12px; }
+.project-bar { flex-direction: row; align-items: center; }
+.project-bar .select { flex: 1; min-width: 0; }
+
+.mem-text { min-height: 180px; font-size: 12px; line-height: 1.5; }
+
+.mem-changes {
+  border: 1px solid var(--accent-soft);
+  background: var(--accent-soft);
+  border-radius: 6px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.diff { font-family: var(--font-mono); font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
+.diff-section { font-weight: 600; color: var(--text-secondary); }
+.diff-add { color: var(--ok); white-space: pre-wrap; }
+.diff-ai { font-weight: 600; }
+.diff-del { color: var(--danger); text-decoration: line-through; white-space: pre-wrap; }
+
+.history-list { display: flex; flex-direction: column; border-top: 1px solid var(--border-color); }
+.history-row {
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  width: 100%;
+  padding: 6px 2px;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.history-row:hover { background: var(--bg-hover); }
+.history-diff { padding: 4px 8px 10px; }
+
+.step-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.step-btn.selected { border-color: var(--accent); color: var(--accent); }
+.step-composer { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--border-color); padding-top: 10px; }
+.step-composer p { margin: 0; }
+.step-message { font-size: 12px; margin-top: 6px; }
+.composer-options { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 13px; }
+.composer-options label { display: flex; gap: 6px; align-items: center; }
+
+.task-list, .step-list { display: flex; flex-direction: column; }
+.task-card { border-top: 1px solid var(--border-color); padding: 8px 0; display: flex; flex-direction: column; gap: 4px; }
+.task-card:first-child { border-top: none; }
+.task-head { display: flex; align-items: center; gap: 8px; }
+.task-title { flex: 1; min-width: 0; font-size: 13px; }
+.task-card p { margin: 4px 0; }
+.task-actions { display: flex; justify-content: flex-end; gap: 12px; }
+.result-text, .archive-dialog pre {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg-base);
+  padding: 8px;
+  border-radius: 6px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.step-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 4px 10px;
+  align-items: center;
+  border-top: 1px solid var(--border-color);
+  padding: 7px 0;
+  font-size: 13px;
+}
+.step-row:first-child { border-top: none; }
+.step-links { grid-column: 2 / -1; display: flex; gap: 4px; }
+.step-links .btn-link { padding: 0 8px 0 0; }
+.step-error { color: var(--danger); }
+.danger-link { color: var(--danger); }
+
+.archive-dialog {
+  width: min(760px, 92vw);
+  max-height: 85vh;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 14px;
+}
+.archive-dialog pre { max-height: 70vh; }
+.archive-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+
+@media (max-width: 440px) {
+  .nav-icon { display: none; }
+  .nav-menu { gap: 2px; }
 }
 
 /* ---------- Detached placeholder (side panel while the window is open) ---------- */

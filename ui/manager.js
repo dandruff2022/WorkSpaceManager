@@ -196,6 +196,7 @@ function initializeModules() {
   
   // v0.6: Context Transfer, Broadcast and Orchestrator are hidden (code kept in ui/modules/)
   const modules = {
+    'projects': window.ProjectsModule,
     'send': window.SendModule,
     'skills': window.SkillsModule,
     'connection': window.ConnectionModule,
@@ -218,6 +219,19 @@ function initializeModules() {
   setupDebugModeVisibility();
   setupPopupAutocomplete();
   setupNotificationSetting();
+  setupCheckboxSetting('checkbox-keep-worker-tabs', 'keepWorkerTabs', false);
+  setupCheckboxSetting('checkbox-dev-harness', 'devHarness', false);
+}
+
+function setupCheckboxSetting(id, key, defaultValue) {
+  const checkbox = document.getElementById(id);
+  if (!checkbox || !chromeAPI || !chromeAPI.storage) return;
+  chromeAPI.storage.local.get([key], (data) => {
+    checkbox.checked = data[key] === undefined ? defaultValue : data[key] === true;
+  });
+  checkbox.addEventListener('change', () => {
+    chromeAPI.storage.local.set({ [key]: checkbox.checked });
+  });
 }
 
 function setupNotificationSetting() {

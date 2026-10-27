@@ -420,6 +420,18 @@ ${parentChain}
     });
   }
 
+  // Quiet status read for the workflow engine's polling (no relayLog spam)
+  function getGenerationSnapshot() {
+    if (!activeProfile) return null;
+    const sel = activeProfile.selectors;
+    const visible = btn => btn.offsetWidth > 0 || btn.offsetHeight > 0;
+    const hasStop = Array.from(document.querySelectorAll(sel.stopButtonSelector)).some(visible);
+    const copyCount = Array.from(document.querySelectorAll(sel.copyButtonSelector)).filter(btn =>
+      !(sel.userCopyButtonSelector && btn.matches(sel.userCopyButtonSelector)) && !btn.closest('pre, .code-block, code')
+    ).length;
+    return { hasStop, copyCount, hasInput: !!document.querySelector(sel.inputSelector), url: window.location.href };
+  }
+
   function scanInitialState() {
     if (!activeProfile) return "empty";
     const turns = document.querySelectorAll(activeProfile.selectors.messageTurnSelector);
@@ -602,6 +614,9 @@ ${parentChain}
         case "scanInitialState":
           const state = scanInitialState();
           sendResponse({ status: "success", state });
+          break;
+        case "getGenerationSnapshot":
+          sendResponse({ status: "success", snapshot: getGenerationSnapshot() });
           break;
         case "getConversationTurnCount":
           const count = getConversationTurnCount();

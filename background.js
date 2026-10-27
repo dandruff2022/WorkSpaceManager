@@ -2,6 +2,7 @@
 if (typeof importScripts === 'function') {
   importScripts('utils/site_profiles_registry.js');
   importScripts('utils/skills_registry.js');
+  importScripts('utils/workflow_prompts.js', 'utils/project_store.js', 'utils/workflow_engine.js');
 }
 
 const chromeAPI = typeof chrome !== 'undefined' ? chrome : browser;
@@ -268,9 +269,43 @@ function closeDetachedWindow() {
   }
 }
 
+// Messages that drive chat tabs may come from extension pages, or from the local dev harness page when the
+// "Dev harness" setting is on. Any other web page is refused.
+const PRIVILEGED_ACTIONS = /^(bridgeCommand|switchTab|wf_)/;
+const HARNESS_ORIGINS = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//;
+
+async function isAllowedSender(sender) {
+  if (!sender.url || sender.url.startsWith(chromeAPI.runtime.getURL(''))) return true;
+  if (!HARNESS_ORIGINS.test(sender.url)) return false;
+  const { devHarness } = await chromeAPI.storage.local.get(['devHarness']);
+  return devHarness === true;
+}
+
+if (typeof WorkflowEngine !== 'undefined') WorkflowEngine.recoverInterrupted().catch(() => {});
+
 // Message Bus Dispatcher
 chromeAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log("Background received message:", message);
+
+  if (message.action && PRIVILEGED_ACTIONS.test(message.action) && sender.tab && !sender.url?.startsWith(chromeAPI.runtime.getURL(''))) {
+    isAllowedSender(sender).then(ok => {
+      if (!ok) return sendResponse({ status: "error", error: "Not allowed from this page" });
+      if (!WorkflowEngine.handleMessage(message, sendResponse) && message.action === 'bridgeCommand') {
+        const { tabId, command, payload } = message.payload;
+        ensureContentScript(tabId)
+          .then(() => chromeAPI.tabs.sendMessage(tabId, { action: `bridge_${command}`, payload }))
+          .then(res => sendResponse(res))
+          .catch(err => sendResponse({ status: "error", error: err.message }));
+      } else if (message.action === 'switchTab') {
+        sendResponse({ status: "error", error: "Not available from the harness" });
+      }
+    });
+    return true;
+  }
+
+  if (typeof WorkflowEngine !== 'undefined' && WorkflowEngine.handleMessage(message, sendResponse)) {
+    return true;
+  }
 
   if (message.action === 'querySkills') {
     if (typeof SkillsRegistry !== 'undefined') {

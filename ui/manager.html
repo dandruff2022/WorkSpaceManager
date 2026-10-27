@@ -10,6 +10,8 @@
   <script src="../utils/skills_registry.js" defer></script>
   <script src="../utils/autocomplete.js" defer></script>
   <!-- Hidden in v0.6 (code kept): modules/context_transfer.js, modules/broadcast.js, modules/orchestrator.js -->
+  <script src="../utils/workflow_prompts.js" defer></script>
+  <script src="modules/projects.js" defer></script>
   <script src="modules/send.js" defer></script>
   <script src="modules/skills.js" defer></script>
   <script src="modules/connection.js" defer></script>
@@ -26,7 +28,14 @@
       </div>
 
       <nav class="nav-menu">
-        <button class="nav-item active" data-target="send">
+        <button class="nav-item active" data-target="projects">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span class="nav-label">Projects</span>
+        </button>
+
+        <button class="nav-item" data-target="send">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="22" y1="2" x2="11" y2="13"></line>
             <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
@@ -62,8 +71,103 @@
     <!-- Right Panel: Dynamic Content View -->
     <main class="content-area">
 
+      <!-- Projects Module -->
+      <section id="view-projects" class="module-view active">
+        <div class="view-header">
+          <h1 class="view-title">Projects</h1>
+          <p class="view-description">Your plan, memory and history stay here. Any AI can do the next step.</p>
+        </div>
+
+        <div class="view-body">
+          <div class="card project-bar">
+            <select id="proj-select" class="select" aria-label="Project"></select>
+            <button id="btn-proj-new" class="btn btn-small">+ New project</button>
+          </div>
+
+          <div id="proj-new-form" class="card form" hidden>
+            <h2>New project</h2>
+            <label for="proj-new-title">Name</label>
+            <input type="text" id="proj-new-title" class="text-input" placeholder="Saturday in Chicago">
+            <label for="proj-new-goal">What do you want to get done?</label>
+            <textarea id="proj-new-goal" class="text-input" rows="3" placeholder="Plan a one-day trip on Saturday, back by 9 pm, no car, about $80."></textarea>
+            <p class="muted small">This becomes the Goal in the project memory. You can add preferences and open questions next.</p>
+            <div class="form-actions">
+              <button type="button" id="btn-proj-new-cancel" class="btn">Cancel</button>
+              <button type="button" id="btn-proj-create" class="btn btn-primary">Create</button>
+            </div>
+          </div>
+
+          <div id="proj-empty" class="card empty-state" hidden>
+            <p>No projects yet.</p>
+            <p class="muted">A project keeps one piece of work: a memory of what is decided so far, the tasks, and every step any AI did.</p>
+          </div>
+
+          <div id="proj-main" hidden>
+            <div class="card">
+              <div class="card-header">
+                <h2>Memory <span id="proj-mem-version" class="muted small"></span></h2>
+                <div>
+                  <button id="btn-proj-history" class="btn-link">History</button>
+                  <button id="btn-proj-undo" class="btn-link">Undo last update</button>
+                </div>
+              </div>
+              <div id="proj-mem-changes" class="mem-changes" hidden></div>
+              <textarea id="proj-memory" class="text-input mono mem-text" rows="12" spellcheck="false"></textarea>
+              <div class="composer-footer">
+                <span id="proj-mem-status" class="status-line"></span>
+                <button id="btn-proj-mem-save" class="btn btn-small" hidden>Save as new version</button>
+              </div>
+              <div id="proj-history" class="history-list" hidden></div>
+            </div>
+
+            <div class="card">
+              <h2>Next step</h2>
+              <div class="step-buttons">
+                <button class="btn step-btn" data-kind="split">Split into tasks</button>
+                <button class="btn step-btn" data-kind="task">Run tasks</button>
+                <button class="btn step-btn" data-kind="mem-update">Update memory</button>
+                <button class="btn step-btn" data-kind="resume">Continue in…</button>
+              </div>
+              <div id="proj-composer" class="step-composer" hidden>
+                <p id="proj-composer-help" class="muted small"></p>
+                <input type="text" id="proj-instruction" class="text-input" placeholder="What should the AI do next? e.g. Write the final day plan" hidden>
+                <div id="proj-messages"></div>
+                <div class="composer-footer">
+                  <div class="composer-options">
+                    <label id="proj-ai-wrap">AI <select id="proj-ai" class="select"><option value="chatgpt">ChatGPT</option><option value="gemini">Gemini</option></select></label>
+                    <label><input type="checkbox" id="proj-short" checked> Short answers</label>
+                  </div>
+                  <div>
+                    <button id="btn-proj-cancel" class="btn">Cancel</button>
+                    <button id="btn-proj-send" class="btn btn-primary">Send</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header"><h2>Tasks</h2></div>
+              <div id="proj-tasks" class="task-list"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2>Activity</h2>
+                <button id="btn-proj-delete" class="btn-link danger-link">Delete project</button>
+              </div>
+              <div id="proj-steps" class="step-list"></div>
+            </div>
+          </div>
+
+          <dialog id="proj-archive" class="archive-dialog">
+            <div class="card-header"><h2 id="proj-archive-title">Full answer</h2><button id="btn-proj-archive-close" class="btn btn-small">Close</button></div>
+            <pre id="proj-archive-text"></pre>
+          </dialog>
+        </div>
+      </section>
+
       <!-- Send Module -->
-      <section id="view-send" class="module-view active">
+      <section id="view-send" class="module-view">
         <div class="view-header">
           <h1 class="view-title">Send</h1>
           <p class="view-description">Type once, send to the chatbot tabs you pick, and see when each one is done.</p>
@@ -160,6 +264,19 @@
               <input type="checkbox" id="checkbox-notify-done">
             </div>
             <p class="muted small">Only for tabs shown on the Send page, and only when you are looking at another tab.</p>
+          </div>
+
+          <div class="card">
+            <h2>Projects</h2>
+            <div class="setting-row">
+              <label for="checkbox-keep-worker-tabs">Keep chat tabs open after a step</label>
+              <input type="checkbox" id="checkbox-keep-worker-tabs">
+            </div>
+            <p class="muted small">Off: tabs opened for a step close once the answer is saved. You can reopen any chat from Activity.</p>
+            <div class="setting-row debug-mode-only">
+              <label for="checkbox-dev-harness">Dev harness (lets http://localhost pages drive chat tabs)</label>
+              <input type="checkbox" id="checkbox-dev-harness">
+            </div>
           </div>
 
           <div class="card">

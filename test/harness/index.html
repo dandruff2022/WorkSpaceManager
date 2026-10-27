@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<!-- Dev harness for the Projects workflow. Serve the repo root (python3 -m http.server 8765) and open
+     http://localhost:8765/test/harness/ with "Dev harness" switched on in Settings (manager.html?debug).
+     Talks to the background through content.js's agyTestRequest relay. window.harness is there for scripted runs. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WM Projects harness</title>
+<script src="../../utils/workflow_prompts.js"></script>
+<style>
+  body { font: 13px/1.45 -apple-system, sans-serif; margin: 16px; max-width: 1100px; }
+  textarea { width: 100%; font: 12px ui-monospace, Menlo, monospace; }
+  pre { background: #f3f4f7; padding: 8px; white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; }
+  fieldset { margin: 10px 0; }
+  button { margin: 2px; }
+  #log { max-height: 200px; }
+</style>
+</head>
+<body>
+<h1>Projects harness</h1>
+<p id="conn">Checking connection…</p>
+
+<fieldset><legend>Project</legend>
+  <select id="project"></select> <button id="refresh">Refresh</button>
+  <details><summary>New project</summary>
+    <input id="new-title" placeholder="Title" size="40">
+    <textarea id="new-memory" rows="8" placeholder="Memory markdown (empty = template)"></textarea>
+    <button id="create">Create</button>
+  </details>
+</fieldset>
+
+<fieldset><legend>Run a step</legend>
+  <label>AI <select id="ai"><option value="chatgpt">ChatGPT</option><option value="gemini">Gemini</option></select></label>
+  <label><input type="checkbox" id="short" checked> +short</label>
+  <input id="instruction" placeholder="Instruction for Continue in…" size="50"><br>
+  <button id="split">Split</button>
+  <button id="run-tasks">Run tasks (each on its own AI)</button>
+  <button id="mem-update">Update memory</button>
+  <button id="resume">Continue in…</button>
+</fieldset>
+
+<h3>Memory</h3><pre id="memory"></pre>
+<h3>Tasks</h3><pre id="tasks"></pre>
+<h3>Steps</h3><pre id="steps"></pre>
+<h3>Log</h3><pre id="log"></pre>
+
+<script>
+  const P = window.WorkflowPrompts;
+  const $ = id => document.getElementById(id);
+
+  function call(action, payload = {}) {
+    return new Promise((resolve) => {
+      const id = Math.random().toString(36).slice(2);
+      const timer = setTimeout(() => resolve({ status: 'error', error: 'No reply (Dev harness off?)' }), 5000);
+      document.addEventListener('agyTestResponse_' + id, (e) => { clearTimeout(timer); resolve(JSON.parse(e.detail)); }, { once: true });
+      document.dispatchEvent(new CustomEvent('agyTestRequest', { detail: JSON.stringify({ id, action, payload }) }));
+    });
+  }
+
+  function log(...args) {
+    $('log').textContent = `${new Date().toLocaleTimeString()} ${args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')}\n` + $('log').textContent;
+  }
+
+  let current = null;
+
+  async function refresh() {
+    const res = await call('wf_list');
+    $('conn').textContent = res.status === 'success' ? `Connected · ${res.projects.length} project(s)` : `Not connected: ${res.error}`;
+    if (res.status !== 'success') return;
+    const sel = $('project');
+    const keep = sel.value;
+    sel.innerHTML = res.projects.map(p => `<option value="${p.id}">${p.title}</option>`).join('');
+    if (keep && res.projects.some(p => p.id === keep)) sel.value = keep;
+    current = res.projects.find(p => p.id === sel.value) || null;
+    render();
+  }
+
+  function render() {
+    if (!current) { $('memory').textContent = $('tasks').textContent = $('steps').textContent = ''; return; }
+    const mem = current.memory[current.memory.length - 1];
+    $('memory').textContent = `v${mem.v} · ${mem.by} · ${mem.note || ''}\n\n${mem.text}`;
+    $('tasks').textContent = current.tasks.map(t =>
+      `[${t.status}] ${t.title} → ${t.ai}\n  needs: ${t.needs.join(', ')}\n  result: ${t.result ? t.result.slice(0, 300) : '-'}`).join('\n\n');
+    $('steps').textContent = current.steps.map(s =>
+      `${new Date(s.startedAt).toLocaleTimeString()} ${s.kind} · ${s.ai} · ${s.status}${s.error ? ' · ' + s.error : ''}${s.url ? '\n  ' + s.url : ''}`).join('\n');
+  }
+
+  const memoryText = () => current.memory[current.memory.length - 1].text;
+  const opts = () => ({ short: $('short').checked });
+
+  async function run(kind, ai, message, taskId) {
+    const res = await call('wf_run', { projectId: current.id, kind, ai, message, taskId });
+    log(kind, ai, res.status, res.error || res.step?.id);
+    return res;
+  }
+
+  const actions = {
+    async split() { return run('split', $('ai').value, P.buildSplit(memoryText(), opts())); },
+    async runTasks() {
+      const out = [];
+      for (const t of current.tasks.filter(t => t.status !== 'done')) {
+        out.push(await run('task', t.ai, P.buildTask(memoryText(), t, opts()), t.id));
+      }
+      return out;
+    },
+    async memUpdate() {
+      const results = current.tasks.filter(t => t.status === 'done').map(t => ({ title: t.title, text: t.result }));
+      return run('mem-update', $('ai').value, P.buildMemUpdate(memoryText(), results));
+    },
+    async resume() { return run('resume', $('ai').value, P.buildResume(memoryText(), $('instruction').value, opts())); }
+  };
+
+  $('refresh').onclick = refresh;
+  $('project').onchange = refresh;
+  $('create').onclick = async () => {
+    const title = $('new-title').value.trim() || 'Untitled';
+    const res = await call('wf_create', { title, memory: $('new-memory').value.trim() || P.emptyMemory(title, '') });
+    log('create', res.status, res.error || res.project.id);
+    await refresh();
+    $('project').value = res.project?.id || '';
+    await refresh();
+  };
+  $('split').onclick = actions.split;
+  $('run-tasks').onclick = actions.runTasks;
+  $('mem-update').onclick = actions.memUpdate;
+  $('resume').onclick = actions.resume;
+
+  // For scripted runs (Claude in Chrome): harness.call('wf_get', {...}), harness.actions.split(), harness.state()
+  window.harness = { call, actions, refresh, state: () => current, select: async (id) => { $('project').value = id; await refresh(); } };
+
+  refresh();
+  setInterval(refresh, 3000);
+</script>
+</body>
+</html>

@@ -32,7 +32,11 @@ document.addEventListener("agyNavigation", (e) => {
 });
 
 // Relay testing requests from Main World to Background via Isolated World
-document.addEventListener("agyTestRequest", (e) => {
+// Only the local dev harness page may use this, and only with "Dev harness" switched on in Settings
+document.addEventListener("agyTestRequest", async (e) => {
+  if (!/^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)) return;
+  const { devHarness } = await chromeAPI.storage.local.get(['devHarness']);
+  if (devHarness !== true) return;
   try {
     const data = JSON.parse(e.detail);
     const { id, action, payload } = data;
