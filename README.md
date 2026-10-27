@@ -38,12 +38,14 @@ arrow keys and Enter (or click) to insert one. Edit, add or delete prompts on th
 | `@shorten` | Shorten the last answer to a quick summary |
 | `@check` | Ask the AI to check and correct its last answer |
 
-**Projects (new in 0.7, trial).** A project keeps one piece of work on your side: a memory of what is decided so
-far, a task list and every step any AI did. Write the goal, then use the buttons: **Split into tasks**, **Run tasks**
-(each task can go to a different AI), **Update memory** (a fresh chat rewrites the memory from the results; you see what
-changed and can undo) and **Continue in…** (start a new chat on any AI from the memory). Each button shows the message
-before it is sent, so you can edit it. Chat tabs opened for a step close by themselves once the answer is saved; reopen
-any of them from **Activity**.
+**Projects (new in 0.7, trial).** A project keeps one piece of work on your side. Write what you want to get done
+in one sentence, then follow the steps; the current one is highlighted:
+**Plan** (the main AI splits the work into up to 2 tasks, or skip it and do the work in one chat), **Run tasks** (each
+task can go to a different AI), **Combine** (the main AI merges the results into the final answer, in a chat you can
+keep talking in) and **Continue** (a new chat on ChatGPT or Gemini that starts from the memory). Each step shows the
+message before it is sent, so you can edit it. The project memory (goal, decisions, current state) is updated by
+itself after Combine, as a chore in a temporary chat; open **Memory** to see what changed or undo it. Pick the AI for
+chores in Settings. Chat tabs opened for a step close once the answer is saved; reopen them from **History**.
 
 **Send to several AIs.** Click the toolbar icon to open the manager. The **Send** page lists your open chat tabs.
 Tick the ones you want, type a prompt (`;;` works here too), and press **Send** or ⌘/Ctrl + Enter. Each tab's status

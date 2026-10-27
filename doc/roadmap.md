@@ -198,7 +198,11 @@ Replaces the old Phase 3–4 below, which stay on hold.
 - [x] Projects screen; side panel is the default view
 - [x] End-to-end run via the dev harness: split (ChatGPT) → 2 tasks (ChatGPT + Gemini) → memory update (ChatGPT
       temporary chat) → continue on Gemini; `%fix` path; restart recovery
-- [ ] User tries the Projects screen by hand
+- [x] User tries the Projects screen by hand (7 points of feedback → Phase 3.1)
+- [x] Phase 3.1: step line (Plan → Run tasks → Combine → Continue), main AI, Combine step, memory update as a chore
+      in a temporary chat (ChatGPT URL, Gemini button), chores AI setting
+      ([`doc/plan/phase_3.1_flow_plan.md`](plan/phase_3.1_flow_plan.md))
+- [ ] User tries the step line by hand
 - [ ] Decide on the tab flicker (send, Gemini peek) and the many-chats-per-task question
 - [ ] Release v0.7.0
 

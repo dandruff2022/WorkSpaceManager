@@ -67,7 +67,9 @@
     const skipped = !!project.planSkipped && tasks.length === 0;
     const tasksDone = tasks.length > 0 && tasks.every(t => t.status === 'done');
     const lastTaskEnd = Math.max(0, ...project.steps.filter(s => s.kind === 'task' && s.status === 'done').map(s => s.endedAt || 0));
-    const combineDone = !!combine && combine.status === 'done' && (combine.endedAt || 0) >= lastTaskEnd;
+    const combineDone = tasksDone && !!combine && combine.status === 'done' && (combine.endedAt || 0) >= lastTaskEnd;
+    // Combine is only finished once its memory update is saved, so Continue starts from the new memory
+    const chore = combine && lastStep(project, s => s.kind === 'mem-update' && s.parentId === combine.id);
 
     const state = { describe: 'done' };
     if (skipped) state.plan = 'skipped';
@@ -79,14 +81,16 @@
     else if (tasks.some(t => t.status === 'running')) state.tasks = 'running';
     else state.tasks = tasksDone ? 'done' : 'current';
 
+    // (no chore a minute after Combine means it never started, e.g. the extension restarted in between)
+    const choreStarting = combineDone && !chore && Date.now() - (combine.endedAt || 0) < 60000;
     if (skipped) state.combine = 'skipped';
-    else if (isActive(combine)) state.combine = 'running';
+    else if (isActive(combine) || choreStarting || isActive(chore)) state.combine = 'running';
     else if (!tasksDone) state.combine = 'future';
-    else state.combine = combineDone ? 'done' : 'current';
+    else state.combine = combineDone && chore && chore.status === 'done' ? 'done' : 'current';
 
-    state.continue = (skipped || combineDone) ? 'current' : 'future';
+    state.continue = (skipped || state.combine === 'done') ? 'current' : 'future';
     const current = FLOW.find(k => state[k] === 'current' || state[k] === 'running');
-    return { state, current, split, combine, tasksDone };
+    return { state, current, split, combine, chore, tasksDone, combineDone };
   }
 
   function seenKey(project) { return `wm_mem_seen_${project.id}`; }
@@ -145,7 +149,7 @@
         selectEl.replaceChildren(...projects.map(p => el('option', { value: p.id }, p.title)));
         selectEl.hidden = projects.length === 0;
         $('proj-empty').hidden = projects.length > 0 || !$('proj-new-form').hidden;
-        $('proj-main').hidden = !project;
+        $('proj-main').hidden = !project || !$('proj-new-form').hidden;
         if (!project) return;
         selectEl.value = project.id;
         $('proj-main-ai').value = project.mainAi || 'chatgpt';
@@ -217,9 +221,10 @@
         if (key === 'combine') {
           if (state === 'skipped') return '';
           if (state === 'future') return 'Merge the task results into the final answer';
-          if (state === 'running') return `${AI_NAMES[flow.combine.ai]} is combining…`;
+          if (state === 'running') return isActive(flow.combine) ? `${AI_NAMES[flow.combine.ai]} is combining…` : 'Updating the memory…';
           if (state === 'done') return `Final answer · ${AI_NAMES[flow.combine.ai]}`;
-          return flow.combine && flow.combine.status !== 'done' ? 'Last try failed' : 'Merge the task results into the final answer';
+          if (flow.combineDone) return 'The memory update failed';
+          return flow.combine && flow.combine.status !== 'done' && flow.combine.endedAt ? 'Last try failed' : 'Merge the task results into the final answer';
         }
         return 'Keep going in a new chat with the memory';
       }
@@ -253,14 +258,16 @@
             el('div', { class: 'flow-actions' }, el('button', { class: 'btn', onclick: () => setOptions({ planSkipped: false }) }, 'Plan it after all')));
           return parts;
         }
+        const working = project.tasks.some(t => t.status === 'running') || isActive(flow.combine);
         parts.push(el('p', { class: 'muted small' },
-          state === 'done' ? 'Planning again replaces the current tasks.' : `${AI_NAMES[mainAi()]} splits the work into up to 2 tasks that run in separate chats.`));
+          state !== 'done' ? `${AI_NAMES[mainAi()]} splits the work into up to 2 tasks that run in separate chats.`
+            : working ? 'You can plan again when the running tasks finish.' : 'Planning again replaces the current tasks.'));
         parts.push(messageBox('split', P.buildSplit(memoryText(), { short: drafts.short })));
         parts.push(el('div', { class: 'flow-actions' },
           shortToggle(),
           el('span', { class: 'spacer' }),
           state === 'done' ? null : el('button', { class: 'btn', disabled: busy, onclick: () => setOptions({ planSkipped: true }) }, 'Skip — do it in one chat'),
-          el('button', { class: 'btn btn-primary', disabled: busy, onclick: () => send('split') },
+          el('button', { class: 'btn btn-primary', disabled: busy || working, onclick: () => send('split') },
             `${state === 'done' ? 'Plan again' : 'Plan'} with ${AI_NAMES[mainAi()]}`)));
         return parts;
       }
@@ -313,8 +320,11 @@
         const parts = [];
         if (flow.combine) {
           parts.push(stepLine(flow.combine, { answerLabel: 'Final answer' }));
-          const chore = lastStep(project, s => s.kind === 'mem-update' && s.parentId === flow.combine.id);
-          if (chore) parts.push(choreLine(chore));
+          if (flow.chore) parts.push(choreLine(flow.chore, flow.combine));
+          else if (flow.combineDone && state === 'current') {
+            parts.push(el('div', { class: 'step-line chore-line' }, el('span', { class: 'small step-error' }, 'The memory update did not start.'),
+              el('button', { class: 'btn-link', onclick: () => retryChore(flow.combine) }, 'Try again')));
+          }
         }
         if (state === 'running') return parts;
         if (state === 'future') {
@@ -338,7 +348,7 @@
         const parts = [];
         const resumes = project.steps.filter(s => s.kind === 'resume').slice(-3).reverse();
         parts.push(el('p', { class: 'muted small' }, 'Starts a new chat with the memory and your instruction, then takes you there.'));
-        if (flow.combine && flow.combine.status === 'done') {
+        if (flow.combineDone) {
           parts.push(el('p', { class: 'small' },
             flow.combine.archiveId ? el('button', { class: 'btn-link inline-link', onclick: () => showArchive(flow.combine, 'Combine') }, 'Read the final answer') : null,
             (flow.combine.tabId !== null || flow.combine.url) ? [', or keep talking in the ',
@@ -363,7 +373,7 @@
         return el('div', { class: 'step-line' },
           compact ? null : chip(STEP_STATUS[step.status] || STEP_STATUS.error),
           el('span', { class: 'small' }, compact
-            ? `Sent ${timeOf(step.startedAt)}`
+            ? `Sent ${timeOf(step.startedAt)}${isActive(step) ? ' · ' + STEP_STATUS[step.status].text : ''}`
             : `${name} · ${AI_NAMES[step.ai] || step.ai}${step.temporary ? ' · temporary chat' : ''} · ${timeOf(step.startedAt)}`),
           step.error ? el('span', { class: 'small step-error' }, step.error) : null,
           el('span', { class: 'step-links' },
@@ -371,7 +381,7 @@
             step.archiveId ? el('button', { class: 'btn-link', onclick: () => showArchive(step, name) }, answerLabel) : null));
       }
 
-      function choreLine(chore) {
+      function choreLine(chore, combine) {
         const mem = currentMemory(project);
         const saved = chore.status === 'done';
         return el('div', { class: 'step-line chore-line' },
@@ -381,7 +391,7 @@
           el('span', { class: 'step-links' },
             saved ? el('button', { class: 'btn-link', onclick: () => openMemory(true) }, 'See changes') : null,
             !saved && chore.tabId !== null ? el('button', { class: 'btn-link', onclick: () => openChat(chore) }, 'Open chat') : null,
-            !isActive(chore) && !saved ? el('button', { class: 'btn-link', onclick: () => retryChore(chore) }, 'Try again') : null));
+            !isActive(chore) && !saved ? el('button', { class: 'btn-link', onclick: () => retryChore(combine) }, 'Try again') : null));
       }
 
       function instructionBox(key, placeholder) {
@@ -441,7 +451,11 @@
         setStatus('');
         renderFlow();
         try {
-          if (memoryDirty) await saveMemory();
+          if (memoryDirty) {
+            await saveMemory();
+            if (memoryDirty) return;
+            await load(project.id);
+          }
           const memory = memoryText();
           const runs = [];
           if (kind === 'split') {
@@ -472,14 +486,15 @@
         }
       }
 
-      async function retryChore(chore) {
-        const res = await call('wf_run', { projectId: project.id, kind: 'mem-update', ai: chore.ai, message: chore.message, parentId: chore.parentId });
+      async function retryChore(combine) {
+        const res = await call('wf_retryChore', { projectId: project.id, combineStepId: combine.id });
         if (res.status !== 'success') setStatus(`Could not start: ${res.error}`, 'error');
       }
 
       async function setOptions(patch) {
         const res = await call('wf_setOptions', { projectId: project.id, patch });
         if (res.status !== 'success') setStatus(res.error, 'error');
+        await load(project.id);
       }
 
       async function openChat(step) {
@@ -600,7 +615,7 @@
 
       $('btn-proj-new').addEventListener('click', () => {
         $('proj-new-form').hidden = false;
-        $('proj-empty').hidden = true;
+        render();
         $('proj-new-goal').focus();
       });
       $('btn-proj-new-cancel').addEventListener('click', () => {

@@ -303,6 +303,7 @@
             taskId: stepObj.taskId !== undefined ? stepObj.taskId : null,
             parentId: stepObj.parentId !== undefined ? stepObj.parentId : null,
             temporary: !!stepObj.temporary,
+            baseAt: stepObj.baseAt !== undefined ? stepObj.baseAt : null,
             status: stepObj.status || 'sending',
             message: stepObj.message || '',
             url: stepObj.url !== undefined ? stepObj.url : null,

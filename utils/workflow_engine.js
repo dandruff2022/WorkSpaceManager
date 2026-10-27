@@ -196,7 +196,11 @@
     } else if (step.kind === 'task' && step.taskId) {
       await store.updateTask(projectId, step.taskId, { status: 'done', result: parsed });
     } else if (step.kind === 'mem-update') {
-      await store.addMemoryVersion(projectId, parsed, SITES[step.ai].name, 'AI update');
+      // Don't overwrite a memory that changed while this update ran (an edit, an undo or another update)
+      const project = await store.get(projectId);
+      const latest = project.memory[project.memory.length - 1];
+      if (step.baseAt && latest.at !== step.baseAt) throw new Error('The memory changed while this update ran. Try again.');
+      await store.addMemoryVersion(projectId, parsed, SITES[step.ai].name, step.parentId ? 'after Combine' : 'AI update');
     }
   }
 
@@ -259,8 +263,9 @@
         // The user may keep talking in this chat, so it stays open; the memory catches up in a chore
         await update({ status: 'done', archiveId });
         tabId = null;
-        await startMemoryChore(projectId, step, answer).catch(async (err) => {
+        startMemoryChore(projectId, step, answer).catch(async (err) => {
           await store.addStep(projectId, { kind: 'mem-update', ai: step.ai, parentId: step.id, status: 'error', error: err.message });
+          notifyUi(projectId);
         });
         return;
       }
@@ -290,22 +295,52 @@
     return SITES[choresAi] ? choresAi : (project.mainAi || 'chatgpt');
   }
 
-  // After Combine: rewrite the memory from the task results and the final answer
-  async function startMemoryChore(projectId, combineStep, finalAnswer) {
+  // After Combine: rewrite the memory from the task results and the final answer.
+  // One chore per project at a time; each builds its message from the memory as it is when its turn comes.
+  const choreChains = new Map();
+  function startMemoryChore(projectId, combineStep, finalAnswer) {
+    const run = (choreChains.get(projectId) || Promise.resolve()).then(async () => {
+      const project = await self.ProjectStore.get(projectId);
+      if (!project) return;
+      const P = self.WorkflowPrompts;
+      const results = project.tasks.filter(t => t.status === 'done' && t.result).map(t => ({ title: t.title, text: t.result }));
+      results.push({ title: 'Final answer (combined)', text: finalAnswer });
+      const latest = project.memory[project.memory.length - 1];
+      const step = await startStep(projectId, {
+        kind: 'mem-update', ai: await choresAiFor(project), message: P.buildMemUpdate(latest.text, results),
+        parentId: combineStep.id, baseAt: latest.at
+      });
+      await step.finished;
+    });
+    choreChains.set(projectId, run.catch(() => {}));
+    return run;
+  }
+
+  // "Try again" on a failed chore: rebuild it from the Combine answer and the memory as it is now
+  async function retryChore(projectId, combineStepId) {
     const project = await self.ProjectStore.get(projectId);
-    const P = self.WorkflowPrompts;
-    const results = project.tasks.filter(t => t.status === 'done' && t.result).map(t => ({ title: t.title, text: t.result }));
-    results.push({ title: 'Final answer (combined)', text: finalAnswer });
-    const message = P.buildMemUpdate(self.currentMemory(project), results);
-    return startStep(projectId, { kind: 'mem-update', ai: await choresAiFor(project), message, parentId: combineStep.id });
+    const combine = project && project.steps.find(s => s.id === combineStepId && s.kind === 'combine');
+    if (!combine || !combine.archiveId) throw new Error('The Combine answer was not saved');
+    const answer = await self.ProjectStore.getArchive(combine.archiveId);
+    startMemoryChore(projectId, combine, answer).catch(async (err) => {
+      await self.ProjectStore.addStep(projectId, { kind: 'mem-update', ai: combine.ai, parentId: combine.id, status: 'error', error: err.message });
+      notifyUi(projectId);
+    });
   }
 
   const claimedTasks = new Set();
 
-  async function startStep(projectId, { kind, ai, message, taskId = null, parentId = null }) {
+  async function startStep(projectId, { kind, ai, message, taskId = null, parentId = null, baseAt = null }) {
     if (!LABELS.hasOwnProperty(kind)) throw new Error(`Unknown step kind: ${kind}`);
     if (!SITES[ai]) throw new Error(`Unsupported AI: ${ai}`);
     if (!message || !message.trim()) throw new Error('Empty message');
+    if (kind === 'split') {
+      // A new plan replaces the task list, so it can't run while tasks or a Combine are still working
+      const project = await self.ProjectStore.get(projectId);
+      if (project && (project.tasks.some(t => t.status === 'running') || project.steps.some(s => s.kind === 'combine' && ['sending', 'waiting', 'reading'].includes(s.status)))) {
+        throw new Error('Wait until the running tasks finish before planning again');
+      }
+    }
     if (taskId) {
       // Checked synchronously first so two quick requests can't both pass the stored-status check
       if (claimedTasks.has(taskId)) throw new Error('This task is already being started');
@@ -317,10 +352,11 @@
       if (task.status === 'running') throw new Error(`"${task.title}" is already running`);
       await self.ProjectStore.updateTask(projectId, taskId, { status: 'running', result: null });
     }
-    const step = await self.ProjectStore.addStep(projectId, { kind, ai, taskId, parentId, message, status: 'sending' });
+    const step = await self.ProjectStore.addStep(projectId, { kind, ai, taskId, parentId, baseAt, message, status: 'sending' });
     notifyUi(projectId);
-    runStep(projectId, step); // runs on; progress goes to storage and workflowUpdate messages
-    return step;
+    // Runs on; progress goes to storage and workflowUpdate messages. Callers inside the engine can await `finished`.
+    const finished = runStep(projectId, step);
+    return Object.defineProperty(step, 'finished', { value: finished, enumerable: false });
   }
 
   async function openStepChat(projectId, stepId) {
@@ -365,6 +401,7 @@
     wf_updateTask: async (p) => { await self.ProjectStore.updateTask(p.projectId, p.taskId, p.patch); return {}; },
     wf_removeTask: async (p) => { await self.ProjectStore.removeTask(p.projectId, p.taskId); return {}; },
     wf_run: async (p) => ({ step: await startStep(p.projectId, p) }),
+    wf_retryChore: async (p) => { await retryChore(p.projectId, p.combineStepId); return {}; },
     wf_openChat: async (p) => { await openStepChat(p.projectId, p.stepId); return {}; },
     wf_getArchive: async (p) => ({ text: await self.ProjectStore.getArchive(p.archiveId) }),
     // Dev harness: pick up code changes without visiting chrome://extensions
