@@ -220,6 +220,7 @@ function initializeModules() {
   setupPopupAutocomplete();
   setupNotificationSetting();
   setupCheckboxSetting('checkbox-keep-worker-tabs', 'keepWorkerTabs', false);
+  setupCheckboxSetting('checkbox-temp-chats', 'tempChatsForWork', true);
   setupCheckboxSetting('checkbox-dev-harness', 'devHarness', false);
   setupSelectSetting('select-chores-ai', 'choresAi', 'same');
 }

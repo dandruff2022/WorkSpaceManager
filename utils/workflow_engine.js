@@ -220,7 +220,7 @@
 
     try {
       await markTask(projectId, step, { status: 'running', result: null, stepId: step.id });
-      const chat = await openChat(step.ai, { temporary: step.kind === 'mem-update' });
+      const chat = await openChat(step.ai, { temporary: await useTemporaryChat(step.kind) });
       tabId = chat.tabId;
       await update({ tabId, temporary: chat.temporary });
       const base = (await snapshot(tabId))?.copyCount || 0;
@@ -284,10 +284,22 @@
     } finally {
       if (tabId !== null) {
         const { keepWorkerTabs } = await chromeAPI.storage.local.get(['keepWorkerTabs']);
-        if (!keepWorkerTabs) await chromeAPI.tabs.remove(tabId).catch(() => {});
+        if (!keepWorkerTabs) {
+          await chromeAPI.tabs.remove(tabId).catch(() => {});
+          await store.updateStep(projectId, step.id, { tabId: null }).catch(() => {});
+        }
       }
       notifyUi(projectId);
     }
+  }
+
+  // Combine and Continue are the user's own chats. Memory updates are always temporary; Plan and tasks are
+  // temporary unless the user turned that off (their answers are saved in the project either way).
+  async function useTemporaryChat(kind) {
+    if (kind === 'mem-update') return true;
+    if (kind !== 'split' && kind !== 'task') return false;
+    const { tempChatsForWork } = await chromeAPI.storage.local.get(['tempChatsForWork']);
+    return tempChatsForWork !== false;
   }
 
   async function choresAiFor(project) {
@@ -368,6 +380,7 @@
       await chromeAPI.windows.update(tab.windowId, { focused: true }).catch(() => {});
       return;
     }
+    if (step.temporary) throw new Error('That was a temporary chat; it closes for good. Use "Full answer" to read it.');
     if (!step.url) throw new Error('This chat was not saved');
     await chromeAPI.tabs.create({ url: step.url, active: true });
   }
