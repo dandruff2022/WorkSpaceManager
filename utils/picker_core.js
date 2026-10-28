@@ -29,10 +29,10 @@
   --k-prompts:#4f46e5; --k-styles:#0f766e; --k-notes:#b45309; --k-memory:#15803d;
   font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--wmp-fg);
   background: var(--wmp-bg); border: 1px solid var(--wmp-border); border-radius: 8px; overflow: hidden;
-  display: flex; flex-direction: column; text-align: left; }
+  display: flex; flex-direction: column; text-align: left; max-height: var(--wmp-height, none); box-sizing: border-box; }
 .wmp.dark { --wmp-bg:#212124; --wmp-fg:#f4f4f5; --wmp-muted:#a1a1aa; --wmp-border:#3a3a40; --wmp-sel:rgba(255,255,255,.08);
   --k-prompts:#818cf8; --k-styles:#2dd4bf; --k-notes:#fbbf24; --k-memory:#4ade80; }
-.wmp-tabs { display: flex; gap: 2px; padding: 4px 6px 0; border-bottom: 1px solid var(--wmp-border); overflow-x: auto; }
+.wmp-tabs { flex-shrink: 0; display: flex; gap: 2px; padding: 4px 6px 0; border-bottom: 1px solid var(--wmp-border); overflow-x: auto; }
 .wmp-tab { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; border-bottom: 2px solid transparent;
   margin-bottom: -1px; padding: 5px 8px; font: inherit; font-size: 12px; color: var(--wmp-muted); cursor: pointer; white-space: nowrap; }
 .wmp-tab:hover { color: var(--wmp-fg); }
@@ -42,7 +42,7 @@
 .wmp-count { font-size: 11px; color: var(--wmp-muted); font-weight: 400; }
 .wmp-apply { margin-left: auto; align-self: center; font-size: 12px; font-weight: 600; color: var(--k-styles); background: none;
   border: 1px solid var(--k-styles); border-radius: 6px; padding: 1px 8px; cursor: pointer; white-space: nowrap; }
-.wmp-list { overflow-y: auto; max-height: var(--wmp-max, 260px); padding: 4px; }
+.wmp-list { min-height: 0; overflow-y: auto; max-height: var(--wmp-max, 260px); padding: 4px; }
 .wmp-head { display: flex; align-items: baseline; gap: 6px; padding: 6px 8px 2px; font-size: 11px; font-weight: 600;
   text-transform: uppercase; letter-spacing: .04em; color: var(--wmp-muted); }
 .wmp-head .wmp-rule { text-transform: none; letter-spacing: 0; font-weight: 400; }
@@ -59,7 +59,7 @@
 .wmp-edit { color: var(--wmp-muted); background: none; border: 0; cursor: pointer; padding: 0 2px; font-size: 12px; visibility: hidden; }
 .wmp-row:hover .wmp-edit, .wmp-row.sel .wmp-edit { visibility: visible; }
 .wmp-empty { padding: 10px 8px; color: var(--wmp-muted); }
-.wmp-foot { border-top: 1px solid var(--wmp-border); padding: 4px 10px; font-size: 11px; color: var(--wmp-muted);
+.wmp-foot { flex-shrink: 0; border-top: 1px solid var(--wmp-border); padding: 4px 10px; font-size: 11px; color: var(--wmp-muted);
   display: flex; gap: 8px; align-items: center; }
 .wmp-foot span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wmp-done { color: var(--k-styles); background: none; border: 0; font-weight: 600; cursor: pointer; font-size: 12px; }

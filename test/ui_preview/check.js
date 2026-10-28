@@ -126,6 +126,7 @@ window.addEventListener('load', async () => {
     await wait(100);
     const note = (await chrome.runtime.sendMessage({ action: 'wf_notesList' })).notes.find(n => n.id === 'n1');
     check(note.text === text.replace('- [ ] **first**', '- [x] **first**') && !$('#note-view').hidden, 'checkbox persists changed source without entering edit mode');
+    check($('#notes-list .prompt-card-desc').textContent.startsWith('first second third'), 'Notes preview removes headings, list/check markers and bold without changing the source');
     check($('#note-view a').target === '_blank', 'rendered links open a new tab');
     $('#note-view a').addEventListener('click', e => e.preventDefault());
     $('#note-view a').click();
@@ -171,9 +172,45 @@ window.addEventListener('load', async () => {
     $('#note-ai-custom').value = 'Keep my tone';
     $('#note-ai-custom').dispatchEvent(new Event('input'));
     check(!$('#btn-note-ask').disabled, 'Own words alone enables Ask');
+    // Run the real content-script renderer in a small, isolated fake chat viewport.
+    // No extension bridge, site access, or send requests are involved.
+    const chat = document.createElement('iframe');
+    chat.style.cssText = 'position:fixed;left:0;top:0;width:380px;height:600px;border:0';
+    chat.srcdoc = '<body style="margin:0"><textarea style="position:fixed;left:12px;width:350px;box-sizing:border-box"></textarea>' +
+      ['picker_core', 'styles_registry', 'autocomplete'].map(name =>
+        `<script src="${new URL('../utils/' + name + '.js', location.href)}"></script>`).join('');
+    const chatLoaded = new Promise(resolve => chat.onload = resolve);
+    document.body.appendChild(chat);
+    await chatLoaded;
+    const win = chat.contentWindow;
+    const input = win.document.querySelector('textarea');
+    const sitePicker = new win.SitePicker(input);
+    sitePicker.open([]);
+    sitePicker.picker.setItems(Array.from({ length: 30 }, (_, i) => ({ id: 'p' + i, group: 'prompts', title: 'Prompt ' + i, text: 'Example' })), ['prompts', 'styles', 'notes', 'memory']);
+    for (const [top, height, above] of [[20, 60, false], [240, 90, false], [520, 60, true], [180, 300, true]]) {
+      input.style.top = top + 'px';
+      input.style.height = height + 'px';
+      sitePicker.position();
+      const box = sitePicker.picker.el;
+      const rect = box.getBoundingClientRect();
+      const tabs = box.querySelector('.wmp-tabs').getBoundingClientRect();
+      const foot = box.querySelector('.wmp-foot').getBoundingClientRect();
+      const list = box.querySelector('.wmp-list');
+      check(rect.top >= 8 && rect.bottom <= 592 && rect.left >= 8 && rect.right <= 372 && tabs.top >= rect.top && foot.bottom <= rect.bottom,
+        `Site picker including tabs/footer stays on screen: input top ${top}, height ${height}, viewport 380×600`);
+      check(above ? rect.bottom <= top - 8 : rect.top >= top + height + 8, 'Site picker chooses ' + (above ? 'above' : 'below'));
+      check(list.scrollHeight > list.clientHeight, 'Site picker list scrolls within the available height');
+    }
+    chat.style.height = '400px';
+    input.style.top = '280px';
+    input.style.height = '60px';
+    win.dispatchEvent(new Event('resize'));
+    check(sitePicker.picker.el.getBoundingClientRect().top >= 8 && sitePicker.picker.el.getBoundingClientRect().bottom <= 392, 'Site picker repositions and caps height after resize');
+    sitePicker.close();
+    chat.remove();
     // Exercise actual panel and window layouts, including a long scrollable answer.
     for (const width of [380, 900]) {
-      for (const state of ['new', 'empty', 'answer-plan', 'answer-combine', 'combined-mem', 'continue', 'running']) {
+      for (const state of ['new', 'empty', 'answer-plan', 'answer-combine', 'combined-mem', 'continue', 'running', 'combine', 'library-styles', 'notes-view']) {
         const frame = document.createElement('iframe');
         frame.style.cssText = `position:fixed;left:0;top:0;width:${width}px;height:850px;border:0`;
         frame.src = location.pathname + '?mode=window#' + state;
@@ -184,6 +221,10 @@ window.addEventListener('load', async () => {
         const doc = frame.contentDocument;
         const content = doc.querySelector('.content-area');
         check(doc.documentElement.scrollWidth <= width && content.scrollWidth <= content.clientWidth, `${state} has no horizontal overflow at ${width}px`);
+        for (const button of doc.querySelectorAll('.flow-actions .btn')) {
+          check(button.scrollWidth <= button.clientWidth && button.getBoundingClientRect().right <= width, `Step action text fits at ${width}px: ${button.textContent}`);
+        }
+        if (state === 'new') check(doc.querySelector('#proj-flow').textContent.includes('Skip: use one chat'), 'Plan skip has the short label');
         if (state.startsWith('answer-')) {
           const dialog = doc.querySelector('#proj-archive');
           const rect = dialog.getBoundingClientRect();
@@ -199,6 +240,8 @@ window.addEventListener('load', async () => {
         }
         if (state === 'combined-mem') {
           const text = doc.querySelector('#proj-mem-view').textContent;
+          const heading = doc.querySelector('.mem-progress .md-h');
+          check(heading.textContent === 'Progress' && heading.title === 'Kept by the extension from the steps above.', 'Progress has a plain heading and explanatory tooltip');
           check(!text.includes('Current state') && !text.includes('(none)') && text.includes('Progress'), 'Legacy memory read view replaces Current state with Progress and hides placeholders');
         }
         if (state === 'running') {

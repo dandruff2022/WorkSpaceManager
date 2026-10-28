@@ -7,7 +7,7 @@
 
   const DESCRIPTIONS = {
     prompts: 'Saved prompts. On a supported chat site, type ;; in the message box to pick one (you can change the key in Settings).',
-    styles: 'How the AI should answer. Ticked styles become one last line of the message; on our pages the "≡ Answer" button picks them, on chat sites ;; does.'
+    styles: 'Pick how you want answers: short, in Chinese, as a table… In this panel use the ≡ Answer button; on a chat site type ;;.'
   };
 
   function el(tag, cls, text) {

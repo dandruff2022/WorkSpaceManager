@@ -731,7 +731,7 @@ body.mode-panel .prompts-layout { flex-direction: column; height: auto; }
 .flow-body p { margin: 0; }
 .flow-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .flow-buttons { display: flex; flex: 1 1 100%; justify-content: flex-end; flex-wrap: wrap; gap: 8px; align-items: stretch; }
-.flow-buttons .btn { min-height: 34px; }
+.flow-actions .btn { flex-shrink: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; min-height: 34px; }
 .short-toggle { display: flex; gap: 6px; align-items: center; }
 .flow-past { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--border-color); padding-top: 6px; }
 .step-line { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }

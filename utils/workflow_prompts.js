@@ -236,22 +236,8 @@
 
   // Progress: what the project has done so far, written from its data (no AI), so the memory makes sense at any
   // moment. Not stored; added when the memory is shown, inserted elsewhere or used to continue.
-  const PROGRESS_HEADING = '## Progress (kept by the extension)';
+  const PROGRESS_HEADING = '## Progress';
   const AI_NAMES = { chatgpt: 'ChatGPT', gemini: 'Gemini' };
-
-  function oneLine(text, max = 140) {
-    const lines = String(text || '').split('\n').filter(l => !/^\s*(#|`{3,}|~{3,})/.test(l));
-    const line = lines.map(l => l.replace(/^[>*\-\s]+/, '').replace(/[*_`]/g, '').trim()).find(Boolean) || '';
-    return line.length > max ? line.slice(0, max - 1) + '…' : line;
-  }
-
-  function progressResult(task) {
-    const normalize = text => text.replace(/[#*]/g, '').replace(/^\s*Title:\s*/i, '').trim().toLowerCase();
-    const title = normalize(task.title || '');
-    const candidates = readableAnswer('task', task.result || '').split('\n')
-      .map(line => line.trim()).filter(line => line && !/^\s*[#*]*\s*Title:/i.test(line) && normalize(line) !== title).slice(0, 3);
-    return oneLine(candidates.find(line => /\d/.test(line)) || candidates[0] || '');
-  }
 
   function buildProgress(project) {
     if (!project) return '';
@@ -266,7 +252,7 @@
       lines.push(`- Plan: ${tasks.length} task${tasks.length === 1 ? '' : 's'}, ${done} done.`);
       for (const t of tasks) {
         const ai = AI_NAMES[t.ai] ? ` (${AI_NAMES[t.ai]})` : '';
-        if (t.status === 'done') lines.push(`- Done: ${t.title}${ai}: ${progressResult(t) || 'no result text'}`);
+        if (t.status === 'done') lines.push(`- Done: ${t.title}${ai}`);
         else if (t.status === 'running') lines.push(`- Running: ${t.title}${ai}`);
         else if (t.status === 'needs-you') lines.push(`- Needs a look: ${t.title}${ai}`);
         else lines.push(`- To do: ${t.title}`);

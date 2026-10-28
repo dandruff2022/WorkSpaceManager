@@ -391,7 +391,8 @@ test('17. Progress follows the project at every stage', () => {
   const p1 = P.buildProgress(running);
   assert(p1.startsWith(P.PROGRESS_HEADING));
   assert(p1.includes('Plan: 3 tasks, 1 done.'));
-  assert(p1.includes('Done: Weather (Gemini): 12°C, rain after 2 pm'), p1);
+  assert(p1.includes('- Done: Weather (Gemini)\n'), p1);
+  assert(!p1.includes('12°C') && !p1.includes('Source:'), p1);
   assert(p1.includes('Running: Museums (ChatGPT)') && p1.includes('To do: Food'));
   assert(p1.includes('Next: Finish the tasks.'));
   const done = { ...running, tasks: running.tasks.map(t => ({ ...t, status: 'done' })) };
@@ -425,15 +426,6 @@ test('19. Readable answers hide workflow syntax without changing archives', () =
   for (const kind of ['combine', 'resume', 'unknown']) assert.strictEqual(P.readableAnswer(kind, combined), combined);
   assert.strictEqual(P.readableAnswer('split', 'Unfinished.\n```tasks\nTitle: Only a title\n```'), 'Unfinished.\n\nTitle: Only a title');
   assert(split.includes('Needs: Goal'), 'original remains unchanged');
-});
-
-test('20. Progress skips repeated titles and prefers a concrete line in the first three candidates', () => {
-  const P = WorkflowPrompts;
-  const progress = result => P.buildProgress({ tasks: [{ title: '5-Day Study Plan', status: 'done', ai: 'chatgpt', result }] });
-  assert(progress('Title: 5-Day Study Plan\n# **5-day study plan**\nOverview\nStudy 2 chapters each day.\nReview daily.').includes('(ChatGPT): Study 2 chapters each day.'));
-  assert(progress('```result\n**Title: 5-Day Study Plan**\n5-DAY STUDY PLAN\nA useful overview\nReview daily.\n```').includes('(ChatGPT): A useful overview'));
-  assert(progress('Summary\nMore context\nReview daily\nDay 4: practice').includes('(ChatGPT): Summary'));
-  assert(progress('Title: 5-Day Study Plan').includes('no result text'));
 });
 
 test('21. Memory diff ignores leading bullets and surrounding whitespace', () => {

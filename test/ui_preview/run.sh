@@ -42,7 +42,7 @@ panel notes-view-panel-dark 1200 "#notes-view" dark
 shot notes-tweak-light 850 1000 "_preview.html?mode=window#notes-tweak" light
 panel notes-tweak-panel 1400 "#notes-tweak" light
 panel notes-tweak-panel-dark 1400 "#notes-tweak" dark
-for state in new empty answer-plan answer-combine combined-mem continue; do
+for state in new empty answer-plan answer-combine combined-mem continue library-styles notes-view; do
   for scheme in light dark; do
     panel "$state-panel-$scheme" 900 "#$state" "$scheme"
     shot "$state-window-$scheme" 900 1000 "_preview.html?mode=window#$state" "$scheme"

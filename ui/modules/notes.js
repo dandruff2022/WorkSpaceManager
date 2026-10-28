@@ -69,7 +69,10 @@
         if (!notes.length) list.appendChild(el('div', { class: 'empty-note' }, 'No notes yet.'));
         else if (!shown.length) list.appendChild(el('div', { class: 'empty-note' }, 'No note matches.'));
         for (const n of shown) {
-          const preview = n.text.split('\n').map(l => l.trim()).filter(Boolean).slice((n.title || '').trim() ? 0 : 1).join(' ');
+          const preview = n.text.split('\n').map(l => l.trim()
+            .replace(/^#{1,6}\s*/, '').replace(/^(?:[-*]|\d+\.)\s+/, '')
+            .replace(/^\[[ xX]\]\s*/, '').replace(/\*\*/g, ''))
+            .filter(Boolean).slice((n.title || '').trim() ? 0 : 1).join(' ');
           const card = el('div', { class: 'prompt-card note-card' + (current && n.id === current.id ? ' selected' : ''), 'data-id': n.id, onclick: () => open(n.id) },
             el('div', { class: 'prompt-card-header' },
               el('strong', { class: 'prompt-card-key note-card-title' }, R.titleOf(n)),

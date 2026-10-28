@@ -298,7 +298,7 @@
             : working ? 'You can plan again when the running tasks finish.' : 'Planning again replaces the current tasks.'));
         parts.push(messageBox('split', builtMessage('split')));
         parts.push(flowActions(
-          state === 'done' ? null : el('button', { class: 'btn', disabled: busy, onclick: () => setOptions({ planSkipped: true }) }, 'Skip — do it in one chat'),
+          state === 'done' ? null : el('button', { class: 'btn', disabled: busy, onclick: () => setOptions({ planSkipped: true }) }, 'Skip: use one chat'),
           el('button', { class: 'btn btn-primary', disabled: busy || working, onclick: () => send('split') },
             `${failed ? 'Try again' : state === 'done' ? 'Plan again' : 'Plan'} with ${AI_NAMES[mainAi()]}`)));
         return parts;
@@ -609,6 +609,7 @@
         view.replaceChildren(MarkdownView.render(text, { hideBasis: true }));
         const progress = el('div', { class: 'mem-progress' });
         progress.appendChild(MarkdownView.render(P.buildProgress(project)));
+        progress.querySelector('.md-h').title = 'Kept by the extension from the steps above.';
         view.appendChild(progress);
       }
 

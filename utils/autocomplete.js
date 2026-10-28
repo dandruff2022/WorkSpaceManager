@@ -1,5 +1,5 @@
 // Workspace Manager - ";;" picker on chat sites (overlay renderer)
-// Places the shared picker (utils/picker_core.js) above the site's message box, inside a shadow root so the site's
+// Places the shared picker (utils/picker_core.js) beside the site's message box, inside a shadow root so the site's
 // CSS and ours never mix. Prompts and memory go in at the caret as their own paragraph; styles become one visible
 // last line "Output requirements: …" (no interception of the site's send button).
 
@@ -126,14 +126,22 @@
       const rect = this.el.getBoundingClientRect();
       const width = Math.min(Math.max(rect.width, 300), 480, window.innerWidth - 16);
       const left = Math.min(Math.max(rect.left, 8), window.innerWidth - width - 8);
-      const above = rect.top > 200;
-      const room = above ? rect.top - 16 : window.innerHeight - rect.bottom - 16;
+      // Cap the whole picker, not just the list: tabs/footer must also fit. Prefer above when
+      // the natural height fits; otherwise below, or the larger side in a cramped viewport.
+      const aboveRoom = Math.max(0, Math.min(rect.top - 8, window.innerHeight - 8) - 8);
+      const belowTop = Math.max(8, rect.bottom + 8);
+      const belowRoom = Math.max(0, window.innerHeight - belowTop - 8);
+      this.host.style.width = width + 'px';
+      this.picker.el.style.removeProperty('--wmp-height');
+      const desired = this.picker.el.getBoundingClientRect().height;
+      const above = aboveRoom >= desired || (belowRoom < Math.min(180, desired) && aboveRoom > belowRoom);
+      const room = above ? aboveRoom : belowRoom;
       Object.assign(this.host.style, {
         width: width + 'px', left: left + 'px',
-        top: above ? 'auto' : (rect.bottom + 8) + 'px',
-        bottom: above ? (window.innerHeight - rect.top + 8) + 'px' : 'auto'
+        top: above ? 'auto' : belowTop + 'px',
+        bottom: above ? Math.max(8, window.innerHeight - rect.top + 8) + 'px' : 'auto'
       });
-      this.picker.el.style.setProperty('--wmp-max', Math.max(120, Math.min(300, room - 30)) + 'px');
+      this.picker.el.style.setProperty('--wmp-height', room + 'px');
     }
 
     handleKey(e) {

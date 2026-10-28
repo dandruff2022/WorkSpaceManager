@@ -117,3 +117,26 @@ Seen after round 1 (live, same test project): answers and memory changes now rea
 5. **Empty Projects page**: inside the "No projects yet." box add a primary button "Start your first project"
    (opens the new-project form, same as "+ New project") and a muted line "Sign in to ChatGPT or Gemini in this
    browser first; the extension uses your own accounts."
+
+# Round 3
+
+Seen after round 2 (live: new project with Gemini as main AI, Plan → 2 tasks (ChatGPT + Gemini) → Combine →
+memory update all worked; memory is now short; answers read well). Left:
+
+1. **Plan card at 380px**: the "Skip — do it in one chat" button text is cut ("…in one ch"). Label it
+   "Skip: use one chat" and let action buttons never clip text (wrap the row instead; check every step card).
+2. **Progress shows only facts the extension knows.** The first-line summary of each result is unreliable (repeats
+   the title, or picks "Missing Context: …"). In `buildProgress`: "Done: <task title> (<AI>)" with no summary
+   line; drop the summary-line picker and its tests (keep tests for the rest). Heading in the memory view:
+   "Progress" (not "Progress (kept by the extension)"); put "Kept by the extension from the steps above." in the
+   heading's `title` tooltip.
+3. **The `;;` picker on chat sites must stay on screen.** On ChatGPT's empty temporary chat in a short window
+   (~600px tall) the overlay opens above the message box and its top (tabs row) is cut off by the viewport. In
+   `utils/autocomplete.js` (site overlay; core in `utils/picker_core.js`): open above when there is room, else
+   below; and cap its height to the space available (min ~180px), list scrolls. Same for the inline tray only if it
+   has the same issue. Add a check to test/ui_preview/check.js if there is a practical way (a small fake page with
+   the input near the top and near the bottom); otherwise a unit-level position function with a test.
+4. **Library → Styles intro** in plain words: "Pick how you want answers: short, in Chinese, as a table… In this
+   panel use the ≡ Answer button; on a chat site type ;;." (keep it one or two lines).
+5. **Notes list preview** shows raw Markdown ("- [ ] reread ch 6 …"). Strip list/check/heading markers
+   (`- [ ] `, `- [x] `, `- `, `* `, `1. `, `#`s, `**`) from the one-line preview.
