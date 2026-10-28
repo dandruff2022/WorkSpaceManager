@@ -391,10 +391,10 @@
         }
         parts.push(instructionBox('resume', 'What should the AI do next? e.g. Turn this into a checklist'));
         parts.push(messageBox('resume', builtMessage('resume')));
+        const otherAi = mainAi() === 'chatgpt' ? 'gemini' : 'chatgpt';
         const actions = flowActions(
-          Object.entries(AI_NAMES).sort(([a], [b]) => Number(a === mainAi()) - Number(b === mainAi())).map(([ai, name]) => el('button', {
-            class: ai === mainAi() ? 'btn btn-primary' : 'btn', disabled: busy, onclick: () => send('resume', ai)
-          }, `Continue in ${name}`)));
+          el('button', { class: 'btn btn-primary', disabled: busy, onclick: () => send('resume', mainAi()) }, `Continue in ${AI_NAMES[mainAi()]}`));
+        actions.appendChild(el('button', { class: 'btn-link continue-other', disabled: busy, onclick: () => send('resume', otherAi) }, `or continue in ${AI_NAMES[otherAi]}`));
         actions.classList.add('continue-actions');
         parts.push(actions);
         if (resumes.length) parts.push(el('div', { class: 'flow-past' }, resumes.map(s => stepLine(s))));
@@ -560,7 +560,9 @@
 
       async function showArchive(step, what) {
         const res = await call('wf_getArchive', { archiveId: step.archiveId });
-        showText(`${what} — full answer from ${AI_NAMES[step.ai]}`, res.text || res.error || '(empty)', step.kind);
+        const title = step.kind === 'task' ? `Task: ${project.tasks.find(t => t.id === step.taskId)?.title || '(removed)'}`
+          : ({ split: 'Plan', combine: 'Final answer', 'mem-update': 'Memory update', resume: 'Continue' }[step.kind] || what);
+        showText(`${title} · ${AI_NAMES[step.ai]}`, res.text || res.error || '(empty)', step.kind);
       }
 
       let shownText = null;
@@ -603,7 +605,7 @@
 
       function renderMemoryView(mem) {
         const view = $('proj-mem-view');
-        const text = mem.text.replace(/^#\s*Project:.*\n?/i, '');
+        const text = P.readableMemory(mem.text);
         view.replaceChildren(MarkdownView.render(text, { hideBasis: true }));
         const progress = el('div', { class: 'mem-progress' });
         progress.appendChild(MarkdownView.render(P.buildProgress(project)));
@@ -702,7 +704,7 @@
             el('span', { class: 'step-links' },
               (step.tabId !== null || (step.url && !step.temporary)) ? el('button', { class: 'btn-link', onclick: () => openChat(step) }, 'Open chat') : null,
               step.archiveId ? el('button', { class: 'btn-link', onclick: () => showArchive(step, what) }, 'Full answer') : null,
-              el('button', { class: 'btn-link', onclick: () => showText('Message sent', step.message) }, 'Message')));
+              el('button', { class: 'btn-link', onclick: () => showText('Message you sent', step.message) }, 'Message')));
         }));
       }
 
@@ -724,6 +726,7 @@
         render();
         $('proj-new-goal').focus();
       });
+      $('btn-proj-first').addEventListener('click', () => $('btn-proj-new').click());
       $('btn-proj-new-cancel').addEventListener('click', () => {
         $('proj-new-form').hidden = true;
         render();

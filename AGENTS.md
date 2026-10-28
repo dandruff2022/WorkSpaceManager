@@ -57,7 +57,7 @@ doc/                     plans, roadmap, logs, experiments (below)
 
 ### Projects in one paragraph
 
-A project = `memory[]` (markdown with 5 sections: Goal, Preferences, Decisions, Current state, Open questions; every
+A project = `memory[]` (markdown with 4 sections: Goal, Preferences, Decisions, Open questions; every
 version kept) + `tasks[]` + `steps[]` (every message sent, with status, AI, chat URL, archived full answer). The UI
 sends `wf_run {kind, ai, message, taskId}`; kinds are `split`, `task`, `combine`, `mem-update`, `resume`. Answers
 must end in a fenced block (`tasks`, `result`, `mem`) except `combine` and `resume`. Plan, tasks and memory updates
@@ -66,7 +66,8 @@ Combine and Continue are normal chats the user keeps. After Combine, the engine 
 chore at a time per project, refused if the memory changed meanwhile); the Plan answer may also carry a `mem` block
 (saved the same way), and "Ask AI to tidy" (`wf_tidyMemory`) runs the chore by hand. **Progress** (plan, task
 status + first line of each result, next step) is built from project data by `WorkflowPrompts.buildProgress`, never
-stored, and added when the memory is shown, inserted with `;;` or used by Continue.
+stored, and added when the memory is shown, inserted with `;;` or used by Continue. Progress replaces Current state;
+legacy five-section memories and archives remain readable/updatable without migration (Current state is hidden in the read view).
 
 ### Storage keys (`chrome.storage.local`)
 

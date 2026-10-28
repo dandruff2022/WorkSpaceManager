@@ -58,6 +58,7 @@ window.addEventListener('load', async () => {
     // Stored answers are readable by default, with an exact original still available.
     [...document.querySelectorAll('#proj-steps .step-links button')].find(b => b.textContent === 'Full answer').click();
     await wait(100);
+    check($('#proj-archive-title').textContent === 'Plan · ChatGPT', 'Plan dialog title is plain');
     check($('#proj-archive').open && $('#proj-archive-text strong').textContent === 'Check Saturday weather', 'Plan answer renders task titles');
     check(!$('#proj-archive-text').textContent.includes('Needs:') && !$('#proj-archive-text').textContent.includes('```'), 'Plan hides workflow fields and fences');
     $('#btn-proj-archive-original').click();
@@ -74,6 +75,9 @@ window.addEventListener('load', async () => {
     else delete navigator.clipboard;
     check(!$('#btn-proj-archive-note'), 'Answers are not saved to Notes');
     $('#btn-proj-archive-close').click();
+    [...document.querySelectorAll('#proj-steps .step-links button')].find(b => b.textContent === 'Message').click();
+    check($('#proj-archive-title').textContent === 'Message you sent', 'Sent-message dialog has a plain title');
+    $('#btn-proj-archive-close').click();
     const base = (await store.get(second)).memory[0].text;
     await store.addMemoryVersion(second, base.replace('Different goal', '- Different goal').replace('## Decisions\n(none)', '## Decisions\n- Indoors only 〔AI · basis: forecast〕'), 'ChatGPT', 'AI update');
     await store.setTasks(second, [{ title: 'Ready', task: 'x', needs: ['Goal'], ret: 'x', ai: 'chatgpt' }]);
@@ -87,14 +91,21 @@ window.addEventListener('load', async () => {
     await update(second);
     check($('.flow-open .flow-name').textContent === 'Continue', 'Memory update completion opens Continue');
     const buttons = [...document.querySelectorAll('.flow-open .flow-buttons .btn')];
-    check(buttons[0].textContent === 'Continue in Gemini' && buttons[1].textContent === 'Continue in ChatGPT' && buttons[1].classList.contains('btn-primary'), 'Continue has secondary first and primary last on its own action row');
+    check(buttons.length === 1 && buttons[0].textContent === 'Continue in ChatGPT' && buttons[0].classList.contains('btn-primary') && $('.continue-other').textContent === 'or continue in Gemini', 'Continue has one primary button and a quiet alternative');
+    await store.setOptions(second, { mainAi: 'gemini' });
+    await update(second);
+    check($('.continue-actions .btn-primary').textContent === 'Continue in Gemini' && $('.continue-other').textContent === 'or continue in ChatGPT', 'Continue follows the selected main AI');
+    await store.setOptions(second, { mainAi: 'chatgpt' });
+    await update(second);
     $('#btn-proj-mem-toggle').click();
     check($('#proj-mem-changes').textContent.includes('What changed') && $('#proj-mem-changes .diff-new').textContent === 'New', 'Memory changes have a readable New marker');
+    check(!$('#proj-mem-changes').textContent.includes('(none)') && !$('#proj-mem-view').textContent.includes('(none)'), 'Memory hides empty placeholders');
     check(!$('#proj-mem-changes').textContent.includes('Different goal'), 'Bullet-only Goal change is not shown');
     check(!$('#proj-mem-view').textContent.includes('basis:') && $('#proj-mem-view [title="forecast"]'), 'Memory basis is hidden in a tooltip');
     check(!/^v\d/.test($('#proj-mem-version').textContent), 'Memory header omits the version number');
     [...document.querySelectorAll('#proj-steps .step-row')].find(row => row.textContent.includes('Combine')).querySelectorAll('button')[0].click();
     await wait(100);
+    check($('#proj-archive-title').textContent === 'Final answer · ChatGPT', 'Final-answer dialog has a plain title');
     check($('#proj-archive-text .md-h') && $('#proj-archive-text ol'), 'Combine answer renders headings and numbered lists');
     const rect = $('#proj-archive').getBoundingClientRect();
     check(rect.top >= 0 && rect.bottom <= innerHeight && rect.left >= 0 && rect.right <= innerWidth, 'Answer dialog fits the viewport');
@@ -162,7 +173,7 @@ window.addEventListener('load', async () => {
     check(!$('#btn-note-ask').disabled, 'Own words alone enables Ask');
     // Exercise actual panel and window layouts, including a long scrollable answer.
     for (const width of [380, 900]) {
-      for (const state of ['new', 'answer-plan', 'answer-combine', 'combined-mem', 'continue', 'running']) {
+      for (const state of ['new', 'empty', 'answer-plan', 'answer-combine', 'combined-mem', 'continue', 'running']) {
         const frame = document.createElement('iframe');
         frame.style.cssText = `position:fixed;left:0;top:0;width:${width}px;height:850px;border:0`;
         frame.src = location.pathname + '?mode=window#' + state;
@@ -180,6 +191,16 @@ window.addEventListener('load', async () => {
           check(dialog.open && rect.top >= 0 && rect.bottom <= 850 && rect.left >= 0 && rect.right <= width && body.scrollWidth <= body.clientWidth, `${state} dialog stays inside ${width}px viewport`);
           if (state === 'answer-combine') check(body.scrollHeight > body.clientHeight, 'Long Combine answer scrolls inside its dialog');
         }
+        if (state === 'empty') {
+          const first = doc.querySelector('#btn-proj-first');
+          check(!doc.querySelector('#proj-empty').hidden && first.textContent === 'Start your first project' && doc.querySelector('#proj-empty').textContent.includes('uses your own accounts'), 'Empty state explains accounts and offers a start button');
+          first.click();
+          check(!doc.querySelector('#proj-new-form').hidden && doc.activeElement.id === 'proj-new-goal', 'Empty-state button opens and focuses the new-project form');
+        }
+        if (state === 'combined-mem') {
+          const text = doc.querySelector('#proj-mem-view').textContent;
+          check(!text.includes('Current state') && !text.includes('(none)') && text.includes('Progress'), 'Legacy memory read view replaces Current state with Progress and hides placeholders');
+        }
         if (state === 'running') {
           const head = doc.querySelector('.task-head');
           const status = head.querySelector('.status-chip').getBoundingClientRect();
@@ -188,7 +209,8 @@ window.addEventListener('load', async () => {
         }
         if (state === 'continue') {
           const buttons = [...doc.querySelectorAll('.continue-actions .flow-buttons .btn')].map(b => b.getBoundingClientRect());
-          check(buttons.length === 2 && buttons[0].top === buttons[1].top && buttons[0].height === buttons[1].height, `Continue buttons share a row and height at ${width}px`);
+          const link = doc.querySelector('.continue-other');
+          check(buttons.length === 1 && link.getBoundingClientRect().top >= buttons[0].bottom && buttons[0].height < 45, `Continue alternative is below a single-line primary at ${width}px`);
         }
         frame.remove();
       }

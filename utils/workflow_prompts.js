@@ -2,16 +2,18 @@
 // Prompt templates, message builders, and parsers for the Projects memory workflow
 
 (function (global) {
-  const SECTIONS = ['Goal', 'Preferences', 'Decisions', 'Current state', 'Open questions'];
+  const SECTIONS = ['Goal', 'Preferences', 'Decisions', 'Open questions'];
+  // Legacy sections remain readable and selectable by saved tasks; never requested in new prompts.
+  const PARSED_SECTIONS = ['Goal', 'Preferences', 'Decisions', 'Current state', 'Open questions'];
 
   const TEXT = {
-    split: "Split this project into at most 2 independent subtasks for separate fresh chats. Explain briefly, then end with one fenced block labeled tasks: tasks separated by a line ===, each with Title:, Task: (self-contained), Needs: (section names from: Goal, Preferences, Decisions, Current state, Open questions), Return: (what the hand-off must keep, including source links).",
+    split: "Split this project into at most 2 independent subtasks for separate fresh chats. Explain briefly, then end with one fenced block labeled tasks: tasks separated by a line ===, each with Title:, Task: (self-contained), Needs: (section names from: Goal, Preferences, Decisions, Open questions), Return: (what the hand-off must keep, including source links).",
     splitMem: "If planning settles preferences, decisions or open questions, put the whole updated memory in a fenced block labeled mem (same headings, short bullet points) before the tasks block; otherwise leave it out.",
     task: "You handle one subtask of a larger project. Use only the context below; if something essential is missing, say so. In the result block keep every item listed in Return, with source links and what you could not verify.",
     result: "End your answer with exactly one fenced block labeled result. Put nothing after it, no follow-up question.",
     memUpdate: "Update the project memory using ONLY the old memory and the new material below; ignore anything else. Output only one fenced block labeled mem with the same headings. Mark each new decision with 〔AI · basis: …〕. If you remove an open question, add one line saying why. Leave everything else unchanged.",
-    memStyle: "Write every section as short bullet points, one line each; keep the whole memory under 250 words. Current state says where things stand in one or two lines.",
-    resume: "This is the memory of a project done in other chats. Decisions are settled; do not re-derive them. Continue from Current state.",
+    memStyle: "Write every section as short bullet points, one line each; keep the whole memory under 150 words. Decisions are choices and settled facts, not the content of answers (the answers are kept elsewhere).",
+    resume: "This is the memory of a project done in other chats. Decisions are settled; do not re-derive them. Continue from Progress.",
     combine: "This is the memory of a project and the results of its subtasks, each done in a separate chat. Combine them into one final answer for the Goal. Decisions are settled; do not re-derive them. Keep source links. Point out where results conflict and what is still missing.",
     noteEdit: "Edit the user's note as asked below. Keep their meaning, facts, links and language; add nothing new. Output only one fenced block labeled note with the full edited text, nothing before or after it.",
     notePart: "Edit only the part marked PART. The rest of the note is context; do not output it. Output only one fenced block labeled note with the edited part, nothing before or after it.",
@@ -35,8 +37,6 @@
     lines.push('## Preferences');
     lines.push('## Decisions');
     lines.push('(none)');
-    lines.push('## Current state');
-    lines.push('Just started.');
     lines.push('## Open questions');
     lines.push('(none)');
     return lines.join('\n');
@@ -102,7 +102,7 @@
       const headingMatch = line.match(/^(#{1,3})\s+(.+)$/);
       if (headingMatch) {
         const rawHeading = headingMatch[2].trim();
-        const canonical = SECTIONS.find(s => s.toLowerCase() === rawHeading.toLowerCase());
+        const canonical = PARSED_SECTIONS.find(s => s.toLowerCase() === rawHeading.toLowerCase());
 
         if (!foundFirstHeading) {
           foundFirstHeading = true;
@@ -145,6 +145,26 @@
     return { title, sections, order, extra };
   }
 
+  // Presentation only: raw versions stay intact, including legacy Current state.
+  function readableMemory(md) {
+    const parsed = parseMemory(md);
+    return parsed.order.filter(sec => sec !== 'Current state').map(sec => {
+      const body = (parsed.sections[sec] ?? parsed.extra[sec] ?? '').split('\n')
+        .filter(line => !/^\s*(?:[-*]\s+)?\(none\)\s*$/i.test(line)).join('\n').trim();
+      return body || sec === 'Goal' ? `## ${sec}\n${body}` : '';
+    }).filter(Boolean).join('\n\n');
+  }
+
+  // New AI prompts use current headings, while old task selections still work.
+  function memoryForPrompt(md) {
+    let legacy = false;
+    return String(md || '').split(/\r?\n/).filter(line => {
+      const heading = line.match(/^#{1,3}\s+(.+?)\s*$/);
+      if (heading) legacy = heading[1].toLowerCase() === 'current state';
+      return !legacy;
+    }).join('\n').trim();
+  }
+
   // Pick only requested canonical sections in canonical order
   function pickSections(md, names) {
     if (!md || typeof md !== 'string') return '';
@@ -155,7 +175,7 @@
     const requested = new Set();
     for (const name of names) {
       if (typeof name !== 'string') continue;
-      const match = SECTIONS.find(s => s.toLowerCase() === name.trim().toLowerCase());
+      const match = PARSED_SECTIONS.find(s => s.toLowerCase() === name.trim().toLowerCase());
       if (match) {
         requested.add(match);
       }
@@ -167,7 +187,7 @@
       out.push(`# Project: ${parsed.title}`);
     }
 
-    for (const sec of SECTIONS) {
+    for (const sec of PARSED_SECTIONS) {
       if (requested.has(sec)) {
         out.push(`## ${sec}`);
         const body = parsed.sections[sec];
@@ -273,6 +293,7 @@
 
   // Builder for split prompt
   function buildSplit(memory, options) {
+    memory = memoryForPrompt(memory);
     if (hasLine(options)) return withLine([TEXT.split + ' ' + TEXT.splitMem, (memory || '').trim()], options);
     const short = !!(options && options.short);
     let msg = TEXT.split + '\n\n' + (memory || '').trim();
@@ -305,6 +326,7 @@
 
   // Builder for memory update prompt
   function buildMemUpdate(memory, results) {
+    memory = memoryForPrompt(memory);
     const parts = [
       TEXT.memUpdate + ' ' + TEXT.memStyle,
       'Old memory:\n' + (memory || '').trim()
@@ -571,7 +593,7 @@
         const parts = rawNeeds.split(',');
         for (const part of parts) {
           const cleaned = part.trim();
-          const match = SECTIONS.find(s => s.toLowerCase() === cleaned.toLowerCase());
+          const match = PARSED_SECTIONS.find(s => s.toLowerCase() === cleaned.toLowerCase());
           if (match && !needs.includes(match)) {
             needs.push(match);
           }
@@ -618,7 +640,7 @@
       }
     }
 
-    // A partial memory would silently drop sections, so all five are required
+    // All four current sections are required; legacy five-section answers are accepted too.
     if (sectionCount < SECTIONS.length) return null;
     return stripped;
   }
@@ -649,7 +671,7 @@
         .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
         .split('\n')
         .map(line => line.trim().replace(/^[-*]\s+/, '').trim())
-        .filter(line => line.trim().length > 0);
+        .filter(line => line.length > 0 && !/^\(none\)$/i.test(line));
     }
 
     const result = [];
@@ -727,6 +749,7 @@
     PROGRESS_HEADING,
     emptyMemory,
     parseMemory,
+    readableMemory,
     buildProgress,
     withProgress,
     pickSections,

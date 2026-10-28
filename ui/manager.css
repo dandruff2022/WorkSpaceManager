@@ -1132,9 +1132,10 @@ body.state-detached-placeholder .app-container { display: none; }
 #note-tweak-slot { display: contents; }
 .tweak-tray .wmp-done { color: var(--k-notes); }
 
-/* Keep paired actions together even in a narrow side panel. */
+/* Continue has one primary action, followed by a quieter alternative. */
 .continue-actions .flow-buttons { flex-wrap: nowrap; }
-.continue-actions .btn { flex: 0 1 auto; min-width: 0; white-space: normal; padding-inline: 10px; }
+.continue-actions .continue-other { flex-basis: 100%; text-align: right; padding: 0; }
+.continue-actions .btn { flex: 0 1 auto; min-width: 0; white-space: nowrap; padding-inline: 10px; }
 .task-head .status-chip { min-width: 0; }
 .task-head .task-actions { gap: 6px; }
 .task-head .task-actions .btn-link { padding-inline: 0; }

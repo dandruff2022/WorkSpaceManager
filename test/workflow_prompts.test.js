@@ -221,7 +221,7 @@ Yes`;
   const diff = WorkflowPrompts.diffMemory(oldMemory, parsedMem);
   const decisionsDiff = diff.find(d => d.section === 'Decisions');
   assert(decisionsDiff, 'diff should contain a change for Decisions');
-  assert.deepStrictEqual(decisionsDiff.removed, ['(none)']);
+  assert.deepStrictEqual(decisionsDiff.removed, []);
   assert.strictEqual(decisionsDiff.added.length, 2);
   assert(decisionsDiff.added[0].includes('〔AI · basis:'));
   assert(decisionsDiff.added[1].includes('〔AI · basis:'));
@@ -268,7 +268,8 @@ Which analogy? Which library for the code example?`;
   const splitWithoutShort = WorkflowPrompts.buildSplit(memory, { short: false });
   assert(!splitWithoutShort.includes('Output requirements'), 'buildSplit without short should have no Output requirements');
   assert(splitWithoutShort.startsWith(WorkflowPrompts.TEXT.split));
-  assert(splitWithoutShort.includes(memory));
+  assert(splitWithoutShort.includes('## Goal'));
+  assert(!splitWithoutShort.includes('Current state'));
 
   const splitWithShort = WorkflowPrompts.buildSplit(memory, { short: true });
   assert(splitWithShort.includes('Output requirements:\n' + WorkflowPrompts.TEXT.short));
@@ -288,14 +289,14 @@ test('10. parseMemory/pickSections round-trip and unknown Needs names dropped', 
   assert(initialMem.includes('# Project: Chicago Trip'));
   assert(initialMem.includes('## Goal\nSpend one Saturday in Chicago.'));
   assert(initialMem.includes('## Decisions\n(none)'));
-  assert(initialMem.includes('## Current state\nJust started.'));
+  assert(!initialMem.includes('## Current state'));
   assert(initialMem.includes('## Open questions\n(none)'));
 
   const parsedInit = WorkflowPrompts.parseMemory(initialMem);
   assert.strictEqual(parsedInit.title, 'Chicago Trip');
   assert.strictEqual(parsedInit.sections['Goal'], 'Spend one Saturday in Chicago.');
   assert.strictEqual(parsedInit.sections['Decisions'], '(none)');
-  assert.strictEqual(parsedInit.sections['Current state'], 'Just started.');
+  assert.strictEqual(parsedInit.sections['Current state'], '');
   assert.strictEqual(parsedInit.sections['Open questions'], '(none)');
   assert.strictEqual(parsedInit.sections['Preferences'], '');
 
@@ -439,6 +440,48 @@ test('21. Memory diff ignores leading bullets and surrounding whitespace', () =>
   const P = WorkflowPrompts;
   assert.deepStrictEqual(P.diffMemory('## Goal\nStudy psychology\n## Preferences\n* Quiet room', '## Goal\n- Study psychology  \n## Preferences\nQuiet room'), []);
   assert.deepStrictEqual(P.diffMemory('## Goal\nOld goal', '## Goal\n- New goal'), [{ section: 'Goal', added: ['New goal'], removed: ['Old goal'] }]);
+});
+
+test('22. Four-section memories and old five-section memories coexist without rewriting raw text', () => {
+  const P = WorkflowPrompts;
+  assert.deepStrictEqual(P.SECTIONS, ['Goal', 'Preferences', 'Decisions', 'Open questions']);
+  const fresh = P.emptyMemory('Legacy', 'Study');
+  const legacy = fresh.replace('## Open questions', '## Current state\nOld status\n## Open questions');
+  assert.strictEqual(P.parseMemory(legacy).sections['Current state'], 'Old status');
+  assert.strictEqual(P.parseMemoryAnswer('```mem\n' + legacy + '\n```'), legacy);
+  assert.strictEqual(P.parseMemoryAnswer('```mem\n' + fresh + '\n```'), fresh);
+  assert(P.pickSections(legacy, ['Current state']).includes('Old status'));
+  assert.strictEqual(P.readableMemory(legacy), '## Goal\nStudy');
+  for (const text of [P.buildSplit(legacy, {}), P.buildMemUpdate(legacy, [])]) {
+    assert(!text.includes('Current state'));
+    assert(!text.includes('Old status'));
+  }
+  assert(P.TEXT.memStyle.includes('under 150 words'));
+  assert(P.TEXT.memStyle.includes('not the content of answers'));
+  const resume = P.buildResume(P.withProgress(legacy, { tasks: [], steps: [] }), '', {});
+  assert(resume.includes('Continue from Progress.'));
+  assert(resume.includes(P.PROGRESS_HEADING));
+});
+
+test('23. Empty placeholders are not memory content or changes', () => {
+  const P = WorkflowPrompts;
+  for (const placeholder of ['', '(none)', '- (none)', '* (none)']) {
+    const old = '## Goal\n\n## Decisions\n' + placeholder + '\n## Preferences\n- (none)\n## Open questions\n';
+    const next = old.replace('## Decisions\n' + placeholder, '## Decisions\n- A settled choice');
+    assert.strictEqual(P.readableMemory(old), '## Goal\n');
+    assert.deepStrictEqual(P.diffMemory(old, next), [{ section: 'Decisions', added: ['A settled choice'], removed: [] }]);
+    assert.deepStrictEqual(P.diffMemory(next, old), [{ section: 'Decisions', added: [], removed: ['A settled choice'] }]);
+  }
+});
+
+test('24. Prompt helpers load in a worker without DOM or CommonJS', () => {
+  const context = { self: {} };
+  require('node:vm').runInNewContext(require('node:fs').readFileSync(require.resolve('../utils/workflow_prompts.js'), 'utf8'), context);
+  const P = context.self.WorkflowPrompts;
+  const memory = P.emptyMemory('Worker', 'Study');
+  assert(P.buildMemUpdate(memory, []).includes('under 150 words'));
+  assert(!P.buildMemUpdate(memory + '\n## Current state', []).includes('Current state'));
+  assert(!P.buildSplit(memory + '\r\n## Current state\r\nOld state', {}).includes('Old state'));
 });
 
 console.log(`\nTests completed: ${passed} passed, ${failed} failed`);

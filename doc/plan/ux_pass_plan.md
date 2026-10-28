@@ -90,3 +90,30 @@ Dropping "Current state" from memory (prompt change; next round), ChatGPT UI jun
 - `sh test/ui_preview/run.sh` and `sh test/ui_preview/check.sh` pass; preview states updated so the answer dialog
   (rendered) and memory changes are covered; screenshots looked at in the panel width, light and dark.
 - Log entry in `doc/log/` and roadmap line.
+
+# Round 2
+
+Seen after round 1 (live, same test project): answers and memory changes now read well. Left:
+
+1. **Memory says less, and only what matters.** The memory update copied the whole study plan into Decisions, so
+   Memory repeats the final answer. And "Current state" repeats Progress (built by the extension).
+   - New memories have 4 sections: Goal, Preferences, Decisions, Open questions (`SECTIONS`, `emptyMemory`). Old
+     memories that still have "Current state" keep working: parse it, keep it in the stored text, but don't ask the
+     AI for it and don't show it in the read view (Progress replaces it). Nothing is migrated in storage.
+   - Prompts (`TEXT` in `utils/workflow_prompts.js`): `split` Needs list without Current state; `memStyle` →
+     "Write every section as short bullet points, one line each; keep the whole memory under 150 words. Decisions
+     are choices and settled facts, not the content of answers (the answers are kept elsewhere)."; `resume` →
+     "…Decisions are settled; do not re-derive them. Continue from Progress." (Progress is already added by
+     `buildResume`; check it is); `memUpdate` adds nothing else. Update `prompts_v2.md` only if it lists these.
+   - Tests in `test/workflow_prompts.test.js` / `project_store.test.js` that expect 5 sections: update; add one for
+     an old 5-section memory still parsing and rendering without Current state.
+2. **"(none)" is not content.** In the memory change list and the read view, treat `(none)` / `- (none)` / empty
+   as empty: no "New (none)" item, no struck-through "(none)"; a section going from (none) to items shows only the
+   new items. In the read view, empty sections are hidden (keep Goal always).
+3. **Dialog titles in plain words**: "Plan · ChatGPT", "Final answer · ChatGPT", "Task: <title> · Gemini",
+   "Memory update · ChatGPT", "Message you sent" (instead of "… — full answer from …").
+4. **Continue card**: one primary button "Continue in ChatGPT" (main AI) and, under it, a small link
+   "or continue in Gemini" (the other AI). No two-line buttons at 380px.
+5. **Empty Projects page**: inside the "No projects yet." box add a primary button "Start your first project"
+   (opens the new-project form, same as "+ New project") and a muted line "Sign in to ChatGPT or Gemini in this
+   browser first; the extension uses your own accounts."

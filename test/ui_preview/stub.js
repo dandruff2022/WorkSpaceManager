@@ -117,7 +117,9 @@
       if (state !== 'send-picker') return;
     }
     const P = WorkflowPrompts;
-    const v0 = P.emptyMemory('Saturday in Chicago', 'Plan a one-day trip to Chicago on Saturday, back by 9 pm, no car, about $80.');
+    // Exercise a stored legacy memory; new projects use four headings.
+    const v0 = P.emptyMemory('Saturday in Chicago', 'Plan a one-day trip to Chicago on Saturday, back by 9 pm, no car, about $80.')
+      .replace('## Preferences', '## Current state\nJust started.\n## Preferences').replace('## Open questions\n(none)', '## Open questions\n- (none)');
     const p = await store.create('Saturday in Chicago', v0);
     await store.setCurrentId(p.id);
     if (state === 'new') return;
@@ -138,7 +140,7 @@
     if (state !== 'combined') return;
     const c = await store.addStep(p.id, { kind: 'combine', ai: 'chatgpt', message: 'x', status: 'done', archiveId: 'a4', url: 'https://chatgpt.com/c/2', tabId: 9 });
     const v1 = v0.replace('## Goal\nPlan', '## Goal\n- Plan').replace('## Decisions\n(none)', '## Decisions\n- Indoor activities only 〔AI · basis: weather task〕')
-      .replace('## Open questions\n(none)', '## Open questions\nWhich museum, or both?')
+      .replace('## Open questions\n- (none)', '## Open questions\nWhich museum, or both?')
       .replace('Just started.', 'Day plan written: Art Institute 10–1, Field Museum 2–5, train home by 8.');
     await store.addMemoryVersion(p.id, v1, 'Gemini', 'AI update');
     await store.addStep(p.id, { kind: 'mem-update', ai: 'gemini', parentId: c.id, temporary: true, message: 'x', status: 'done' });

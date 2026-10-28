@@ -371,6 +371,23 @@ async function runTests() {
     assert.strictEqual(q.planSkipped, true);
   });
 
+  await test('legacy memory and archives stay intact when updated to four sections and undone', async () => {
+    const P = require('../utils/workflow_prompts.js');
+    const store = createProjectStore(createStubArea());
+    const fresh = P.emptyMemory('Old project', 'Study');
+    const legacy = fresh.replace('## Open questions', '## Current state\nJust started.\n## Open questions');
+    const project = await store.create('Old project', legacy);
+    const archive = '```mem\n' + legacy + '\n```';
+    const id = await store.saveArchive(archive);
+    await store.addMemoryVersion(project.id, fresh, 'ChatGPT', 'AI update');
+    const updated = await store.get(project.id);
+    assert.strictEqual(updated.memory[0].text, legacy);
+    assert.strictEqual(currentMemory(updated), fresh);
+    assert.strictEqual(await store.getArchive(id), archive);
+    await store.undoMemory(project.id);
+    assert.strictEqual(currentMemory(await store.get(project.id)), legacy);
+  });
+
   console.log(`\nTests completed: ${passed} passed, ${failed} failed`);
   if (failed > 0) {
     process.exit(1);

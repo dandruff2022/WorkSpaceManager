@@ -148,6 +148,8 @@ results + the final answer, run on the chores AI (`choresAi`, default the projec
 refused if the memory changed while it ran (`baseAt`).
 **Other memory updates**: the Plan answer may carry a `mem` block before `tasks` (saved only over the memory the plan
 started from, `baseAt` set by `startStep`); "Ask AI to tidy" (`wf_tidyMemory`) runs the same chore without a Combine.
+**Memory** has four sections: Goal, Preferences, Decisions, Open questions. Legacy Current state still parses
+and stays in raw stored versions; it is omitted from the read view and new planning/memory-update prompts. No migration.
 **Progress** (`WorkflowPrompts.buildProgress(project)`: plan, each task's status and first result line, Combine,
 next step) is derived from project data, never stored, and appended when the memory is shown (rendered by
 `ui/modules/markdown_view.js`), inserted with `;;`, or sent with Continue.
