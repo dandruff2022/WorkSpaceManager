@@ -72,7 +72,7 @@ stored, and added when the memory is shown, inserted with `;;` or used by Contin
 
 `projects`, `archives`, `currentProjectId` (Projects) · `keepWorkerTabs`, `tempChatsForWork` (default on),
 `choresAi` (`same`|`chatgpt`|`gemini`), `devHarness` · `preferredMode` (`panel`|`window`), `siteProfiles`, `skills`,
-`skillsDefaultsVersion`, `notes`, `styles` ({custom, edits}), `styleChoice` ({site, send, projects}), `autocompleteTriggerChar`, `enableWebpageAutocomplete`, `notifyWhenDone`.
+`skillsDefaultsVersion`, `notes`, `styles` ({custom, edits}), `styleChoice` ({site, send, projects}), `tweakChoice` (note tweak ids), `autocompleteTriggerChar`, `enableWebpageAutocomplete`, `notifyWhenDone`.
 
 ### Security gate
 
@@ -83,8 +83,8 @@ stored, and added when the memory is shown, inserted with `;;` or used by Contin
 
 | What | How |
 |---|---|
-| Unit tests | `node test/workflow_prompts.test.js`, `node test/project_store.test.js`, `node test/library.test.js`, `node test/notes_store.test.js` |
-| Screenshots of the Projects UI with fake data | `sh test/ui_preview/run.sh` → `/tmp/wm_preview/*.png` (states: `#new`, default, `#combine`, `#combined`, `#empty`, `#library`, `#library-styles`, `#send-answer`, `#notes`, `#notes-proposal`; light/dark; 380px panel) |
+| Unit tests | `node test/workflow_prompts.test.js`, `node test/project_store.test.js`, `node test/library.test.js`, `node test/notes_store.test.js`, `node test/workflow_engine.test.js` |
+| Screenshots of the Projects UI with fake data | `sh test/ui_preview/run.sh` → `/tmp/wm_preview/*.png` (states: `#new`, default, `#combine`, `#combined`, `#empty`, `#library`, `#library-styles`, `#send-answer`, `#notes`, `#notes-proposal`, `#notes-tweak`; light/dark; 380px panel) |
 | Real UI against the real extension | see "Live runs" in `test/README.md` (localhost + dev harness) |
 
 Live-run gotchas (all learned the hard way):

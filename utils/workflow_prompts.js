@@ -341,16 +341,53 @@
     return parts.join('\n\n');
   }
 
-  // Note edits the user asks for (Notes page). The instruction is one of NOTE_ACTIONS or the user's own words.
-  const NOTE_ACTIONS = {
-    tidy: 'Tidy it: fix typos and grammar, keep the wording otherwise.',
-    rephrase: 'Rephrase it so it reads clearly.',
-    structure: 'Structure it: short headings and bullet points, same content.'
+  // Built-in note tweaks; preferences are separate from note data and answer styles.
+  const NOTE_TWEAK_GROUPS = {
+    edit: { name: 'Edit', oneOf: false },
+    language: { name: 'Language', oneOf: true }
   };
+  const NOTE_TWEAKS = [
+    { id: 'tidy', name: 'Tidy', group: 'edit', text: 'Tidy it: fix typos and grammar, keep the wording otherwise.' },
+    { id: 'rephrase', name: 'Rephrase', group: 'edit', text: 'Rephrase it so it reads clearly.' },
+    { id: 'structure', name: 'Structure', group: 'edit', text: 'Structure it: short headings and bullet points, same content.' },
+    { id: 'shorter', name: 'Shorter', group: 'edit', text: 'Shorten it: cut repetition, keep every fact.' },
+    { id: 'checklist', name: 'Checklist', group: 'edit', text: 'Turn action items into - [ ] checklist lines.' },
+    { id: 'en', name: 'In English', group: 'language', text: 'Translate into English, keep formatting.' },
+    { id: 'zh', name: 'In Chinese', group: 'language', text: 'Translate into Chinese, keep formatting.' }
+  ];
+
+  function normalizeNoteTweaks(ids) {
+    const picked = [];
+    for (const id of Array.isArray(ids) ? ids : []) {
+      const item = NOTE_TWEAKS.find(t => t.id === id);
+      if (!item) continue;
+      for (let i = picked.length - 1; i >= 0; i--) {
+        const old = NOTE_TWEAKS.find(t => t.id === picked[i]);
+        if (old.id === id || (NOTE_TWEAK_GROUPS[item.group].oneOf && old.group === item.group)) picked.splice(i, 1);
+      }
+      picked.push(id);
+    }
+    return picked;
+  }
+
+  function noteInstruction(request) {
+    // Read old stored proposals and callers as well as the structured request.
+    if (typeof request === 'string') return NOTE_TWEAKS.some(t => t.id === request)
+      ? { tweaks: [request], text: '' } : { tweaks: [], text: request.trim() };
+    return { tweaks: normalizeNoteTweaks(Array.isArray(request) ? request : request && request.tweaks), text: String(request && request.text || '').trim() };
+  }
+
+  function noteEditLabel(request) {
+    const { tweaks } = noteInstruction(request);
+    return tweaks.map(id => NOTE_TWEAKS.find(t => t.id === id).name).join(' + ') || 'AI edit';
+  }
 
   // part = { text } when only a selection is edited
   function buildNoteEdit(noteText, instruction, part) {
-    const ask = 'Request: ' + (NOTE_ACTIONS[instruction] || String(instruction || '').trim());
+    const { tweaks, text } = noteInstruction(instruction);
+    const parts = tweaks.map(id => NOTE_TWEAKS.find(t => t.id === id).text);
+    if (text) parts.push('Also: ' + text.replace(/\s*\n\s*/g, ' '));
+    const ask = 'Request: ' + parts.join('; ');
     if (part && part.text) {
       return [TEXT.notePart, ask, 'Note:\n' + (noteText || '').trim(), 'PART:\n' + part.text.trim()].join('\n\n');
     }
@@ -677,7 +714,11 @@
     buildResume,
     buildCombine,
     buildFix,
-    NOTE_ACTIONS,
+    NOTE_TWEAKS,
+    NOTE_TWEAK_GROUPS,
+    normalizeNoteTweaks,
+    noteInstruction,
+    noteEditLabel,
     buildNoteEdit,
     parseNoteAnswer,
     parseBlock,

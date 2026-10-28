@@ -90,7 +90,10 @@ The user's own notes (`ui/modules/notes.js`): list with search, editor that save
 typing, 5 min), versions with Restore, Undo, Delete. Only the background owns the store (`self.NotesStore`, made in
 `background.js` with an `onChange` hook that broadcasts `notesUpdate`); pages read and write through `wf_note*`
 messages, so the page, the engine and the context menu never overwrite each other.
-- **AI edit, on request only**: Tidy / Rephrase / Structure / own words, for the selection or the whole note →
+- **AI edit, on request only**: the amber `✎ Tweak` control reuses Answer's button, count, removable chips and
+  inline PickerCore tray. Edit tweaks combine freely (Tidy, Rephrase, Structure, Shorter, Checklist); Language
+  picks one (In English / In Chinese). Ticks persist in the page preference `tweakChoice`, not in note data;
+  tweaks never appear in `;;`. Ask sends `{tweaks: [...ids], text: ownWords}` for the selection or the whole note →
   `wf_noteEdit` → engine `editNote` → one temporary chat on the chores AI (`askOnce`, `%fix` once) → answer in a
   ```` ```note ```` block → stored as a proposal in `note.edit` → the page shows a line diff → Apply
   (`wf_noteApplyEdit`, puts a part back into the note as it is now) or Discard. A late answer for a discarded request
@@ -162,6 +165,7 @@ setTasks updateTask removeTask run retryChore openChat getArchive devReload`.
 | `siteProfiles` | background seed | site selectors |
 | `skills`, `skillsDefaultsVersion` | skills registry | saved prompts; starters added once per version |
 | `styles` ({custom, edits}), `styleChoice` ({site, send, projects}) | styles registry | answer styles; ticks per place (Projects default: Short) |
+| `tweakChoice` (array of ids) | Notes page | built-in edit tweaks; last Language pick wins, separate from answer styles |
 | `notes` ({id: {id, title, text, versions[{text, by, at, note}], edit, createdAt, updatedAt}}) | notes store (background) | the user's notes; `edit` = AI request/proposal |
 | `preferredMode` ('panel'), `panelDefaultV07`, `triggerMigratedV06` | background | view mode + one-time migrations |
 | `autocompleteTriggerChar` (';;'), `enableWebpageAutocomplete`, `notifyWhenDone` | Settings | v0.6 options |

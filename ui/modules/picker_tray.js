@@ -47,13 +47,23 @@
     return { skills: SkillsRegistry.skills, styles, notes: noteList.notes || [], projects: list.projects || [] };
   }
 
+  const isTweaks = place => place === 'tweaks';
+  async function controlItems(place) {
+    return isTweaks(place) ? WorkflowPrompts.NOTE_TWEAKS : StylesStore.list();
+  }
+
   async function choice(place) {
+    if (isTweaks(place)) {
+      const data = await chromeAPI.storage.local.get(['tweakChoice']);
+      return WorkflowPrompts.normalizeNoteTweaks(data.tweakChoice);
+    }
     return StylesStore.getChoice(place);
   }
 
   // Everyone showing a place's choice (Answer buttons, previews) listens to 'wmStyleChoice'
   async function setChoice(place, ids) {
-    const saved = await StylesStore.setChoice(place, ids);
+    const saved = isTweaks(place) ? WorkflowPrompts.normalizeNoteTweaks(ids) : await StylesStore.setChoice(place, ids);
+    if (isTweaks(place)) await chromeAPI.storage.local.set({ tweakChoice: saved });
     document.dispatchEvent(new CustomEvent('wmStyleChoice', { detail: { place, ids: saved } }));
     return saved;
   }
@@ -77,11 +87,11 @@
     const row = document.createElement('span');
     row.className = 'answer-chips';
     async function refresh(ids) {
-      const list = await StylesStore.list();
+      const list = await controlItems(place);
       const picked = ids || await choice(place);
       row.replaceChildren();
       row.hidden = !picked.length;
-      row.title = picked.length ? StylesRegistry.buildLine(list, picked) : '';
+      row.title = isTweaks(place) ? WorkflowPrompts.noteEditLabel({ tweaks: picked }) : (picked.length ? StylesRegistry.buildLine(list, picked) : '');
       for (const id of picked) {
         const style = list.find(s => s.id === id);
         if (!style) continue;
@@ -117,7 +127,8 @@
       root: tray,
       dark: isDark(),
       ticks: opts.ticks,
-      normalize: (ids) => StylesRegistry.normalizeChoice(styles, ids),
+      normalize: opts.normalize || ((ids) => StylesRegistry.normalizeChoice(styles, ids)),
+      ruleGroups: opts.ruleGroups,
       liveStyles: true,
       doneButton: opts.doneButton,
       onInsert: opts.onInsert || (() => {}),
@@ -218,15 +229,15 @@
     let tray = null;
 
     async function refresh(ids) {
-      const list = await StylesStore.list();
+      const list = await controlItems(opts.place);
       const picked = ids || await choice(opts.place);
       btn.replaceChildren();
       const sym = document.createElement('span');
       sym.className = 'answer-sym';
-      sym.textContent = '≡';
+      sym.textContent = isTweaks(opts.place) ? '✎' : '≡';
       const label = document.createElement('span');
       label.className = 'answer-label';
-      label.textContent = 'Answer';
+      label.textContent = isTweaks(opts.place) ? 'Tweak' : 'Answer';
       btn.append(sym, label);
       if (picked.length) {
         const count = document.createElement('span');
@@ -235,7 +246,7 @@
         btn.appendChild(count);
       }
       btn.appendChild(document.createTextNode(' ▾'));
-      btn.title = picked.length ? StylesRegistry.label(list, picked) : 'How the AI should answer (none picked: its usual way)';
+      btn.title = isTweaks(opts.place) ? 'Quick edits to the note' : (picked.length ? StylesRegistry.label(list, picked) : 'How the AI should answer (none picked: its usual way)');
     }
 
     function closeTray() {
@@ -248,17 +259,21 @@
     }
 
     async function openTray() {
-      const data = await loadData();
+      const tweaks = isTweaks(opts.place);
+      const data = tweaks ? null : await loadData();
       const ticks = await choice(opts.place);
       if (!btn.isConnected) return;
       const before = opts.trayBefore || btn.closest('.composer-footer, .flow-actions') || btn.parentElement;
       tray = makeTray(before, {
         ticks,
         doneButton: true,
+        normalize: tweaks ? WorkflowPrompts.normalizeNoteTweaks : undefined,
+        ruleGroups: tweaks ? WorkflowPrompts.NOTE_TWEAK_GROUPS : undefined,
         onApplyStyles: (ids) => setChoice(opts.place, ids),
         onClose: closeTray
       });
-      tray.picker.setItems(Library.query(data, { surface: 'step' }, ''));
+      tray.picker.setItems(tweaks ? WorkflowPrompts.NOTE_TWEAKS.map(t => ({ id: t.id, title: t.name, preview: t.text, group: 'tweaks', styleGroup: t.group })) : Library.query(data, { surface: 'step' }, ''));
+      if (tweaks) tray.tray.classList.add('tweak-tray');
       tray.tray.tabIndex = 0;
       tray.tray.addEventListener('keydown', (e) => {
         if (tray && tray.picker.handleKey(e)) { e.preventDefault(); e.stopPropagation(); }
@@ -278,7 +293,7 @@
   // Button + its chips, wrapping together (Projects steps)
   function answerControl(opts) {
     const wrap = document.createElement('span');
-    wrap.className = 'answer-control';
+    wrap.className = 'answer-control' + (isTweaks(opts.place) ? ' tweak-control' : '');
     wrap.append(answerButton(opts), chips(opts.place));
     return wrap;
   }
@@ -287,6 +302,7 @@
     attach,
     answerButton,
     answerControl,
+    tweakControl: (opts = {}) => answerControl({ ...opts, place: 'tweaks' }),
     chips,
     choice,
     setChoice,

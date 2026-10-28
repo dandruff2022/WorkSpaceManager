@@ -405,7 +405,8 @@
     const note = await notes.get(noteId);
     if (!note) throw new Error('Note not found');
     if (note.edit && note.edit.status === 'running') throw new Error('The AI is already working on this note');
-    if (!String(instruction || '').trim()) throw new Error('Say what the AI should do');
+    instruction = self.WorkflowPrompts.noteInstruction(instruction);
+    if (!instruction.tweaks.length && !instruction.text) throw new Error('Say what the AI should do');
     if (!note.text.trim()) throw new Error('The note is empty');
     if (part) {
       // Edit the selection without its surrounding blank space, so the rewrite drops back in cleanly
@@ -438,7 +439,7 @@
     if (!edit || edit.status !== 'ready') throw new Error('Nothing to apply');
     const text = edit.part ? self.NotesRegistry.replacePart(note.text, edit.part, edit.replacement) : edit.proposal;
     if (text === null) throw new Error('The selected part is no longer in the note. Discard and ask again.');
-    const what = { tidy: 'Tidy', rephrase: 'Rephrase', structure: 'Structure' }[edit.instruction] || 'AI edit';
+    const what = self.WorkflowPrompts.noteEditLabel(edit.instruction);
     return notes.applyAi(noteId, text, SITES[edit.ai] ? SITES[edit.ai].name : 'AI', `${what}${edit.part ? ' (part)' : ''}`);
   }
 

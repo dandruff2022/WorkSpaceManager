@@ -74,6 +74,34 @@ window.addEventListener('load', async () => {
     $('#btn-note-edit').click();
     $('#note-title').focus();
     check(!$('#note-view').hidden, 'blur outside AI controls returns to read mode');
+    $('#btn-note-edit').click();
+    ta.setSelectionRange(0, 11);
+    ta.dispatchEvent(new Event('select'));
+    $('#note-tweak-slot .answer-btn').click();
+    await wait(100);
+    check(document.documentElement.scrollWidth <= window.innerWidth, 'Tweak control does not overflow');
+    check(document.querySelector('.tweak-tray').textContent.includes('combine freely'), 'Tweak tray shows Edit rules');
+    check(!ta.hidden && $('#note-ai-scope').textContent.includes('selection'), 'Tweak tray preserves selection scope');
+    const tick = name => [...document.querySelectorAll('.tweak-tray .wmp-row')].find(row => row.querySelector('.wmp-title').textContent === name).dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    tick('Tidy');
+    await wait(100);
+    check(!$('#btn-note-ask').disabled && (await chrome.storage.local.get('tweakChoice')).tweakChoice.includes('tidy'), 'Tweak tick enables Ask and persists');
+    tick('In English');
+    tick('In Chinese');
+    await wait(100);
+    const pickedTweaks = (await chrome.storage.local.get('tweakChoice')).tweakChoice;
+    check(pickedTweaks.includes('zh') && !pickedTweaks.includes('en') && pickedTweaks.includes('tidy'), 'Language replaces previous language without removing Edit tweaks');
+    document.querySelector('.tweak-tray').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    check(!document.querySelector('.tweak-tray'), 'Escape closes Tweak tray');
+    while (document.querySelector('#note-tweak-slot .answer-chip-x')) {
+      document.querySelector('#note-tweak-slot .answer-chip-x').click();
+      await wait(50);
+    }
+    check(!(await chrome.storage.local.get('tweakChoice')).tweakChoice.length, 'Removing chips persists the empty tweak choice');
+    check($('#btn-note-ask').disabled, 'No tweaks or own words disables Ask');
+    $('#note-ai-custom').value = 'Keep my tone';
+    $('#note-ai-custom').dispatchEvent(new Event('input'));
+    check(!$('#btn-note-ask').disabled, 'Own words alone enables Ask');
     document.body.dataset.checks = 'passed';
   } catch (err) {
     document.body.dataset.checks = 'failed';

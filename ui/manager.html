@@ -197,12 +197,10 @@
               <textarea id="note-text" class="text-input note-text" placeholder="Write anything…" aria-label="Note"></textarea>
               <div class="note-ai">
                 <span id="note-ai-scope" class="muted small">AI · whole note:</span>
-                <button type="button" class="btn btn-small" data-ai="tidy">Tidy</button>
-                <button type="button" class="btn btn-small" data-ai="rephrase">Rephrase</button>
-                <button type="button" class="btn btn-small" data-ai="structure">Structure</button>
+                <span id="note-tweak-slot" class="tweak-control"></span>
                 <form id="note-ai-form" class="note-ai-form">
                   <input type="text" id="note-ai-custom" class="text-input" placeholder="Or say what to do…" aria-label="What the AI should do">
-                  <button type="submit" class="btn btn-small">Ask</button>
+                  <button type="submit" id="btn-note-ask" class="btn btn-primary btn-small" disabled>Ask</button>
                 </form>
               </div>
               <div id="note-proposal" class="note-proposal" hidden>

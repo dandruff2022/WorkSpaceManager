@@ -39,5 +39,8 @@ shot notes-view-light 850 900 "_preview.html?mode=window#notes-view" light
 shot notes-view-dark 850 900 "_preview.html?mode=window#notes-view" dark
 panel notes-view-panel 1200 "#notes-view" light
 panel notes-view-panel-dark 1200 "#notes-view" dark
+shot notes-tweak-light 850 1000 "_preview.html?mode=window#notes-tweak" light
+panel notes-tweak-panel 1400 "#notes-tweak" light
+panel notes-tweak-panel-dark 1400 "#notes-tweak" dark
 rm -f ui/_preview.html ui/_frame.html
 ls "$OUT"

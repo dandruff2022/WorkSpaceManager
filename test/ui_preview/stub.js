@@ -63,6 +63,7 @@
       setTimeout(() => ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })), 200);
     },
     'send-answer': () => { click('.nav-item[data-target="send"]'); setTimeout(() => click('#view-send .answer-btn'), 100); },
+    'notes-tweak': () => { click('.nav-item[data-target="notes"]'); setTimeout(() => click('#note-tweak-slot .answer-btn'), 100); },
     notes: () => click('.nav-item[data-target="notes"]'),
     'notes-proposal': () => click('.nav-item[data-target="notes"]'),
     'notes-view': () => click('.nav-item[data-target="notes"]')
@@ -98,6 +99,7 @@
       window.__previewUpdate = notify;
     }
     if (state.startsWith('notes')) seedNotes(state === 'notes-proposal');
+    if (state === 'notes-tweak') data.tweakChoice = ['tidy', 'checklist'];
     if (PAGES[state]) {
       data.styles = { custom: [{ id: 'my-formal', name: 'Formal tone', group: 'approach', text: 'Use a formal, polite tone.' }], edits: { short: { name: 'Short', text: 'Keep it short: under 100 words.' } } };
       data.styleChoice = { send: ['short', 'zh', 'sources'] };

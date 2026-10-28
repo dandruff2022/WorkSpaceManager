@@ -119,13 +119,20 @@ async function runTests() {
   });
 
   await test('8. Note-edit prompt: whole note, part, own words; parser reads the note block', () => {
-    const whole = P.buildNoteEdit('teh plan', 'tidy');
+    const whole = P.buildNoteEdit('teh plan', { tweaks: ['tidy', 'structure', 'en', 'zh'], text: 'Be gentle' });
     assert.ok(whole.startsWith(P.TEXT.noteEdit));
-    assert.ok(whole.includes(P.NOTE_ACTIONS.tidy));
+    assert.ok(whole.includes(P.NOTE_TWEAKS[0].text));
     assert.ok(whole.includes('Note:\nteh plan'));
+    assert.ok(whole.includes('; Structure it:'));
+    assert.ok(whole.includes('; Also: Be gentle'));
+    assert.ok(whole.includes('Translate into Chinese'));
+    assert.ok(!whole.includes('Translate into English'));
+    assert.deepStrictEqual(P.normalizeNoteTweaks(['tidy', 'en', 'zh', 'tidy', 'bad']), ['zh', 'tidy']);
+    assert.strictEqual(P.noteEditLabel({ tweaks: ['tidy', 'structure'] }), 'Tidy + Structure');
+    assert.ok(P.buildNoteEdit('a', ['shorter', 'checklist']).includes('checklist lines'));
     const part = P.buildNoteEdit('line one\nteh plan', 'make it formal', { text: 'teh plan' });
     assert.ok(part.startsWith(P.TEXT.notePart));
-    assert.ok(part.includes('Request: make it formal'));
+    assert.ok(part.includes('Request: Also: make it formal'));
     assert.ok(part.endsWith('PART:\nteh plan'));
     assert.strictEqual(P.parseNoteAnswer('Sure.\n```note\nthe plan\n- a\n```\n'), 'the plan\n- a');
     assert.strictEqual(P.parseNoteAnswer('no block here'), null);

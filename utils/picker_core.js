@@ -7,17 +7,18 @@
   const KINDS = {
     prompts: { name: 'Prompts', symbol: '@' },
     styles: { name: 'Styles', symbol: '≡' },
+    tweaks: { name: 'Tweaks', symbol: '✎' },
     notes: { name: 'Notes', symbol: '✎' },
     memory: { name: 'Memory', symbol: '◆' }
   };
 
-  const ORDER = ['prompts', 'styles', 'notes', 'memory'];
+  const ORDER = ['prompts', 'styles', 'notes', 'memory', 'tweaks'];
   const STYLE_GROUP_ORDER = ['length', 'language', 'format', 'approach'];
 
   // Footer hints per tab (styles differ between chat sites, where ticks apply on Enter, and our pages, where they're live)
   function footerText(tab, liveStyles, tabs) {
     const nav = tabs > 1 ? '←→ tabs · ' : '';
-    if (tab !== 'styles') return `${nav}↑↓ choose · Enter insert · Esc close`;
+    if (!['styles', 'tweaks'].includes(tab)) return `${nav}↑↓ choose · Enter insert · Esc close`;
     return liveStyles ? `${nav}↑↓ choose · Space or Enter tick · Esc close` : `${nav}↑↓ choose · Space tick · Enter apply · Esc close`;
   }
   const FOOTER = footerText('prompts', false, 4);
@@ -63,7 +64,7 @@
 .wmp-foot span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wmp-done { color: var(--k-styles); background: none; border: 0; font-weight: 600; cursor: pointer; font-size: 12px; }
 .k-prompts { --k: var(--k-prompts); } .k-styles { --k: var(--k-styles); }
-.k-notes { --k: var(--k-notes); } .k-memory { --k: var(--k-memory); }
+.k-tweaks { --k: var(--k-notes); } .k-notes { --k: var(--k-notes); } .k-memory { --k: var(--k-memory); }
 `;
 
   // "…text ;;que" → { start, query }. The trigger must start a word; the query has no spaces.
@@ -173,29 +174,29 @@
         listEl.appendChild(h('div', 'wmp-empty', items.length ? 'No matches here. Try another tab.' : 'Nothing here yet. Add some in Library.'));
         return;
       }
-      const ruleGroups = (global.StylesRegistry && global.StylesRegistry.GROUPS) || {};
+      const ruleGroups = o.ruleGroups || (global.StylesRegistry && global.StylesRegistry.GROUPS) || {};
       let section = null;
       shown.forEach((item, i) => {
-        if (item.group === 'styles' && item.styleGroup !== section) {
+        if (['styles', 'tweaks'].includes(item.group) && item.styleGroup !== section) {
           section = item.styleGroup;
           const g = ruleGroups[section];
           const head = h('div', 'wmp-head', g ? g.name : section);
-          if (g && g.oneOf) head.appendChild(h('span', 'wmp-rule', '· pick one'));
+          if (g && (g.oneOf || item.group === 'tweaks')) head.appendChild(h('span', 'wmp-rule', g.oneOf ? '· pick one' : '· combine freely'));
           listEl.appendChild(head);
         }
-        const row = h('div', `wmp-row k-${item.group}` + (i === index ? ' sel' : '') + (item.group === 'styles' && ticks.includes(item.id) ? ' ticked' : ''));
-        if (item.group === 'styles') row.appendChild(h('span', 'wmp-tick', '✓'));
+        const row = h('div', `wmp-row k-${item.group}` + (i === index ? ' sel' : '') + (['styles', 'tweaks'].includes(item.group) && ticks.includes(item.id) ? ' ticked' : ''));
+        if (['styles', 'tweaks'].includes(item.group)) row.appendChild(h('span', 'wmp-tick', '✓'));
         row.appendChild(h('span', 'wmp-title', item.title));
         row.appendChild(h('span', 'wmp-prev', item.preview || ''));
         if (item.size) row.appendChild(h('span', 'wmp-size', item.size));
-        if (o.onEdit && item.group !== 'memory') {
+        if (o.onEdit && !['memory', 'tweaks'].includes(item.group)) {
           const edit = h('button', 'wmp-edit', '✎');
           edit.type = 'button';
           edit.title = 'Edit in Library';
           edit.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); o.onEdit(item); });
           row.appendChild(edit);
         }
-        row.title = item.group === 'styles' ? item.preview : '';
+        row.title = ['styles', 'tweaks'].includes(item.group) ? item.preview : '';
         row.addEventListener('mousedown', (e) => { e.preventDefault(); index = i; choose(false); });
         row.addEventListener('mouseenter', () => { if (index !== i) { index = i; markSelected(); } });
         listEl.appendChild(row);
@@ -220,7 +221,7 @@
     function choose(byKey) {
       const item = shown[index];
       if (!item) return;
-      if (item.group !== 'styles') { o.onInsert(item); return; }
+      if (!['styles', 'tweaks'].includes(item.group)) { o.onInsert(item); return; }
       if (!byKey || o.liveStyles) { toggleTick(item.id); return; }
       if (ticks.join(',') === appliedTicks && !ticks.includes(item.id)) ticks = normalize(ticks.concat(item.id));
       o.onApplyStyles(ticks.slice());
@@ -263,7 +264,7 @@
           case 'Enter': if (e.shiftKey || e.isComposing) return false; choose(true); return true;
           case 'Escape': o.onClose(); return true;
           case ' ':
-            if (shown[index] && shown[index].group === 'styles') { toggleTick(shown[index].id); return true; }
+            if (shown[index] && ['styles', 'tweaks'].includes(shown[index].group)) { toggleTick(shown[index].id); return true; }
             return false;
           default: return false;
         }

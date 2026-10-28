@@ -1,12 +1,11 @@
 // Workspace Manager - Notes page
 // The user's own notes: list with search, an editor that saves as you type, versions and undo. The AI edits a note
-// only when asked (Tidy / Rephrase / Structure / own words, for the selection or the whole note); its answer is shown
+// only when asked (picked tweaks + own words, for the selection or the whole note); its answer is shown
 // as a diff to apply or discard. "Start a project" hands the note to Projects as a new project's goal.
 
 (() => {
   const chromeAPI = typeof chrome !== 'undefined' ? chrome : (typeof browser !== 'undefined' ? browser : null);
   const AI_NAMES = { chatgpt: 'ChatGPT', gemini: 'Gemini' };
-  const ACTION_NAMES = { tidy: 'Tidy', rephrase: 'Rephrase', structure: 'Structure' };
   const SAVE_DELAY_MS = 600;
 
   function call(action, payload = {}) {
@@ -177,11 +176,11 @@
 
       async function ask(instruction) {
         if (!current) return;
-        if (!String(instruction || '').trim()) return;
+        if (!instruction.tweaks.length && !instruction.text.trim()) return;
         await flush();
         const res = await call('wf_noteEdit', { noteId: current.id, instruction, part: selection });
         if (res.status !== 'success') setStatus(res.error, 'error');
-        else $('note-ai-custom').value = '';
+        else { $('note-ai-custom').value = ''; updateAsk(); }
       }
 
       function renderProposal() {
@@ -189,7 +188,7 @@
         const edit = current && current.edit;
         box.hidden = !edit;
         if (!edit) return;
-        const what = ACTION_NAMES[edit.instruction] || `"${edit.instruction}"`;
+        const what = WorkflowPrompts.noteEditLabel(edit.instruction);
         const scope = edit.part ? 'the selected part' : 'the whole note';
         const ai = AI_NAMES[edit.ai] || 'The AI';
         const head = $('note-proposal-head');
@@ -300,7 +299,7 @@
       textEl.addEventListener('blur', (e) => {
         flush();
         // Keep the textarea selection while the user asks the AI what to do with it.
-        if (!e.relatedTarget?.closest('.note-ai, #btn-note-edit')) setEditing(false);
+        if (!e.relatedTarget?.closest('.note-ai, .tweak-tray, #btn-note-edit')) setEditing(false);
       });
       titleEl.addEventListener('input', () => {
         clearTimeout(titleTimer);
@@ -315,8 +314,20 @@
         await reload();
         await open(res.note.id, { focus: true });
       });
-      container.querySelectorAll('[data-ai]').forEach(b => b.addEventListener('click', () => ask(b.dataset.ai)));
-      $('note-ai-form').addEventListener('submit', (e) => { e.preventDefault(); ask($('note-ai-custom').value); });
+      let tweakIds = [];
+      function updateAsk() {
+        $('btn-note-ask').disabled = !tweakIds.length && !$('note-ai-custom').value.trim();
+      }
+      $('note-tweak-slot').appendChild(PickerTray.tweakControl({ trayBefore: container.querySelector('.note-ai') }));
+      PickerTray.choice('tweaks').then(ids => { tweakIds = ids; updateAsk(); });
+      document.addEventListener('wmStyleChoice', (e) => {
+        if (e.detail.place === 'tweaks') { tweakIds = e.detail.ids; updateAsk(); }
+      });
+      $('note-ai-custom').addEventListener('input', updateAsk);
+      $('note-ai-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        ask({ tweaks: tweakIds.slice(), text: $('note-ai-custom').value });
+      });
       $('btn-note-apply').addEventListener('click', apply);
       $('btn-note-discard').addEventListener('click', () => current && call('wf_noteDiscardEdit', { noteId: current.id }));
       $('btn-note-undo').addEventListener('click', async () => {

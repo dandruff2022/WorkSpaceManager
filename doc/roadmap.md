@@ -220,6 +220,9 @@ Replaces the old Phase 3–4 below, which stay on hold.
           notes in the `;;` picker; Node tests, screenshots
     - [x] Notes Markdown read/edit view and clickable checklists; project-switch race / stale picker fixes,
           duplicate Plan guard and clear Plan outcomes (Node + headless checks; real switch/checklist save verified)
+    - [x] Notes Tweak control reuses Answer's tray/chips; combined Edit tweaks, one Language, own words,
+          remembered `tweakChoice`; Node/headless checks, light/dark 380px screenshots and ChatGPT apply verified
+    - [ ] Later: edit tweaks in Library
     - [ ] Live test (AI edit on ChatGPT/Gemini, right-click save, `;;` insert on a site)
     - [ ] Later: answer buttons next to the site's copy button (not done: needs per-site selectors and live tuning;
           right-click covers saving for now)
