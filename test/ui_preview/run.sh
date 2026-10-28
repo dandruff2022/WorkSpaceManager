@@ -16,10 +16,10 @@ panel() { # name height hash scheme
   echo "<body style=\"margin:0;background:#888\"><iframe src=\"_preview.html?mode=window$3\" width=380 height=$2 style=\"border:0\"></iframe>" > ui/_frame.html
   shot "$1" 600 "$2" _frame.html "$4"
 }
-shot new-light 850 1100 "_preview.html?mode=window#new" light
+shot new-light 900 1100 "_preview.html?mode=window#new" light
 shot running-light 850 1300 "_preview.html?mode=window" light
 shot combine-light 850 1300 "_preview.html?mode=window#combine" light
-shot combined-dark 850 1300 "_preview.html?mode=window#combined" dark
+shot combined-dark 900 1300 "_preview.html?mode=window#combined" dark
 shot empty-light 850 600 "_preview.html?mode=window#empty" light
 panel new-panel 1300 "#new" light
 panel combined-panel-dark 1500 "#combined" dark
@@ -42,5 +42,11 @@ panel notes-view-panel-dark 1200 "#notes-view" dark
 shot notes-tweak-light 850 1000 "_preview.html?mode=window#notes-tweak" light
 panel notes-tweak-panel 1400 "#notes-tweak" light
 panel notes-tweak-panel-dark 1400 "#notes-tweak" dark
+for state in answer-plan answer-combine combined-mem continue; do
+  for scheme in light dark; do
+    panel "$state-panel-$scheme" 900 "#$state" "$scheme"
+    shot "$state-window-$scheme" 900 1000 "_preview.html?mode=window#$state" "$scheme"
+  done
+done
 rm -f ui/_preview.html ui/_frame.html
 ls "$OUT"

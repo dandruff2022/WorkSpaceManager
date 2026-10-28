@@ -132,6 +132,7 @@
                 <span class="fold-arrow">▸</span> Memory <span id="proj-mem-version" class="muted small"></span>
                 <span id="proj-mem-new" class="status-chip status-working" hidden>new changes</span>
               </button>
+              <p class="muted small memory-explainer">What every AI gets told about this project.</p>
               <div id="proj-mem-body" class="fold-body" hidden>
                 <div id="proj-mem-changes" class="mem-changes" hidden></div>
                 <div id="proj-mem-view" class="md-view mem-view"></div>
@@ -142,7 +143,7 @@
                     <button id="btn-proj-mem-edit" class="btn-link">Edit</button>
                     <button id="btn-proj-history" class="btn-link">Versions</button>
                     <button id="btn-proj-undo" class="btn-link">Undo last update</button>
-                    <button id="btn-proj-tidy" class="btn-link" title="A temporary chat rewrites the memory from the task results">Ask AI to tidy</button>
+                    <button id="btn-proj-tidy" class="btn-link" title="Ask AI to tidy the memory from the task results">Ask AI to tidy</button>
                     <button id="btn-proj-mem-cancel" class="btn-link" hidden>Cancel</button>
                     <button id="btn-proj-mem-save" class="btn btn-small" hidden>Save as new version</button>
                   </div>
@@ -163,8 +164,9 @@
           </div>
 
           <dialog id="proj-archive" class="archive-dialog">
-            <div class="card-header"><h2 id="proj-archive-title">Full answer</h2><span class="archive-actions"><span id="proj-archive-status" class="status-line"></span><button id="btn-proj-archive-note" class="btn btn-small">Save to Notes</button><button id="btn-proj-archive-close" class="btn btn-small">Close</button></span></div>
-            <pre id="proj-archive-text"></pre>
+            <div class="card-header"><h2 id="proj-archive-title">Full answer</h2><span class="archive-actions"><button id="btn-proj-archive-copy" class="btn btn-small">Copy</button><button id="btn-proj-archive-close" class="btn btn-small">Close</button></span></div>
+            <button id="btn-proj-archive-original" class="btn-link">Show original</button>
+            <div id="proj-archive-text" class="md-view"></div>
           </dialog>
         </div>
       </section>
@@ -189,7 +191,7 @@
           <div class="card prompts-editor-card note-editor">
             <div id="note-empty" class="empty-state">
               <p>No note open.</p>
-              <p class="muted">Write down ideas, links or bits of answers you want to keep. Select text on any page and right-click → <em>Save to Notes</em>, or use "Save to Notes" on an answer in Projects.</p>
+              <p class="muted">Your own ideas, links and notes. Select text on any page and right-click → <em>Save to Notes</em>.</p>
             </div>
             <div id="note-body" class="form" hidden>
               <input type="text" id="note-title" class="text-input note-title" placeholder="Title (optional)" aria-label="Title">

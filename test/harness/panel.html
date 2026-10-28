@@ -1,0 +1,10 @@
+<!doctype html>
+<!-- The real manager page (ui/_demo.html) at side-panel width, for live UI walkthroughs. Build _demo.html first. -->
+<meta charset="utf-8">
+<title>WM panel</title>
+<style>
+  body { margin: 0; background: #888; }
+  iframe { width: 380px; height: 100vh; border: 0; display: block; background: #fff; }
+</style>
+<iframe></iframe>
+<script>document.querySelector('iframe').src = '../../ui/_demo.html?mode=panel&t=' + Date.now() + location.hash;</script>

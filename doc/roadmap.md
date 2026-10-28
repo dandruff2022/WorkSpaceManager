@@ -204,6 +204,7 @@ Replaces the old Phase 3–4 below, which stay on hold.
       ([`doc/plan/phase_3.1_flow_plan.md`](plan/phase_3.1_flow_plan.md))
 - [x] Plan and tasks in temporary chats by default (setting)
 - [x] Agent docs: `AGENTS.md` (+ `CLAUDE.md`), `test/README.md`
+- [x] UX pass round 1: rendered answers + original/copy, readable memory changes, simpler wording/actions, tidy 380px/window layouts ([plan](plan/ux_pass_plan.md))
 - [ ] User tries the step line by hand
 - [ ] Phase 3.2 Library ([`doc/plan/phase_3.2_library_plan.md`](plan/phase_3.2_library_plan.md))
   - [ ] Step A: Styles (answer styles) + one `;;` picker everywhere (site overlay, inline tray in the panel),

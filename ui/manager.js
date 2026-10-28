@@ -28,6 +28,8 @@ function setupNavigation() {
       const targetView = document.getElementById(`view-${targetId}`);
       if (targetView) {
         targetView.classList.add('active');
+        document.querySelector('.content-area').scrollTop = 0;
+        window.scrollTo(0, 0);
       }
     });
   });

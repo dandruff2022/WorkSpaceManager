@@ -45,7 +45,7 @@
   }
 
   // Returns a DocumentFragment
-  function render(md, { onToggle } = {}) {
+  function render(md, { onToggle, hideBasis = false } = {}) {
     const frag = document.createDocumentFragment();
     const lines = String(md || '').replace(/\r\n?/g, '\n').split('\n');
     let para = null;
@@ -53,7 +53,9 @@
     const endBlocks = () => { para = null; list = null; };
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+      let line = lines[i];
+      let basis = '';
+      if (hideBasis) line = line.replace(/\s*[〔(]AI\s*·\s*basis:\s*([^〕)\n]*)[〕)]/gi, (_, text) => { basis = text.trim(); return ''; });
       const fence = line.match(/^\s*(`{3,}|~{3,})/);
       if (fence) {
         endBlocks();
@@ -98,6 +100,7 @@
           li.appendChild(box);
           li.appendChild(inline(el('span', 'md-task-text'), task[2]));
         } else inline(li, item[3]);
+        if (basis) li.title = basis;
         target.appendChild(li);
         continue;
       }
@@ -105,6 +108,7 @@
       if (para) para.appendChild(document.createTextNode(' '));
       else para = frag.appendChild(el('p', 'md-p'));
       inline(para, line.trim());
+      if (basis) para.title = [para.title, basis].filter(Boolean).join('; ');
     }
     return frag;
   }

@@ -6,11 +6,15 @@
   const local = { preferredMode: 'panel' };
   const noop = { addListener() {} };
 
+  // Inside panel.html's 380px frame, talk through the outer page, where content.js runs
+  const relayWin = window.top !== window ? window.top : window;
+  const relayDoc = relayWin.document;
+
   function relay(action, payload) {
     return new Promise((resolve) => {
       const id = Math.random().toString(36).slice(2);
-      document.addEventListener('agyTestResponse_' + id, (e) => resolve(JSON.parse(e.detail)), { once: true });
-      document.dispatchEvent(new CustomEvent('agyTestRequest', { detail: JSON.stringify({ id, action, payload }) }));
+      relayDoc.addEventListener('agyTestResponse_' + id, (e) => resolve(JSON.parse(e.detail)), { once: true });
+      relayDoc.dispatchEvent(new relayWin.CustomEvent('agyTestRequest', { detail: JSON.stringify({ id, action, payload }) }));
     });
   }
 

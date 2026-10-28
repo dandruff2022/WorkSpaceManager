@@ -225,6 +225,14 @@
     return line.length > max ? line.slice(0, max - 1) + '…' : line;
   }
 
+  function progressResult(task) {
+    const normalize = text => text.replace(/[#*]/g, '').replace(/^\s*Title:\s*/i, '').trim().toLowerCase();
+    const title = normalize(task.title || '');
+    const candidates = readableAnswer('task', task.result || '').split('\n')
+      .map(line => line.trim()).filter(line => line && !/^\s*[#*]*\s*Title:/i.test(line) && normalize(line) !== title).slice(0, 3);
+    return oneLine(candidates.find(line => /\d/.test(line)) || candidates[0] || '');
+  }
+
   function buildProgress(project) {
     if (!project) return '';
     const tasks = project.tasks || [];
@@ -238,7 +246,7 @@
       lines.push(`- Plan: ${tasks.length} task${tasks.length === 1 ? '' : 's'}, ${done} done.`);
       for (const t of tasks) {
         const ai = AI_NAMES[t.ai] ? ` (${AI_NAMES[t.ai]})` : '';
-        if (t.status === 'done') lines.push(`- Done: ${t.title}${ai}: ${oneLine(t.result) || 'no result text'}`);
+        if (t.status === 'done') lines.push(`- Done: ${t.title}${ai}: ${progressResult(t) || 'no result text'}`);
         else if (t.status === 'running') lines.push(`- Running: ${t.title}${ai}`);
         else if (t.status === 'needs-you') lines.push(`- Needs a look: ${t.title}${ai}`);
         else lines.push(`- To do: ${t.title}`);
@@ -577,6 +585,21 @@
     return tasks;
   }
 
+  // Presentation only: archives keep the exact answer for copying and inspection.
+  function readableAnswer(kind, text) {
+    text = String(text || '');
+    const unfenced = value => value.replace(/^\s*(?:`{3,}|~{3,})[^\n]*$/gm, '').trim();
+    if (kind === 'split') {
+      const tasks = parseTasks(text);
+      if (!tasks) return unfenced(text);
+      const before = text.split(/^\s*(?:`{3,}|~{3,})/m)[0].trim();
+      return [before, ...tasks.map(t => `**${t.title}**\n\n${t.task}`)].filter(Boolean).join('\n\n');
+    }
+    if (kind === 'task') return unfenced(text);
+    if (kind === 'mem-update') return unfenced(text).replace(/\s*[〔(]AI\s*·\s*basis:[^〕)\n]*[〕)]/gi, '');
+    return text;
+  }
+
   // Parse memory update answer, validating required sections.
   // options.labelledOnly: only a block labelled mem counts (the plan answer, whose last block is the tasks block)
   function parseMemoryAnswer(text, options) {
@@ -625,7 +648,7 @@
       return raw
         .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
         .split('\n')
-        .map(line => line.replace(/\s+$/, ''))
+        .map(line => line.trim().replace(/^[-*]\s+/, '').trim())
         .filter(line => line.trim().length > 0);
     }
 
@@ -722,6 +745,7 @@
     buildNoteEdit,
     parseNoteAnswer,
     parseBlock,
+    readableAnswer,
     parseTasks,
     parseMemoryAnswer,
     diffMemory,

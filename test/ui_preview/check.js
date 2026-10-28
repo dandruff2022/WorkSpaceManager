@@ -1,5 +1,6 @@
 // Real UI against the preview's fake store. Run via check.sh; never contacts the extension or an AI site.
 window.addEventListener('load', async () => {
+  if (location.hash !== '#checks') return;
   const results = [];
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
   const $ = selector => document.querySelector(selector);
@@ -26,6 +27,17 @@ window.addEventListener('load', async () => {
     const split = await store.addStep(second, { kind: 'split', ai: 'chatgpt', status: 'done', message: 'x' });
     await update(second);
     check($('.flow-open .flow-name').textContent === 'Run tasks' && $('#proj-flow').textContent.includes('Run the task'), 'Plan success opens Run tasks even with an Answer picker open');
+    const details = $('#proj-flow .task-card > details');
+    details.open = true;
+    const message = details.querySelector('details');
+    message.open = true;
+    await wait(50);
+    const editor = message.querySelector('textarea');
+    editor.focus();
+    editor.value = 'My edited task message';
+    editor.dispatchEvent(new Event('input'));
+    await wait(50);
+    check($('#proj-flow .task-card > details').open && $('#proj-flow textarea').value === 'My edited task message', 'Task message edits keep Task details open across re-renders');
     // Switch away while an old project's picker is open.
     [...document.querySelectorAll('.flow-head')].find(b => b.textContent.includes('Plan')).click();
     $('#proj-flow .answer-btn').click();
@@ -43,7 +55,53 @@ window.addEventListener('load', async () => {
       const flow = $('#proj-flow').textContent;
       check($('.flow-open .flow-name').textContent === 'Plan' && flow.includes('Planning did not finish') && flow.includes('Full answer') && flow.includes('Try again') && flow.includes('Skip'), status + ' offers reason, answer, retry and skip');
     }
+    // Stored answers are readable by default, with an exact original still available.
+    [...document.querySelectorAll('#proj-steps .step-links button')].find(b => b.textContent === 'Full answer').click();
+    await wait(100);
+    check($('#proj-archive').open && $('#proj-archive-text strong').textContent === 'Check Saturday weather', 'Plan answer renders task titles');
+    check(!$('#proj-archive-text').textContent.includes('Needs:') && !$('#proj-archive-text').textContent.includes('```'), 'Plan hides workflow fields and fences');
+    $('#btn-proj-archive-original').click();
+    check($('#proj-archive-text pre').textContent.includes('```tasks'), 'Show original preserves the full archive');
+    $('#btn-proj-archive-original').click();
+    check(!$('#proj-archive-text pre') && $('#btn-proj-archive-copy'), 'Rendered view and Copy are available');
+    const clipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    let copied = '';
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { copied = text; } } });
+    $('#btn-proj-archive-copy').click();
+    await wait(20);
+    check(copied.includes('```tasks') && copied.includes('Needs: Goal'), 'Copy uses the original stored answer');
+    if (clipboard) Object.defineProperty(navigator, 'clipboard', clipboard);
+    else delete navigator.clipboard;
+    check(!$('#btn-proj-archive-note'), 'Answers are not saved to Notes');
+    $('#btn-proj-archive-close').click();
+    const base = (await store.get(second)).memory[0].text;
+    await store.addMemoryVersion(second, base.replace('Different goal', '- Different goal').replace('## Decisions\n(none)', '## Decisions\n- Indoors only 〔AI · basis: forecast〕'), 'ChatGPT', 'AI update');
+    await store.setTasks(second, [{ title: 'Ready', task: 'x', needs: ['Goal'], ret: 'x', ai: 'chatgpt' }]);
+    const ready = (await store.get(second)).tasks[0];
+    await store.updateTask(second, ready.id, { status: 'done', result: '2 options' });
+    const combine = await store.addStep(second, { kind: 'combine', ai: 'chatgpt', status: 'done', archiveId: 'a4', message: 'x' });
+    const chore = await store.addStep(second, { kind: 'mem-update', ai: 'gemini', status: 'waiting', parentId: combine.id, temporary: true, tabId: 7, message: 'x' });
+    await update(second);
+    check($('.chore-line').textContent === 'Updating the project memory…' && !$('.chore-line .status-chip') && !$('.chore-line button'), 'Combine hides memory-update machinery while running');
+    await store.updateStep(second, chore.id, { status: 'done' });
+    await update(second);
+    check($('.flow-open .flow-name').textContent === 'Continue', 'Memory update completion opens Continue');
+    const buttons = [...document.querySelectorAll('.flow-open .flow-buttons .btn')];
+    check(buttons[0].textContent === 'Continue in Gemini' && buttons[1].textContent === 'Continue in ChatGPT' && buttons[1].classList.contains('btn-primary'), 'Continue has secondary first and primary last on its own action row');
+    $('#btn-proj-mem-toggle').click();
+    check($('#proj-mem-changes').textContent.includes('What changed') && $('#proj-mem-changes .diff-new').textContent === 'New', 'Memory changes have a readable New marker');
+    check(!$('#proj-mem-changes').textContent.includes('Different goal'), 'Bullet-only Goal change is not shown');
+    check(!$('#proj-mem-view').textContent.includes('basis:') && $('#proj-mem-view [title="forecast"]'), 'Memory basis is hidden in a tooltip');
+    check(!/^v\d/.test($('#proj-mem-version').textContent), 'Memory header omits the version number');
+    [...document.querySelectorAll('#proj-steps .step-row')].find(row => row.textContent.includes('Combine')).querySelectorAll('button')[0].click();
+    await wait(100);
+    check($('#proj-archive-text .md-h') && $('#proj-archive-text ol'), 'Combine answer renders headings and numbered lists');
+    const rect = $('#proj-archive').getBoundingClientRect();
+    check(rect.top >= 0 && rect.bottom <= innerHeight && rect.left >= 0 && rect.right <= innerWidth, 'Answer dialog fits the viewport');
+    $('#btn-proj-archive-close').click();
+    document.querySelector('.content-area').scrollTop = 400;
     $('.nav-item[data-target="notes"]').click();
+    check(document.querySelector('.content-area').scrollTop === 0, 'Navigation resets scroll');
     check(!$('#note-view').hidden && $('#note-text').hidden, 'existing note opens in read view');
     $('#note-view').click();
     check(!$('#note-text').hidden && document.activeElement === $('#note-text') && $('#note-text').selectionStart === $('#note-text').value.length, 'read click opens editor focused at end');
@@ -102,6 +160,39 @@ window.addEventListener('load', async () => {
     $('#note-ai-custom').value = 'Keep my tone';
     $('#note-ai-custom').dispatchEvent(new Event('input'));
     check(!$('#btn-note-ask').disabled, 'Own words alone enables Ask');
+    // Exercise actual panel and window layouts, including a long scrollable answer.
+    for (const width of [380, 900]) {
+      for (const state of ['new', 'answer-plan', 'answer-combine', 'combined-mem', 'continue', 'running']) {
+        const frame = document.createElement('iframe');
+        frame.style.cssText = `position:fixed;left:0;top:0;width:${width}px;height:850px;border:0`;
+        frame.src = location.pathname + '?mode=window#' + state;
+        const loaded = new Promise(resolve => frame.onload = resolve);
+        document.body.appendChild(frame);
+        await loaded;
+        await wait(600);
+        const doc = frame.contentDocument;
+        const content = doc.querySelector('.content-area');
+        check(doc.documentElement.scrollWidth <= width && content.scrollWidth <= content.clientWidth, `${state} has no horizontal overflow at ${width}px`);
+        if (state.startsWith('answer-')) {
+          const dialog = doc.querySelector('#proj-archive');
+          const rect = dialog.getBoundingClientRect();
+          const body = doc.querySelector('#proj-archive-text');
+          check(dialog.open && rect.top >= 0 && rect.bottom <= 850 && rect.left >= 0 && rect.right <= width && body.scrollWidth <= body.clientWidth, `${state} dialog stays inside ${width}px viewport`);
+          if (state === 'answer-combine') check(body.scrollHeight > body.clientHeight, 'Long Combine answer scrolls inside its dialog');
+        }
+        if (state === 'running') {
+          const head = doc.querySelector('.task-head');
+          const status = head.querySelector('.status-chip').getBoundingClientRect();
+          const actions = head.querySelector('.task-actions').getBoundingClientRect();
+          check(actions.top < status.bottom && actions.bottom > status.top, `Task actions share the status row at ${width}px`);
+        }
+        if (state === 'continue') {
+          const buttons = [...doc.querySelectorAll('.continue-actions .flow-buttons .btn')].map(b => b.getBoundingClientRect());
+          check(buttons.length === 2 && buttons[0].top === buttons[1].top && buttons[0].height === buttons[1].height, `Continue buttons share a row and height at ${width}px`);
+        }
+        frame.remove();
+      }
+    }
     document.body.dataset.checks = 'passed';
   } catch (err) {
     document.body.dataset.checks = 'failed';

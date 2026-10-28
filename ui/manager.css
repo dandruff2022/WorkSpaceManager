@@ -730,7 +730,8 @@ body.mode-panel .prompts-layout { flex-direction: column; height: auto; }
 }
 .flow-body p { margin: 0; }
 .flow-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.flow-actions .spacer { flex: 1; }
+.flow-buttons { display: flex; flex: 1 1 100%; justify-content: flex-end; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.flow-buttons .btn { min-height: 34px; }
 .short-toggle { display: flex; gap: 6px; align-items: center; }
 .flow-past { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--border-color); padding-top: 6px; }
 .step-line { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
@@ -763,11 +764,13 @@ body.mode-panel .prompts-layout { flex-direction: column; height: auto; }
 .task-list, .step-list { display: flex; flex-direction: column; }
 .task-card { border-top: 1px solid var(--border-color); padding: 8px 0; display: flex; flex-direction: column; gap: 4px; }
 .task-card:first-child { border-top: none; }
-.task-head { display: flex; align-items: center; gap: 8px; }
+.task-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.task-head .task-title { flex-basis: 100%; }
+.task-head .task-actions { margin-left: auto; }
 .task-title { flex: 1; min-width: 0; font-size: 13px; }
 .task-card p { margin: 4px 0; }
 .task-actions { display: flex; justify-content: flex-end; gap: 12px; }
-.result-text, .archive-dialog pre {
+.archive-dialog pre {
   font-family: var(--font-mono);
   font-size: 12px;
   white-space: pre-wrap;
@@ -795,15 +798,31 @@ body.mode-panel .prompts-layout { flex-direction: column; height: auto; }
 .danger-link { color: var(--danger); }
 
 .archive-dialog {
-  width: min(760px, 92vw);
-  max-height: 85vh;
+  box-sizing: border-box;
+  width: min(760px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  margin: auto;
+  overflow: hidden;
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
   background: var(--bg-surface);
   color: var(--text-primary);
   padding: 14px;
 }
-.archive-dialog pre { max-height: 70vh; }
+.archive-dialog[open] { display: flex; flex-direction: column; gap: 10px; }
+.archive-dialog .card-header { flex-wrap: wrap; align-items: flex-start; gap: 8px; flex-shrink: 0; }
+.archive-dialog h2 { min-width: 0; font-size: 16px; margin: 0; overflow-wrap: anywhere; flex: 1 1 180px; }
+.archive-dialog .archive-actions { flex-wrap: wrap; margin-left: auto; }
+.archive-dialog > .btn-link { align-self: flex-start; flex-shrink: 0; }
+#proj-archive-text { min-height: 0; overflow: auto; }
+.archive-dialog pre { margin: 0; max-height: none; }
+.memory-explainer { margin: 4px 0 8px; }
+.memory-diff { font-family: inherit; font-size: 13px; overflow-wrap: anywhere; }
+.memory-diff .diff-add { color: var(--text-secondary); display: flex; align-items: baseline; gap: 6px; }
+.memory-diff .diff-del { color: var(--text-muted); }
+.memory-diff p { margin: 2px 0; }
+.diff-new { font-size: 10px; color: var(--ok); flex-shrink: 0; }
+.flow-chevron { color: var(--text-muted); flex-shrink: 0; }
 .archive-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 
 @media (max-width: 440px) {
@@ -1112,3 +1131,14 @@ body.state-detached-placeholder .app-container { display: none; }
 .tweak-control { --kind-styles: var(--kind-notes); }
 #note-tweak-slot { display: contents; }
 .tweak-tray .wmp-done { color: var(--k-notes); }
+
+/* Keep paired actions together even in a narrow side panel. */
+.continue-actions .flow-buttons { flex-wrap: nowrap; }
+.continue-actions .btn { flex: 0 1 auto; min-width: 0; white-space: normal; padding-inline: 10px; }
+.task-head .status-chip { min-width: 0; }
+.task-head .task-actions { gap: 6px; }
+.task-head .task-actions .btn-link { padding-inline: 0; }
+@media (max-width: 440px) {
+  #btn-proj-mem-toggle { flex-wrap: wrap; }
+  #proj-mem-version { order: 1; flex-basis: 100%; white-space: nowrap; }
+}

@@ -1,0 +1,92 @@
+# UX pass before v0.7 (round 1)
+
+Goal: a college student from any major understands the extension in 10 minutes. No raw internal text (fenced
+blocks, `+ -` diffs, `(AI · basis: …)` tags, "temporary chat", "chore") in front of the user unless they ask for it;
+fewer stray buttons; tidy alignment at 380px (side panel) and in the window.
+
+Found in a walkthrough on 2026-10-27 (localhost panel page, real extension, project "Intro Psychology midterm",
+Plan → 2 tasks → Combine → memory update). Screens referenced by the area they are in.
+
+## Fixes
+
+### 1. Answers are shown rendered, not as raw text (biggest)
+Today `showText()` (`ui/modules/projects.js` ~565) puts the answer in a monospace `<pre>`-like box, so a Plan answer
+shows the whole ```` ``` ```` block with `Title:/Task:/Needs:/Return:/===`, a task answer shows its ```` ```result ````
+fence, and the Combine "Final answer" shows `##` and `1.` as plain text. The task "Result" disclosure in Run tasks is
+the same.
+- Add `readableAnswer(kind, text)` (in `utils/workflow_prompts.js`, unit-tested) that turns a stored answer into
+  Markdown for people:
+  - `split`: the explanation before the block, then each task as `**Title**` + the Task text (drop Needs/Return
+    lines, drop `===`, drop the fence); if parsing fails, the text without fence lines.
+  - `task`: the text with the ```` ```result ```` / ```` ``` ```` fence lines removed (content kept).
+  - `mem-update`: the explanation (if any) and the memory without the fence; strip `(AI · basis: …)` tags.
+  - `combine`, `resume`, anything else: unchanged.
+  Also used for the task "Result" disclosure.
+- `showText()` renders with `MarkdownView.render(...)` in the normal UI font (same look as the memory read view).
+  Add a small "Copy" button in the dialog head (copies the original stored text) and a "Show original" link that
+  swaps to today's monospace raw view (for people who want it). "Message sent" (the Sent link) may stay raw.
+- The dialog must fit the 380px panel: head wraps cleanly, body scrolls, no part of it off screen (today the
+  dialog head/body cut at the top in the panel).
+
+### 2. Notes are the user's own, not an answer bin
+Remove the "Save to Notes" button from the answer dialog (projects.js `showText` + `#btn-proj-archive-note`,
+`#proj-archive-status` in `ui/manager.html`). The right-click "Save to Notes" on web pages stays (the user picks the
+text). Update the Notes page intro if it mentions answers. Keep "Start a project" from a note.
+
+### 3. Memory "What changed" reads like a change list, not a code diff
+`renderMemoryView` / the "new changes" box (projects.js ~590–620; CSS in `ui/manager.css`) shows `+ -` lines in
+monospace with red strike-through. Instead: normal font; per section heading, show added items with a small green
+"New" marker and removed items struck through in muted grey; no `+`/`-` characters; unchanged sections are
+skipped. Compare items with the leading `- ` bullet removed and whitespace trimmed, so "Goal: text" → "- text" is
+**not** shown as a change (today it is).
+- In the memory read view, hide `(AI · basis: …)` tags; put the basis text in the item's `title` (tooltip).
+- Header line: drop "v0/v1" (`$('proj-mem-version')`, ~602): "Written by you · 09:14" / "Updated by ChatGPT · 09:18".
+  Versions stay reachable through the "Versions" button.
+- One-line explanation under the Memory heading, muted: "What every AI gets told about this project."
+
+### 4. Hide internal chores and jargon
+- Combine card (~417): while the memory updates show one muted line "Updating the project memory…", no status
+  pill, no AI name, no "temporary chat", no Open chat. When done: "Memory updated" + link "See changes" that
+  opens the Memory section. Errors still show with their message.
+- Step lines and History (~405, ~686): drop "· temporary chat" / "· temporary" text. Rename the "Sent" link to
+  "Message". History entry "Memory update" → "Memory updated".
+- Task details (~335): "Uses memory: Goal, Current state" → "Gets from memory: Goal, Current state"; "Must return:"
+  → "Asked to return:".
+- Plan card text: "ChatGPT splits the work into up to 2 tasks that run in separate chats." →
+  "ChatGPT breaks the work into 1–2 parts. Each part runs in its own chat, then the answers are combined."
+- Run tasks: remove the separate "Message for “…” → ChatGPT" disclosures under the task list (~311); put that
+  message editor inside each task's "Task details" instead (same `messageBox(...)` key, so edits still work).
+  Replace "Each task goes to a new chat on its AI, with only the memory parts it needs." with
+  "Each part runs in a new chat. You can pick the AI for each."
+
+### 5. Small bugs seen
+- Describe line shows `"- Help me prepare…"` after a memory update: strip a leading `- ` / `* ` from the Goal line.
+- Project names: when the user leaves the name empty, the select shows the goal cut mid-word
+  ("Help me prepare for my Intro"). Use the first sentence of the goal, cut at a word boundary to ≤ 32 chars with
+  "…". (Only for new projects; don't rename existing ones.)
+- Progress lines repeat the task title ("Done: 5-Day … Study Plan (ChatGPT): Title: 5-Day … Study Plan"). In
+  `buildProgress`, skip result lines that start with `Title:` or equal the task title (case-insensitive, ignoring
+  `#`, `*`, `Title:`), take the next non-empty line; prefer a line containing a digit among the first 3 candidates.
+  Add unit tests.
+- Switching pages (top nav) keeps the old scroll position, so Notes/Library open in the middle. Scroll the page to
+  the top on every nav switch.
+- Done steps can be clicked to reopen them, but nothing shows that. Add a small chevron (▸ closed, ▾ open) at the
+  end of the step's title row for steps that can open.
+
+### 6. Alignment (380px and window)
+One rule for every step card's action area: the Answer control (button + chips) on its own row at the left; then a
+row aligned right with secondary buttons first and the primary button last, same height, wrapping together.
+Apply to Plan ("Skip — do it in one chat" + "Plan with ChatGPT"), Run tasks ("Run 2 tasks"), Combine, Continue
+("Continue in Gemini" secondary + "Continue in ChatGPT" primary on one row). Task rows: put "Run again" and
+"Remove" on the same row as the task's "Sent … Full answer" line or at the right of the status row — no row that
+holds only a lone red "Remove". Check light and dark, 380px and 900px.
+
+## Out of scope this round
+Dropping "Current state" from memory (prompt change; next round), ChatGPT UI junk in copied answers, README/GIF.
+
+## Done when
+- Node tests pass (`notes_store`, `library`, `workflow_prompts`, `project_store`, `workflow_engine`), new tests for
+  `readableAnswer` and the Progress line choice.
+- `sh test/ui_preview/run.sh` and `sh test/ui_preview/check.sh` pass; preview states updated so the answer dialog
+  (rendered) and memory changes are covered; screenshots looked at in the panel width, light and dark.
+- Log entry in `doc/log/` and roadmap line.

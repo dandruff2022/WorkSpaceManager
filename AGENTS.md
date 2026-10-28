@@ -49,7 +49,7 @@ ui/
   modules/notes.js       Notes page (list, autosave editor, Ask AI → diff → apply, versions)
   modules/library_page.js, skills.js   Library page (tabs; Styles tab in library_page.js, Prompts tab in skills.js)
   modules/picker_tray.js the picker as an inline tray in our boxes + the `≡ Answer` button and style chips
-  modules/markdown_view.js  small DOM-building Markdown renderer (memory read view)
+  modules/markdown_view.js  small DOM-building Markdown renderer (memory, answers and notes read views)
 presets/*.json           site profile presets (selectors); background.js seeds the same defaults
 test/                    see test/README.md
 doc/                     plans, roadmap, logs, experiments (below)
@@ -84,7 +84,7 @@ stored, and added when the memory is shown, inserted with `;;` or used by Contin
 | What | How |
 |---|---|
 | Unit tests | `node test/workflow_prompts.test.js`, `node test/project_store.test.js`, `node test/library.test.js`, `node test/notes_store.test.js`, `node test/workflow_engine.test.js` |
-| Screenshots of the Projects UI with fake data | `sh test/ui_preview/run.sh` → `/tmp/wm_preview/*.png` (states: `#new`, default, `#combine`, `#combined`, `#empty`, `#library`, `#library-styles`, `#send-answer`, `#notes`, `#notes-proposal`, `#notes-tweak`; light/dark; 380px panel) |
+| Screenshots of the Projects UI with fake data | `sh test/ui_preview/run.sh` → `/tmp/wm_preview/*.png` (states: `#new`, default, `#combine`, `#combined`, `#empty`, `#library`, `#library-styles`, `#send-answer`, `#notes`, `#notes-proposal`, `#notes-tweak`, `#answer-plan`, `#answer-combine`, `#combined-mem`, `#continue`; light/dark; 380px panel) |
 | Real UI against the real extension | see "Live runs" in `test/README.md` (localhost + dev harness) |
 
 Live-run gotchas (all learned the hard way):

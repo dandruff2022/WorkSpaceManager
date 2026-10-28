@@ -20,7 +20,9 @@
       await store.setCurrentId(p.projectId);
       return {};
     },
-    wf_getArchive: async () => ({ text: 'Full answer text…' }),
+    wf_getArchive: async (p) => ({ text: p.archiveId === 'a1'
+      ? 'Two parts make a rainy Saturday easier to plan.\n\n```tasks\nTitle: Check Saturday weather\nTask: Find the forecast for Saturday in Chicago.\nNeeds: Goal\nReturn: Forecast, source link\n===\nTitle: Find activities\nTask: Find 3 indoor options under $80, reachable without a car.\nNeeds: Goal, Preferences\nReturn: Prices and links\n```'
+      : '## Your Saturday in Chicago\n\n1. **10 am–1 pm:** Art Institute ($32).\n2. **2–5 pm:** Field Museum ($30).\n3. Take the train home by 8 pm.\n\nBring a raincoat. [Train times](https://example.com/trains)\n\n' + 'A relaxed indoor day leaves time for lunch and travel.\n\n'.repeat(30) }),
     wf_setOptions: async (p) => ({ project: await store.setOptions(p.projectId, p.patch) }),
     wf_notesList: async () => ({ notes: await notes().list() }),
     wf_noteSaveText: async (p) => ({ note: await notes().saveText(p.noteId, p.text) })
@@ -89,8 +91,16 @@
   window.__seed = (async () => {
     const hash = location.hash.slice(1);
     // "#running-mem", "#combined-mem": that state with the Memory card open
-    const state = hash.replace(/-mem$/, '');
-    if (hash.endsWith('-mem')) window.addEventListener('load', () => setTimeout(() => click('#btn-proj-mem-toggle'), 400));
+    const state = hash.startsWith('answer-') || hash === 'continue' ? 'combined' : hash.replace(/-mem$/, '');
+    if (hash.startsWith('answer-')) window.addEventListener('load', () => setTimeout(() => {
+      const kind = hash === 'answer-plan' ? 'Plan' : 'Combine';
+      const row = [...document.querySelectorAll('#proj-steps .step-row')].find(row => row.querySelector('.step-what').textContent.startsWith(kind));
+      row.querySelectorAll('button')[1].click();
+    }, 400));
+    if (hash.endsWith('-mem')) window.addEventListener('load', () => setTimeout(() => {
+      click('#btn-proj-mem-toggle');
+      document.querySelector('#btn-proj-mem-toggle').parentElement.scrollIntoView({ block: 'start' });
+    }, 400));
     if (state === 'empty') return;
     if (state === 'checks') {
       seedNotes(false);
@@ -127,7 +137,7 @@
     await store.updateTask(p.id, pr.tasks[1].id, { status: 'done', result: 'Art Institute $32 indoor; Field Museum $30 indoor' });
     if (state !== 'combined') return;
     const c = await store.addStep(p.id, { kind: 'combine', ai: 'chatgpt', message: 'x', status: 'done', archiveId: 'a4', url: 'https://chatgpt.com/c/2', tabId: 9 });
-    const v1 = v0.replace('## Decisions\n(none)', '## Decisions\n- Indoor activities only 〔AI · basis: weather task〕')
+    const v1 = v0.replace('## Goal\nPlan', '## Goal\n- Plan').replace('## Decisions\n(none)', '## Decisions\n- Indoor activities only 〔AI · basis: weather task〕')
       .replace('## Open questions\n(none)', '## Open questions\nWhich museum, or both?')
       .replace('Just started.', 'Day plan written: Art Institute 10–1, Field Museum 2–5, train home by 8.');
     await store.addMemoryVersion(p.id, v1, 'Gemini', 'AI update');

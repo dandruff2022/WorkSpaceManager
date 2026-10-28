@@ -414,6 +414,33 @@ test('18. Plan may carry a mem block; only a labelled one counts', () => {
   assert(P.buildMemUpdate('m', []).includes(P.TEXT.memStyle));
 });
 
+test('19. Readable answers hide workflow syntax without changing archives', () => {
+  const P = WorkflowPrompts;
+  const split = 'Two useful parts.\n\n```tasks\nTitle: Weather\nTask: Find the forecast.\nNeeds: Goal\nReturn: Forecast\n===\nTitle: Museums\nTask: Find 3 museums.\nNeeds: Goal\nReturn: Prices\n```';
+  assert.strictEqual(P.readableAnswer('split', split), 'Two useful parts.\n\n**Weather**\n\nFind the forecast.\n\n**Museums**\n\nFind 3 museums.');
+  assert.strictEqual(P.readableAnswer('task', '```result\n## Forecast\n12°C with rain.\n```'), '## Forecast\n12°C with rain.');
+  assert.strictEqual(P.readableAnswer('mem-update', 'Updated.\n```mem\n## Goal\n- Study (AI · basis: your request)\n## Decisions\n- Indoors 〔AI · basis: rain〕\n```'), 'Updated.\n\n## Goal\n- Study\n## Decisions\n- Indoors');
+  const combined = '## Plan\n1. Museum\n\n```python\nprint(1)\n```';
+  for (const kind of ['combine', 'resume', 'unknown']) assert.strictEqual(P.readableAnswer(kind, combined), combined);
+  assert.strictEqual(P.readableAnswer('split', 'Unfinished.\n```tasks\nTitle: Only a title\n```'), 'Unfinished.\n\nTitle: Only a title');
+  assert(split.includes('Needs: Goal'), 'original remains unchanged');
+});
+
+test('20. Progress skips repeated titles and prefers a concrete line in the first three candidates', () => {
+  const P = WorkflowPrompts;
+  const progress = result => P.buildProgress({ tasks: [{ title: '5-Day Study Plan', status: 'done', ai: 'chatgpt', result }] });
+  assert(progress('Title: 5-Day Study Plan\n# **5-day study plan**\nOverview\nStudy 2 chapters each day.\nReview daily.').includes('(ChatGPT): Study 2 chapters each day.'));
+  assert(progress('```result\n**Title: 5-Day Study Plan**\n5-DAY STUDY PLAN\nA useful overview\nReview daily.\n```').includes('(ChatGPT): A useful overview'));
+  assert(progress('Summary\nMore context\nReview daily\nDay 4: practice').includes('(ChatGPT): Summary'));
+  assert(progress('Title: 5-Day Study Plan').includes('no result text'));
+});
+
+test('21. Memory diff ignores leading bullets and surrounding whitespace', () => {
+  const P = WorkflowPrompts;
+  assert.deepStrictEqual(P.diffMemory('## Goal\nStudy psychology\n## Preferences\n* Quiet room', '## Goal\n- Study psychology  \n## Preferences\nQuiet room'), []);
+  assert.deepStrictEqual(P.diffMemory('## Goal\nOld goal', '## Goal\n- New goal'), [{ section: 'Goal', added: ['New goal'], removed: ['Old goal'] }]);
+});
+
 console.log(`\nTests completed: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
   process.exit(1);
