@@ -197,6 +197,7 @@ function initializeModules() {
   // v0.6: Context Transfer, Broadcast and Orchestrator are hidden (code kept in ui/modules/)
   const modules = {
     'projects': window.ProjectsModule,
+    'notes': window.NotesModule,
     'send': window.SendModule,
     'skills': window.LibraryPageModule,
     'connection': window.ConnectionModule,

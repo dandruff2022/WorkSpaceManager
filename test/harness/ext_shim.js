@@ -41,6 +41,7 @@
   };
 
   setInterval(async () => {
+    listeners.forEach(fn => fn({ action: 'notesUpdate' }));
     const res = await relay('wf_getCurrent', {});
     if (res.status === 'success' && res.projectId) {
       listeners.forEach(fn => fn({ action: 'workflowUpdate', payload: { projectId: res.projectId } }));

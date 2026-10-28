@@ -2,7 +2,7 @@
 if (typeof importScripts === 'function') {
   importScripts('utils/site_profiles_registry.js');
   importScripts('utils/skills_registry.js', 'utils/styles_registry.js', 'utils/library.js');
-  importScripts('utils/workflow_prompts.js', 'utils/project_store.js', 'utils/workflow_engine.js');
+  importScripts('utils/workflow_prompts.js', 'utils/project_store.js', 'utils/notes_store.js', 'utils/workflow_engine.js');
 }
 
 const chromeAPI = typeof chrome !== 'undefined' ? chrome : browser;
@@ -80,6 +80,7 @@ chromeAPI.tabs.onActivated.addListener((activeInfo) => {
 chromeAPI.runtime.onInstalled.addListener(async () => {
   console.log("Workspace Manager Extension Installed.");
   runStartupTabScan();
+  setupNotesMenu();
   
   const defaultProfiles = {
     chatgpt: {
@@ -290,6 +291,11 @@ async function isAllowedSender(sender) {
   return devHarness === true;
 }
 
+// The notes store (before recoverInterrupted, which also clears note edits cut off by a restart).
+// Pages showing notes reload on this message (the localhost demo can't see storage changes).
+self.NotesStore = NotesRegistry.createNotesStore(chromeAPI.storage.local, {
+  onChange: () => chromeAPI.runtime.sendMessage({ action: 'notesUpdate' }).catch(() => {})
+});
 if (typeof WorkflowEngine !== 'undefined') WorkflowEngine.recoverInterrupted().catch(() => {});
 
 // Message Bus Dispatcher
@@ -323,7 +329,8 @@ chromeAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const styles = await StylesStore.list();
       const choice = await StylesStore.getChoice('site');
       const projects = await self.ProjectStore.list();
-      const data = { skills: SkillsRegistry.skills, styles, projects };
+      const notes = await self.NotesStore.list();
+      const data = { skills: SkillsRegistry.skills, styles, notes, projects };
       const context = message.context || { surface: 'site' };
       const items = Library.query(data, context, message.text, message.group);
       sendResponse({ items, groups: Library.groupsWithItems(data, context), styles, choice });
@@ -514,5 +521,40 @@ if (chromeAPI.notifications) {
       if (!chromeAPI.runtime.lastError && tab) chromeAPI.windows.update(tab.windowId, { focused: true });
     });
     chromeAPI.notifications.clear(notificationId);
+  });
+}
+
+// Right-click on selected text anywhere → "Save to Notes": a new note with the selection and where it came from
+function setupNotesMenu() {
+  if (!chromeAPI.contextMenus) return;
+  chromeAPI.contextMenus.removeAll(() => {
+    chromeAPI.contextMenus.create({ id: 'wm-save-note', title: 'Save to Notes', contexts: ['selection'] });
+  });
+}
+
+if (chromeAPI.contextMenus) {
+  chromeAPI.contextMenus.onClicked.addListener(async (info, tab) => {
+    if (info.menuItemId !== 'wm-save-note') return;
+    // selectionText loses line breaks; read the selection from the page when we can
+    let text = info.selectionText || '';
+    if (tab && tab.id !== undefined) {
+      try {
+        const [res] = await chromeAPI.scripting.executeScript({
+          target: { tabId: tab.id, frameIds: [info.frameId || 0] },
+          func: () => String(window.getSelection())
+        });
+        if (res && res.result && res.result.trim()) text = res.result;
+      } catch (e) { /* pages we may not script (chrome://, the Web Store): keep selectionText */ }
+    }
+    if (!text.trim()) return;
+    const title = ((tab && tab.title) || '').trim();
+    const source = info.pageUrl ? `\n\nSource: ${info.pageUrl}` : '';
+    await self.NotesStore.create({ title: title.length > 60 ? title.slice(0, 59) + '…' : title, text: text.trim() + source, note: 'saved from a page' });
+    chromeAPI.notifications.create(`note-saved-${Date.now()}`, {
+      type: 'basic',
+      iconUrl: chromeAPI.runtime.getURL('icons/icon-128.png'),
+      title: 'Saved to Notes',
+      message: text.trim().slice(0, 120)
+    });
   });
 }

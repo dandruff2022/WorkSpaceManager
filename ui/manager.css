@@ -1069,3 +1069,34 @@ body.state-detached-placeholder .app-container { display: none; }
 .mem-actions { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; justify-content: flex-end; }
 /* In a step's actions the Answer control gets its own row; the send buttons follow below */
 .flow-actions .answer-control { flex: 1 1 100%; }
+
+/* Phase 3.2 B: Notes page (notes = amber, symbol ✎) */
+:root { --kind-notes: #b45309; }
+@media (prefers-color-scheme: dark) { :root { --kind-notes: #fbbf24; } }
+.kind-notes { color: var(--kind-notes); }
+#notes-list .prompt-card-key { color: var(--kind-notes); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#note-search { flex: none; }
+.note-editor .empty-state { margin: auto 0; }
+.note-title { font-weight: 600; }
+.note-text { flex: 1; min-height: 220px; resize: vertical; line-height: 1.5; }
+.note-ai { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.note-ai-form { display: flex; gap: 6px; flex: 1 1 200px; min-width: 0; }
+.note-ai-form .text-input { flex: 1; min-width: 0; padding-top: 4px; padding-bottom: 4px; }
+.note-proposal {
+  border: 1px solid color-mix(in srgb, var(--kind-notes) 45%, transparent);
+  background: color-mix(in srgb, var(--kind-notes) 7%, transparent);
+  border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px; font-size: 13px;
+}
+.note-proposal.is-error { border-color: var(--danger); background: var(--danger-soft); }
+.note-diff { max-height: 280px; overflow-y: auto; gap: 2px; }
+.note-diff .diff-same { font-style: italic; }
+.note-proposal .form-actions { margin: 0; }
+.archive-actions { display: inline-flex; align-items: center; gap: 8px; }
+.note-version { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.note-ai-form { flex-basis: 100%; }
+.note-diff { font-family: inherit; font-size: 13px; }
+.note-diff .diff-del, .note-diff .diff-add { padding: 1px 6px; border-left: 3px solid; border-radius: 2px; }
+.note-diff .diff-del { border-color: var(--danger); background: var(--danger-soft); }
+.note-diff .diff-add { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); text-decoration: none; }
+.note-diff .diff-del + .diff-add { margin-bottom: 4px; }
+#notes-list .prompt-card-header > span { white-space: nowrap; flex: none; }

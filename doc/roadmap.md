@@ -214,6 +214,13 @@ Replaces the old Phase 3–4 below, which stay on hold.
           memory Progress, plan may update memory, shorter memory, rendered memory view, "Ask AI to tidy"
     - [ ] Live test with the user (ChatGPT, Gemini, Send, Projects)
   - [ ] Step B: Notes page, AI edit on request (diff + undo), bring a note into a project, Save-to-Notes on answers
+    - [x] Code: notes store (versions, background-only writes), Notes page (search, autosave, versions, undo),
+          Ask AI (Tidy / Rephrase / Structure / own words, selection or whole note) → diff → Apply/Discard,
+          "Start a project" from a note, "Save to Notes" on Projects answers and via right-click on any page,
+          notes in the `;;` picker; Node tests, screenshots
+    - [ ] Live test (AI edit on ChatGPT/Gemini, right-click save, `;;` insert on a site)
+    - [ ] Later: answer buttons next to the site's copy button (not done: needs per-site selectors and live tuning;
+          right-click covers saving for now)
 - [ ] Idea to discuss: AI suggests the next step, UI highlights it ([`doc/plan/idea_next_step_suggestions.md`](plan/idea_next_step_suggestions.md))
 - [ ] Decide on the tab flicker (send, Gemini peek) and the many-chats-per-task question
 - [ ] Release v0.7.0

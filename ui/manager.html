@@ -16,6 +16,8 @@
   <!-- Hidden in v0.6 (code kept): modules/context_transfer.js, modules/broadcast.js, modules/orchestrator.js -->
   <script src="../utils/workflow_prompts.js" defer></script>
   <script src="modules/projects.js" defer></script>
+  <script src="../utils/notes_store.js" defer></script>
+  <script src="modules/notes.js" defer></script>
   <script src="modules/send.js" defer></script>
   <script src="modules/skills.js" defer></script>
   <script src="modules/library_page.js" defer></script>
@@ -38,6 +40,14 @@
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
           </svg>
           <span class="nav-label">Projects</span>
+        </button>
+
+        <button class="nav-item" data-target="notes">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path>
+          </svg>
+          <span class="nav-label">Notes</span>
         </button>
 
         <button class="nav-item" data-target="send">
@@ -153,9 +163,67 @@
           </div>
 
           <dialog id="proj-archive" class="archive-dialog">
-            <div class="card-header"><h2 id="proj-archive-title">Full answer</h2><button id="btn-proj-archive-close" class="btn btn-small">Close</button></div>
+            <div class="card-header"><h2 id="proj-archive-title">Full answer</h2><span class="archive-actions"><span id="proj-archive-status" class="status-line"></span><button id="btn-proj-archive-note" class="btn btn-small">Save to Notes</button><button id="btn-proj-archive-close" class="btn btn-small">Close</button></span></div>
             <pre id="proj-archive-text"></pre>
           </dialog>
+        </div>
+      </section>
+
+      <!-- Notes Module -->
+      <section id="view-notes" class="module-view">
+        <div class="view-header">
+          <h1 class="view-title">Notes</h1>
+          <p class="view-description">Your own notes, saved as you type. Type ;; in any message box to put one in. The AI changes a note only when you ask, and you see the change first.</p>
+        </div>
+
+        <div class="view-body prompts-layout">
+          <div class="card prompts-list-card">
+            <div class="card-header">
+              <h2>Your notes</h2>
+              <button id="btn-note-new" class="btn btn-small">+ New</button>
+            </div>
+            <input type="search" id="note-search" class="text-input" placeholder="Search notes" aria-label="Search notes">
+            <div id="notes-list" class="prompts-list"></div>
+          </div>
+
+          <div class="card prompts-editor-card note-editor">
+            <div id="note-empty" class="empty-state">
+              <p>No note open.</p>
+              <p class="muted">Write down ideas, links or bits of answers you want to keep. Select text on any page and right-click → <em>Save to Notes</em>, or use "Save to Notes" on an answer in Projects.</p>
+            </div>
+            <div id="note-body" class="form" hidden>
+              <input type="text" id="note-title" class="text-input note-title" placeholder="Title (optional)" aria-label="Title">
+              <textarea id="note-text" class="text-input note-text" placeholder="Write anything…" aria-label="Note"></textarea>
+              <div class="note-ai">
+                <span id="note-ai-scope" class="muted small">AI · whole note:</span>
+                <button type="button" class="btn btn-small" data-ai="tidy">Tidy</button>
+                <button type="button" class="btn btn-small" data-ai="rephrase">Rephrase</button>
+                <button type="button" class="btn btn-small" data-ai="structure">Structure</button>
+                <form id="note-ai-form" class="note-ai-form">
+                  <input type="text" id="note-ai-custom" class="text-input" placeholder="Or say what to do…" aria-label="What the AI should do">
+                  <button type="submit" class="btn btn-small">Ask</button>
+                </form>
+              </div>
+              <div id="note-proposal" class="note-proposal" hidden>
+                <div id="note-proposal-head" class="note-proposal-head"></div>
+                <div id="note-proposal-diff" class="diff note-diff"></div>
+                <div id="note-proposal-actions" class="form-actions">
+                  <button type="button" id="btn-note-discard" class="btn">Discard</button>
+                  <button type="button" id="btn-note-apply" class="btn btn-primary">Apply</button>
+                </div>
+              </div>
+              <div class="composer-footer">
+                <span id="note-status" class="status-line"></span>
+                <div class="mem-actions">
+                  <button type="button" id="btn-note-versions" class="btn-link">Versions</button>
+                  <button type="button" id="btn-note-undo" class="btn-link">Undo</button>
+                  <button type="button" id="btn-note-project" class="btn-link" title="A new project with this note as its goal">Start a project</button>
+                  <button type="button" id="btn-note-delete" class="btn-link danger-link">Delete</button>
+                </div>
+              </div>
+              <div id="note-history" class="history-list" hidden></div>
+            </div>
+          </div>
         </div>
       </section>
 

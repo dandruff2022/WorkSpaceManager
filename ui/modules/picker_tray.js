@@ -43,8 +43,8 @@
   async function loadData() {
     await SkillsRegistry.load();
     styles = await StylesStore.list();
-    const list = await call('wf_list');
-    return { skills: SkillsRegistry.skills, styles, projects: list.projects || [] };
+    const [list, noteList] = await Promise.all([call('wf_list'), call('wf_notesList')]);
+    return { skills: SkillsRegistry.skills, styles, notes: noteList.notes || [], projects: list.projects || [] };
   }
 
   async function choice(place) {

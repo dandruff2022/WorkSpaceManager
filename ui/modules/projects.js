@@ -537,12 +537,16 @@
 
       async function showArchive(step, what) {
         const res = await call('wf_getArchive', { archiveId: step.archiveId });
-        showText(`${what} — full answer from ${AI_NAMES[step.ai]}`, res.text || res.error || '(empty)');
+        showText(`${what} — full answer from ${AI_NAMES[step.ai]}`, res.text || res.error || '(empty)', `${what} (${AI_NAMES[step.ai]})`);
       }
 
-      function showText(title, text) {
+      let shownText = null;
+      function showText(title, text, noteTitle) {
+        shownText = { title: `${project.title}: ${noteTitle || title}`, text };
         $('proj-archive-title').textContent = title;
         $('proj-archive-text').textContent = text;
+        $('proj-archive-status').textContent = '';
+        $('btn-proj-archive-note').disabled = false;
         $('proj-archive').showModal();
       }
 
@@ -747,6 +751,25 @@
         load(null);
       });
       $('btn-proj-archive-close').addEventListener('click', () => $('proj-archive').close());
+      $('btn-proj-archive-note').addEventListener('click', async () => {
+        if (!shownText) return;
+        const res = await call('wf_noteCreate', { title: shownText.title, text: shownText.text, note: 'saved from Projects' });
+        if (res.status !== 'success') { $('proj-archive-status').textContent = res.error; return; }
+        $('proj-archive-status').textContent = 'Saved to Notes';
+        $('btn-proj-archive-note').disabled = true;
+      });
+
+      // "Start a project" on a note: the new-project form, filled in
+      document.addEventListener('wmNewProject', (e) => {
+        const { title = '', goal = '' } = e.detail || {};
+        const nav = document.querySelector('.nav-item[data-target="projects"]');
+        if (nav) nav.click();
+        $('proj-new-form').hidden = false;
+        $('proj-new-goal').value = goal;
+        $('proj-new-title').value = title;
+        render();
+        $('proj-new-goal').focus();
+      });
 
       if (window.PickerTray) {
         const loadStyles = async () => { styleLine = await PickerTray.line('projects'); if (project) refreshMessages(); };

@@ -15,7 +15,8 @@
     "scripting",
     "sidePanel",
     "unlimitedStorage",
-    "notifications"
+    "notifications",
+    "contextMenus"
   ],
   "host_permissions": [
     "<all_urls>"

@@ -12,6 +12,7 @@ but are untested). The manager opens in Chrome's side panel by default, or as a 
 |---|---|---|
 | **Projects** (default) | A piece of work as a step line: Describe → Plan → Run tasks → Combine → Continue. The extension opens chats, sends, waits, reads the answer, keeps a versioned project memory. | Phase 3 / 3.1, branch `phase-3-projects`, trial (v0.7) |
 | **Send** | One prompt to several open chat tabs, live status per tab | Released in v0.6.0 |
+| **Notes** | The user's own notes; AI edits only on request (diff, apply/undo); right-click "Save to Notes"; `;;` inserts them | Phase 3.2 Step B (trial) |
 | **Library** | Tabs Prompts (`@redo`, `@check`…) and Styles (answer styles → one `Output requirements:` line); picked with `;;` on chat sites and in our boxes, styles also via the `≡ Answer` button | Prompts released in v0.6.0; Styles = Phase 3.2 Step A (trial) |
 | **Settings** | Panel/window, pop-up key, notifications, Projects options | — |
 
@@ -39,11 +40,13 @@ utils/
   site_profiles_registry.js, skills_registry.js   site profiles, saved prompts (15 starters)
   styles_registry.js     answer styles (built-ins, groups, per-place choice, the `Output requirements:` line)
   library.js             `query()` over prompts/styles/notes/memory for the picker (also `library_query` in background)
+  notes_store.js         notes store (versions, AI edit state), line diff, part replace; only the background writes
   picker_core.js         the one `;;` picker (list, groups, keys, ticks); autocomplete.js = its site overlay
 ui/
   manager.html/.css/.js  the manager page; manager.js registers modules and Settings
   modules/projects.js    Projects step line (flowState() derives the steps from project data)
   modules/send.js        Send page
+  modules/notes.js       Notes page (list, autosave editor, Ask AI → diff → apply, versions)
   modules/library_page.js, skills.js   Library page (tabs; Styles tab in library_page.js, Prompts tab in skills.js)
   modules/picker_tray.js the picker as an inline tray in our boxes + the `≡ Answer` button and style chips
   modules/markdown_view.js  small DOM-building Markdown renderer (memory read view)
@@ -69,19 +72,19 @@ stored, and added when the memory is shown, inserted with `;;` or used by Contin
 
 `projects`, `archives`, `currentProjectId` (Projects) · `keepWorkerTabs`, `tempChatsForWork` (default on),
 `choresAi` (`same`|`chatgpt`|`gemini`), `devHarness` · `preferredMode` (`panel`|`window`), `siteProfiles`, `skills`,
-`skillsDefaultsVersion`, `styles` ({custom, edits}), `styleChoice` ({site, send, projects}), `autocompleteTriggerChar`, `enableWebpageAutocomplete`, `notifyWhenDone`.
+`skillsDefaultsVersion`, `notes`, `styles` ({custom, edits}), `styleChoice` ({site, send, projects}), `autocompleteTriggerChar`, `enableWebpageAutocomplete`, `notifyWhenDone`.
 
 ### Security gate
 
-`background.js` allows `bridgeCommand`, `switchTab` and `wf_*` only from extension pages, or from
+`background.js` allows `bridgeCommand`, `switchTab` and `wf_*` (including `wf_note*`) only from extension pages, or from
 `http://localhost` / `127.0.0.1` when the `devHarness` setting is on. Keep new privileged actions behind it.
 
 ## How to test
 
 | What | How |
 |---|---|
-| Unit tests | `node test/workflow_prompts.test.js`, `node test/project_store.test.js`, `node test/library.test.js` |
-| Screenshots of the Projects UI with fake data | `sh test/ui_preview/run.sh` → `/tmp/wm_preview/*.png` (states: `#new`, default, `#combine`, `#combined`, `#empty`, `#library`, `#library-styles`, `#send-answer`; light/dark; 380px panel) |
+| Unit tests | `node test/workflow_prompts.test.js`, `node test/project_store.test.js`, `node test/library.test.js`, `node test/notes_store.test.js` |
+| Screenshots of the Projects UI with fake data | `sh test/ui_preview/run.sh` → `/tmp/wm_preview/*.png` (states: `#new`, default, `#combine`, `#combined`, `#empty`, `#library`, `#library-styles`, `#send-answer`, `#notes`, `#notes-proposal`; light/dark; 380px panel) |
 | Real UI against the real extension | see "Live runs" in `test/README.md` (localhost + dev harness) |
 
 Live-run gotchas (all learned the hard way):
@@ -107,7 +110,7 @@ Live-run gotchas (all learned the hard way):
 | Next phase (Library: prompts, styles, notes, one picker) | `doc/plan/phase_3.2_library_plan.md`, then `phase_3.2a_polish_plan.md` |
 | Anything in Projects | `doc/plan/phase_3.1_flow_plan.md`, then `phase_3_plan.md`; prompt wording rationale in `doc/experiments/memory_workflow/prompts_v2.md` |
 | What's done / next | `doc/roadmap.md` (the "Phase 3 (new)" section) |
-| Why something was done | latest `doc/log/*.md` (newest: `2026_10_27_12.md`) |
+| Why something was done | latest `doc/log/*.md` (newest: `2026_10_27_19.md`) |
 | Site selectors broke | `presets/*.json`, `background.js` default profiles, `doc/debug_skill.md` |
 | Original vision (dated) | `doc/specification.md` — Firefox-era spec; the Orchestrator/Context Transfer parts are superseded |
 

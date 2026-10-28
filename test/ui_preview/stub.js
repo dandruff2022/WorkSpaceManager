@@ -11,8 +11,12 @@
     wf_list: async () => ({ projects: await store.list() }),
     wf_getCurrent: async () => ({ projectId: await store.getCurrentId() }),
     wf_getArchive: async () => ({ text: 'Full answer text…' }),
-    wf_setOptions: async (p) => ({ project: await store.setOptions(p.projectId, p.patch) })
+    wf_setOptions: async (p) => ({ project: await store.setOptions(p.projectId, p.patch) }),
+    wf_notesList: async () => ({ notes: await notes().list() })
   };
+  // Notes store on the same fake storage (utils/notes_store.js loads after this file)
+  let notesStore = null;
+  const notes = () => notesStore || (notesStore = NotesRegistry.createNotesStore(area));
   window.chrome = {
     runtime: {
       lastError: null,
@@ -47,8 +51,24 @@
       ta.dispatchEvent(new Event('input'));
       setTimeout(() => ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })), 200);
     },
-    'send-answer': () => { click('.nav-item[data-target="send"]'); setTimeout(() => click('#view-send .answer-btn'), 100); }
+    'send-answer': () => { click('.nav-item[data-target="send"]'); setTimeout(() => click('#view-send .answer-btn'), 100); },
+    notes: () => click('.nav-item[data-target="notes"]'),
+    'notes-proposal': () => click('.nav-item[data-target="notes"]')
   };
+
+  // Notes for #notes (plain) and #notes-proposal (an AI proposal waiting to be applied)
+  function seedNotes(withProposal) {
+    const now = Date.now();
+    const v = (text, by, ago, note) => ({ text, by, at: now - ago, note });
+    const trip = 'weekend in hangzhou\n- west lake early, before crowds\n- try longjing tea at meijiawu\n- budget about 1500 yuan, train both ways\nmaybe skip lingyin if it rains';
+    const tidy = 'Weekend in Hangzhou\n- West Lake early, before the crowds\n- Try Longjing tea at Meijiawu\n- Budget about 1500 yuan, train both ways\n- Maybe skip Lingyin Temple if it rains';
+    data.notes = {
+      n1: { id: 'n1', title: '', text: trip, versions: [v(trip, 'you', 3600e3, 'created')], createdAt: now - 3600e3, updatedAt: now - 60e3,
+        edit: withProposal ? { status: 'ready', instruction: 'tidy', part: null, base: trip, ai: 'chatgpt', at: now - 30e3, proposal: tidy, replacement: tidy } : null },
+      n2: { id: 'n2', title: 'Reading list', text: 'Designing Data-Intensive Applications\nhttps://example.com/paper.pdf', versions: [v('x', 'you', 86400e3, 'created')], createdAt: now - 86400e3, updatedAt: now - 86400e3, edit: null },
+      n3: { id: 'n3', title: 'Kept from Projects', text: 'Final answer: day 1 West Lake, day 2 Grand Canal…', versions: [v('x', 'you', 172800e3, 'saved from Projects')], createdAt: now - 172800e3, updatedAt: now - 172800e3, edit: null }
+    };
+  }
 
   // States: #empty, #new (just created), default (tasks running), #combine (tasks done), #combined (final answer + memory update)
   window.__seed = (async () => {
@@ -57,6 +77,7 @@
     const state = hash.replace(/-mem$/, '');
     if (hash.endsWith('-mem')) window.addEventListener('load', () => setTimeout(() => click('#btn-proj-mem-toggle'), 400));
     if (state === 'empty') return;
+    if (state.startsWith('notes')) seedNotes(state === 'notes-proposal');
     if (PAGES[state]) {
       data.styles = { custom: [{ id: 'my-formal', name: 'Formal tone', group: 'approach', text: 'Use a formal, polite tone.' }], edits: { short: { name: 'Short', text: 'Keep it short: under 100 words.' } } };
       data.styleChoice = { send: ['short', 'zh', 'sources'] };

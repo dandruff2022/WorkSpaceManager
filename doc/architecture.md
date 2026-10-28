@@ -76,7 +76,7 @@ All messages go through `chrome.runtime`. The background router (`background.js`
 Kinds of saved text: Prompts `@` (`utils/skills_registry.js`, `skills` key; 15 starters, the original 4
 `@redo @continue @shorten @check` can't be deleted), Styles `≡` (`utils/styles_registry.js`, answer styles that become
 one last line `Output requirements: …`), Memory `◆` (project memory, labelled `[Project memory vN: Title]`), Notes `✎`
-(Step B). `utils/library.js` `query()` turns them into picker items; `utils/picker_core.js` renders the one picker.
+(`utils/notes_store.js`, labelled `[Note: Title]`). `utils/library.js` `query()` turns them into picker items; `utils/picker_core.js` renders the one picker.
 - Chat sites: `utils/autocomplete.js` (`SitePicker`) shows it as an overlay in a shadow root, asks the background
   `library_query` (read-only; `querySkills` is an alias), inserts prompts/memory as a paragraph and writes/replaces/removes
   the styles line. Stateless: the line in the box is the state (the last ticks are kept in `styleChoice.site`).
@@ -84,6 +84,20 @@ one last line `Output requirements: …`), Memory `◆` (project memory, labelle
   (Send, Projects steps, Combine). Stateful: ticks are `styleChoice.send` / `.projects`, applied when the message is built.
 - Library page (`ui/modules/library_page.js` + `skills.js`): tabs Prompts / Styles; built-ins editable with Reset; the ✎
   in a picker row dispatches `wmOpenLibrary {group, id}` to open the item there.
+
+### Notes — Phase 3.2 Step B
+The user's own notes (`ui/modules/notes.js`): list with search, editor that saves as you type (one version per burst of
+typing, 5 min), versions with Restore, Undo, Delete. Only the background owns the store (`self.NotesStore`, made in
+`background.js` with an `onChange` hook that broadcasts `notesUpdate`); pages read and write through `wf_note*`
+messages, so the page, the engine and the context menu never overwrite each other.
+- **AI edit, on request only**: Tidy / Rephrase / Structure / own words, for the selection or the whole note →
+  `wf_noteEdit` → engine `editNote` → one temporary chat on the chores AI (`askOnce`, `%fix` once) → answer in a
+  ```` ```note ```` block → stored as a proposal in `note.edit` → the page shows a line diff → Apply
+  (`wf_noteApplyEdit`, puts a part back into the note as it is now) or Discard. A late answer for a discarded request
+  is dropped (`setEdit(…, onlyAt)`).
+- **In**: right-click selected text on any page → "Save to Notes" (context menu, with the page URL); "Save to Notes" on
+  a full answer in Projects.
+- **Out**: `;;` everywhere (Notes tab of the picker); "Start a project" fills the new-project form with the note.
 
 ### Send — v0.6
 `ui/modules/send.js` lists open chat tabs, sends one prompt to the ticked ones through `bridgeCommand`
@@ -148,6 +162,7 @@ setTasks updateTask removeTask run retryChore openChat getArchive devReload`.
 | `siteProfiles` | background seed | site selectors |
 | `skills`, `skillsDefaultsVersion` | skills registry | saved prompts; starters added once per version |
 | `styles` ({custom, edits}), `styleChoice` ({site, send, projects}) | styles registry | answer styles; ticks per place (Projects default: Short) |
+| `notes` ({id: {id, title, text, versions[{text, by, at, note}], edit, createdAt, updatedAt}}) | notes store (background) | the user's notes; `edit` = AI request/proposal |
 | `preferredMode` ('panel'), `panelDefaultV07`, `triggerMigratedV06` | background | view mode + one-time migrations |
 | `autocompleteTriggerChar` (';;'), `enableWebpageAutocomplete`, `notifyWhenDone` | Settings | v0.6 options |
 
@@ -158,7 +173,7 @@ build step. Files share code through globals (`self.WorkflowPrompts`, `self.Proj
 and also `module.exports` where Node tests need them.
 
 Browser requirements: Chrome with MV3, side panel API (Chrome 114+). Permissions: `tabs`, `storage`, `scripting`,
-`sidePanel`, `unlimitedStorage`, `notifications`; host access `<all_urls>` (content scripts on chat sites).
+`sidePanel`, `unlimitedStorage`, `notifications`, `contextMenus` ("Save to Notes"); host access `<all_urls>` (content scripts on chat sites).
 Firefox keys exist in the manifest (`sidebar_action`, background `scripts`) but Firefox is untested.
 
 ## 7. Toolchain

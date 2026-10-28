@@ -1,5 +1,5 @@
 // Workspace Manager - Library
-// One query for "what can I insert here?" across the kinds of saved text (Prompts, Styles, Memory; Notes in 3.2 B).
+// One query for "what can I insert here?" across the kinds of saved text (Prompts, Styles, Notes, Memory).
 // Each kind is a provider that turns stored data into picker items. Pure functions, shared by the background
 // (library_query), the pages and Node tests.
 
@@ -23,6 +23,11 @@
   function firstLine(text, max = 90) {
     const line = (text || '').split('\n').map(l => l.replace(/^#+\s*/, '').trim()).find(Boolean) || '';
     return line.length > max ? line.slice(0, max - 1) + '…' : line;
+  }
+
+  // Same rule as NotesRegistry.titleOf (a note without a title shows its first line)
+  function noteTitle(note) {
+    return (note.title || '').trim() || firstLine(note.text, 60) || 'Untitled note';
   }
 
   // Labelled blocks tell the AI "this is material", and tell the user where it came from
@@ -49,8 +54,14 @@
         insert: { mode: 'requirement', text: s.text }
       }));
     },
-    notes() {
-      return [];
+    notes(data) {
+      return (data.notes || []).filter(n => (n.text || '').trim()).map(n => {
+        const title = noteTitle(n);
+        return {
+          group: 'notes', id: n.id, title, preview: firstLine(n.text), size: `${words(n.text)} words`, body: n.text,
+          insert: { mode: 'paragraph', text: `[Note: ${title}]\n${n.text.trim()}` }
+        };
+      });
     },
     memory(data, context) {
       const skip = context.surface === 'instruction' ? context.projectId : null;
@@ -73,11 +84,11 @@
     const title = item.title.toLowerCase().replace(/^@/, '');
     if (title.startsWith(q)) return 3;
     if (title.includes(q)) return 2;
-    if ((item.preview || '').toLowerCase().includes(q)) return 1;
+    if ((item.preview || '').toLowerCase().includes(q) || (item.body || '').toLowerCase().includes(q)) return 1;
     return 0;
   }
 
-  // data: {skills, styles (StylesRegistry.list), projects}; context: {surface, projectId?}
+  // data: {skills, styles (StylesRegistry.list), notes, projects}; context: {surface, projectId?}
   // text: what the user typed after the trigger ("@re" limits to Prompts); group: optional one group only
   function query(data, context, text, group) {
     const ctx = context || {};

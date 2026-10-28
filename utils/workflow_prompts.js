@@ -13,6 +13,8 @@
     memStyle: "Write every section as short bullet points, one line each; keep the whole memory under 250 words. Current state says where things stand in one or two lines.",
     resume: "This is the memory of a project done in other chats. Decisions are settled; do not re-derive them. Continue from Current state.",
     combine: "This is the memory of a project and the results of its subtasks, each done in a separate chat. Combine them into one final answer for the Goal. Decisions are settled; do not re-derive them. Keep source links. Point out where results conflict and what is still missing.",
+    noteEdit: "Edit the user's note as asked below. Keep their meaning, facts, links and language; add nothing new. Output only one fenced block labeled note with the full edited text, nothing before or after it.",
+    notePart: "Edit only the part marked PART. The rest of the note is context; do not output it. Output only one fenced block labeled note with the edited part, nothing before or after it.",
     short: "Keep the answer under 150 words outside the block.",
     fix: function (label) {
       return `Your last answer did not end with the required fenced block labeled ${label}. Output only that block now, with no text before or after it.`;
@@ -339,6 +341,27 @@
     return parts.join('\n\n');
   }
 
+  // Note edits the user asks for (Notes page). The instruction is one of NOTE_ACTIONS or the user's own words.
+  const NOTE_ACTIONS = {
+    tidy: 'Tidy it: fix typos and grammar, keep the wording otherwise.',
+    rephrase: 'Rephrase it so it reads clearly.',
+    structure: 'Structure it: short headings and bullet points, same content.'
+  };
+
+  // part = { text } when only a selection is edited
+  function buildNoteEdit(noteText, instruction, part) {
+    const ask = 'Request: ' + (NOTE_ACTIONS[instruction] || String(instruction || '').trim());
+    if (part && part.text) {
+      return [TEXT.notePart, ask, 'Note:\n' + (noteText || '').trim(), 'PART:\n' + part.text.trim()].join('\n\n');
+    }
+    return [TEXT.noteEdit, ask, 'Note:\n' + (noteText || '').trim()].join('\n\n');
+  }
+
+  function parseNoteAnswer(text) {
+    const block = parseBlock(text, 'note', { fallback: true });
+    return block && block.trim() ? block.replace(/\s+$/, '') : null;
+  }
+
   // Builder for fix prompt
   function buildFix(label) {
     return TEXT.fix(label);
@@ -654,6 +677,9 @@
     buildResume,
     buildCombine,
     buildFix,
+    NOTE_ACTIONS,
+    buildNoteEdit,
+    parseNoteAnswer,
     parseBlock,
     parseTasks,
     parseMemoryAnswer,

@@ -32,5 +32,8 @@ panel send-picker-panel 900 "#send-picker" light
 panel running-mem-panel 1500 "#running-mem" light
 panel combined-mem-panel-dark 1700 "#combined-mem" dark
 panel send-picker-panel-dark 900 "#send-picker" dark
+shot notes-light 850 800 "_preview.html?mode=window#notes" light
+shot notes-proposal-dark 850 900 "_preview.html?mode=window#notes-proposal" dark
+panel notes-proposal-panel 1300 "#notes-proposal" light
 rm -f ui/_preview.html ui/_frame.html
 ls "$OUT"

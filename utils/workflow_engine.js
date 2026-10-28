@@ -1,8 +1,8 @@
 // Workspace Manager - Workflow Engine (background)
 // Runs one Projects step: open a chat tab, send the message, wait for the answer, read it with the copy button,
 // parse the expected block (asking once with %fix if missing) and save the result into the project.
-// A finished Combine starts the memory update by itself, as a chore in a temporary chat.
-// Needs WorkflowPrompts and ProjectStore (loaded before this file with importScripts).
+// A finished Combine starts the memory update by itself, as a chore in a temporary chat. Also runs note edits.
+// Needs WorkflowPrompts, ProjectStore and NotesStore (loaded before this file with importScripts).
 
 (() => {
   const chromeAPI = typeof chrome !== 'undefined' ? chrome : browser;
@@ -363,6 +363,85 @@
     });
   }
 
+  // ---------- Note edits (Notes page, on request only) ----------
+  // Not part of a project: one question in a temporary chat on the chores AI. The answer becomes a proposal on the
+  // note (note.edit); the user sees a diff and applies or discards it there.
+
+  async function choresAiForNotes() {
+    const { choresAi } = await chromeAPI.storage.local.get(['choresAi']);
+    return SITES[choresAi] ? choresAi : 'chatgpt';
+  }
+
+  // Open a chat, send, wait, read; ask once more for the block if it's missing. Returns { answer, parsed }.
+  async function askOnce(ai, message, label, parse) {
+    let tabId = null;
+    try {
+      const chat = await openChat(ai, { temporary: true });
+      tabId = chat.tabId;
+      const base = (await snapshot(tabId))?.copyCount || 0;
+      await typeAndSend(tabId, message);
+      let snap = await waitForAnswer(tabId, base);
+      let answer = await readLastAnswer(tabId);
+      let parsed = parse(answer);
+      if (!parsed) {
+        await typeAndSend(tabId, self.WorkflowPrompts.buildFix(label));
+        snap = await waitForAnswer(tabId, snap.copyCount);
+        const fixAnswer = await readLastAnswer(tabId);
+        answer = `${answer}\n\n---\n\n${fixAnswer}`;
+        parsed = parse(fixAnswer);
+      }
+      return { answer, parsed };
+    } finally {
+      if (tabId !== null) {
+        const { keepWorkerTabs } = await chromeAPI.storage.local.get(['keepWorkerTabs']);
+        if (!keepWorkerTabs) await chromeAPI.tabs.remove(tabId).catch(() => {});
+      }
+    }
+  }
+
+  // part: { start, end, text } of a selection, or null for the whole note
+  async function editNote(noteId, instruction, part) {
+    const notes = self.NotesStore;
+    const note = await notes.get(noteId);
+    if (!note) throw new Error('Note not found');
+    if (note.edit && note.edit.status === 'running') throw new Error('The AI is already working on this note');
+    if (!String(instruction || '').trim()) throw new Error('Say what the AI should do');
+    if (!note.text.trim()) throw new Error('The note is empty');
+    if (part) {
+      // Edit the selection without its surrounding blank space, so the rewrite drops back in cleanly
+      const lead = part.text.length - part.text.trimStart().length;
+      const trail = part.text.length - part.text.trimEnd().length;
+      part = { start: part.start + lead, end: part.end - trail, text: part.text.trim() };
+      if (!part.text || note.text.slice(part.start, part.end) !== part.text) part = null;
+    }
+    const ai = await choresAiForNotes();
+    const P = self.WorkflowPrompts;
+    const at = Date.now();
+    await notes.setEdit(noteId, { status: 'running', instruction, part, base: note.text, ai, at, proposal: null, replacement: null, error: null });
+    (async () => {
+      try {
+        const { parsed } = await askOnce(ai, P.buildNoteEdit(note.text, instruction, part), 'note', P.parseNoteAnswer);
+        if (!parsed) throw new Error('The AI did not return the edited note');
+        const proposal = part ? self.NotesRegistry.replacePart(note.text, part, parsed) : parsed;
+        await notes.setEdit(noteId, { status: 'ready', replacement: parsed, proposal }, at);
+      } catch (err) {
+        await notes.setEdit(noteId, { status: 'error', error: err.message }, at).catch(() => {});
+      }
+    })();
+  }
+
+  // Apply a ready proposal: a part goes back into the note as it is now (it may have changed since)
+  async function applyNoteEdit(noteId) {
+    const notes = self.NotesStore;
+    const note = await notes.get(noteId);
+    const edit = note && note.edit;
+    if (!edit || edit.status !== 'ready') throw new Error('Nothing to apply');
+    const text = edit.part ? self.NotesRegistry.replacePart(note.text, edit.part, edit.replacement) : edit.proposal;
+    if (text === null) throw new Error('The selected part is no longer in the note. Discard and ask again.');
+    const what = { tidy: 'Tidy', rephrase: 'Rephrase', structure: 'Structure' }[edit.instruction] || 'AI edit';
+    return notes.applyAi(noteId, text, SITES[edit.ai] ? SITES[edit.ai].name : 'AI', `${what}${edit.part ? ' (part)' : ''}`);
+  }
+
   const claimedTasks = new Set();
 
   async function startStep(projectId, { kind, ai, message, taskId = null, parentId = null, baseAt = null }) {
@@ -416,6 +495,13 @@
   // Steps cut off by a service worker restart can't be resumed; show them as needing the user
   async function recoverInterrupted() {
     const store = self.ProjectStore;
+    if (self.NotesStore) {
+      for (const note of await self.NotesStore.list()) {
+        if (note.edit && note.edit.status === 'running') {
+          await self.NotesStore.setEdit(note.id, { status: 'error', error: 'Interrupted (the extension restarted)' });
+        }
+      }
+    }
     for (const project of await store.list()) {
       for (const step of project.steps) {
         if (['sending', 'waiting', 'reading'].includes(step.status)) {
@@ -446,6 +532,17 @@
     wf_tidyMemory: async (p) => { await tidyMemory(p.projectId); return {}; },
     wf_openChat: async (p) => { await openStepChat(p.projectId, p.stepId); return {}; },
     wf_getArchive: async (p) => ({ text: await self.ProjectStore.getArchive(p.archiveId) }),
+    // Notes: every write goes through here (the page, the engine and the context menu share one store and its lock)
+    wf_notesList: async () => ({ notes: await self.NotesStore.list() }),
+    wf_noteCreate: async (p) => ({ note: await self.NotesStore.create(p) }),
+    wf_noteSaveText: async (p) => ({ note: await self.NotesStore.saveText(p.noteId, p.text) }),
+    wf_noteRename: async (p) => ({ note: await self.NotesStore.rename(p.noteId, p.title) }),
+    wf_noteUndo: async (p) => ({ note: await self.NotesStore.undo(p.noteId) }),
+    wf_noteRestore: async (p) => ({ note: await self.NotesStore.restore(p.noteId, p.index) }),
+    wf_noteRemove: async (p) => { await self.NotesStore.remove(p.noteId); return {}; },
+    wf_noteEdit: async (p) => { await editNote(p.noteId, p.instruction, p.part || null); return {}; },
+    wf_noteApplyEdit: async (p) => ({ note: await applyNoteEdit(p.noteId) }),
+    wf_noteDiscardEdit: async (p) => ({ note: await self.NotesStore.setEdit(p.noteId, null) }),
     // Dev harness: pick up code changes without visiting chrome://extensions
     wf_devReload: async () => { setTimeout(() => chromeAPI.runtime.reload(), 200); return {}; }
   };
