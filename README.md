@@ -1,93 +1,89 @@
 # Workspace Manager
 
-A Chrome extension for people who use several AI chat sites at once (ChatGPT, Gemini, Claude, Copilot).
+A Chrome extension that turns a goal into a plan, separate AI chats and one final answer.
 
-- **Saved prompts on any chat site.** Type `;;` in the message box and pick one of your saved prompts.
-- **Ask several AIs at once.** Write a prompt once and send it to every chat tab you choose.
-- **See who is done.** A live list shows each tab as *Empty*, *Working…* or *Done*, and you get a notification when
-  an answer is ready.
+- **Projects.** Describe a goal. The extension plans it, runs the parts in separate ChatGPT/Gemini chats, combines the answers and keeps a short project memory you can take to any chat.
+- **Notes.** Your own notes. AI edits only when you ask, and you see the change first. Right-click **Save to Notes** on any page, or use **✎ Tweak** to tidy a note.
+- **Saved prompts & answer styles.** Type `;;` in a chat box to pick one. Use **≡ Answer** in the manager to choose how the AI should answer.
+- **Send.** Send one prompt to several chat tabs.
 
-No API keys, no accounts. The extension works with the chat pages you already have open, by typing and clicking for
-you just like you would.
+**No API keys, no accounts to create.** It uses the ChatGPT/Gemini tabs you're already signed in to, typing and clicking like you would. Your data stays in the browser (`chrome.storage.local`).
 
-<!-- Media: record and save as doc/media/prompt-popup.gif and doc/media/send.gif (see doc/media/README.md) -->
-| Saved prompts with `;;` | Send to several AIs |
-|---|---|
-| ![Prompt pop-up on a chat site](doc/media/prompt-popup.gif) | ![Sending one prompt to ChatGPT and Gemini](doc/media/send.gif) |
+## 中文简介
+
+把一个目标交给扩展，按「描述 → 计划 → 分任务 → 合并 → 继续」完成。
+每个任务在独立的 ChatGPT/Gemini 聊天中运行，项目记忆可以带到新的聊天。
+笔记由你掌握：只有你要求时 AI 才修改，先看差异，再决定应用。
+输入 `;;` 插入提示词、回答风格、笔记或项目记忆，也能把同一问题发给多个聊天。
+不需要 API 密钥或注册新账号；使用你已登录的聊天网站，数据保存在浏览器本地。
+
+## See it in action
+
+| Projects | Prompts & styles | Notes |
+|---|---|---|
+| ![Plan, run tasks and combine](doc/media/projects.gif) | ![Pick an answer style without sending](doc/media/picker.gif) | ![Review and apply a note edit](doc/media/notes.gif) |
 
 ## Install
 
-The extension is not in the Chrome Web Store yet. To install it:
+Not in the Chrome Web Store yet.
 
-1. Download `workspace-manager-v0.6.0.zip` from the [latest release](https://github.com/dandruff2022/WorkSpaceManager/releases/latest)
-   and unzip it (or clone this repository).
-2. Open `chrome://extensions` and turn on **Developer mode** (top right).
-3. Click **Load unpacked** and pick the unzipped folder (the one that contains `manifest.json`).
-4. Click the puzzle icon in the toolbar and pin **Workspace Manager**.
+1. Download `workspace-manager-v0.7.0.zip` from the [latest release](https://github.com/dandruff2022/WorkSpaceManager/releases/latest) and unzip it, or clone this repository.
+2. Open `chrome://extensions` and turn on **Developer mode**.
+3. Click **Load unpacked** and select the folder containing `manifest.json`.
+4. Pin **Workspace Manager** using Chrome's puzzle icon. Click its toolbar icon to open the side panel.
 5. Reload any chat tabs that were already open.
 
 ## How to use
 
-**Saved prompts.** On ChatGPT or Gemini, type `;;` in the message box. A small menu shows your saved prompts; use the
-arrow keys and Enter (or click) to insert one. Edit, add or delete prompts on the **Prompts** page. Built-in prompts:
+### Projects
 
-| Prompt | What it does |
-|---|---|
-| `@redo` | Try the last request again, more carefully |
-| `@continue` | Go back to the earlier topic after a side question |
-| `@shorten` | Shorten the last answer to a quick summary |
-| `@check` | Ask the AI to check and correct its last answer |
+**Describe.** Click **+ New project**, write your goal and click **Create**. A budget, deadline or other limit helps.
 
-**Projects (new in 0.7, trial).** A project keeps one piece of work on your side. Write what you want to get done
-in one sentence, then follow the steps; the current one is highlighted:
-**Plan** (the main AI splits the work into up to 2 tasks, or skip it and do the work in one chat), **Run tasks** (each
-task can go to a different AI), **Combine** (the main AI merges the results into the final answer, in a chat you can
-keep talking in) and **Continue** (a new chat on ChatGPT or Gemini that starts from the memory). Each step shows the
-message before it is sent, so you can edit it. The project memory (goal, decisions, current state) is updated by
-itself after Combine, as a chore in a temporary chat; open **Memory** to see what changed or undo it. Pick the AI for
-chores in Settings. Chat tabs opened for a step close once the answer is saved; reopen them from **History**.
+**Plan.** Pick ChatGPT or Gemini. Read or edit the message, then ask it to plan. It splits the goal into one or two tasks. **Skip: use one chat** skips planning, tasks and combining; Continue opens one chat with your goal and memory.
 
-**Send to several AIs.** Click the toolbar icon to open the manager. The **Send** page lists your open chat tabs.
-Tick the ones you want, type a prompt (`;;` works here too), and press **Send** or ⌘/Ctrl + Enter. Each tab's status
-updates live; click a tab's name to jump to it.
+**Run tasks.** Choose an AI for each part and run the tasks. Each gets its own chat. Answers are saved in the project.
 
-**Settings.** Change the pop-up key, turn notifications off, or open the manager in Chrome's side panel instead of a
-separate window.
+**Combine.** Merge the task answers into one final answer. This opens a normal chat you can keep using. The extension also asks AI to update the short project memory.
 
-## Supported sites
+**Continue.** Start a fresh chat with the memory, progress and your next instruction. You can switch AI without starting over.
 
-| Site | Status in v0.6.0 |
-|---|---|
-| ChatGPT (chatgpt.com) | Tested |
-| Gemini (gemini.google.com) | Tested |
-| Claude (claude.ai) | Should work, not re-tested for this release |
-| Copilot (copilot.com) | Should work, not re-tested for this release |
+**Memory** holds the goal, preferences, decisions and open questions. Progress comes from the plan and task status. Review memory changes and undo them if needed. **History** keeps sent messages, saved answers and chat links; temporary chat links may no longer work after those chats close.
 
-## Limits
+### Notes
 
-- Chat sites change their pages often. When they do, sending or status detection on that site can break until the
-  extension's selectors are updated.
-- To type into a tab, the extension briefly brings that tab to the front, then switches back.
-- Status updates and notifications on the Send page only work while the manager is open (Projects steps run in the
-  background).
-- Projects: while a step runs, its chat tab is brought to the front for a moment to type, and Gemini tabs are briefly
-  shown while it answers (Gemini does not draw answers in hidden tabs).
-- Firefox support exists in the code but is not tested in this release.
+Click **+ New**, write a note and click **Done** to read it. Changes save automatically. Select text on a web page and right-click **Save to Notes** to keep it.
 
-## Roadmap
+Use **✎ Tweak** to choose edits such as Tidy or Checklist, or write your own request. Click **Ask**, review the proposed changes, then **Apply** or discard them. Versions let you restore an earlier note.
 
-This is an early demo. Ideas being explored next:
+### The `;;` picker
 
-- Compare the latest answers from several AIs side by side in the manager.
-- Move a conversation to another AI with a short summary instead of copying the whole chat.
-- Simple prompt chains: send A, wait until it is done, then send B.
+Type `;;` in a chat box or a manager message box. Pick from **Prompts**, **Styles**, **Notes** or **Memory**. Arrow keys move; Enter inserts. In Styles, Space ticks a choice and Enter applies it. Styles add plain instructions to your message, not hidden settings on the chat site.
 
-Earlier designs (full conversation transfer, a multi-tab task-tree orchestrator) are on hold; see
-[`doc/roadmap.md`](doc/roadmap.md). The project was planned and built with AI coding agents; the specification,
-plans and engineering logs are in [`doc/`](doc/).
+Manage saved prompts and styles in **Library**. **≡ Answer** opens the styles tray in the manager.
+
+### Send
+
+Open **Send**, tick the chat tabs you want, write a prompt and press **Send** or ⌘/Ctrl + Enter. Watch each tab's status or click its name to visit it. Status updates on this page need the manager to stay open.
+
+### Settings worth knowing
+
+- **Temporary chats** are on by default for planning, tasks and memory updates. Combine and Continue use normal chats.
+- **Keep chat tabs open** leaves worker tabs open after their answers are saved. Otherwise they close automatically.
+- **Chores AI** chooses who updates project memory: the same AI as the main step, ChatGPT or Gemini.
+- You can switch between the side panel and a separate window, change the picker key or turn off notifications.
+
+## Known limits
+
+- Chat tabs briefly come to the front while typing or reading. The sites need this to work reliably.
+- One project run opens several chats. Planning, tasks and memory updates use temporary chats by default.
+- ChatGPT and Gemini are tested. Claude and Copilot have profiles but are untested.
+- Sites change their pages, so sending or reading can break. Site selectors live in [`presets/`](presets/).
+- This is a v0.7.0 demo, not a promise that every AI answer or plan is correct. Check important facts yourself.
 
 ## Privacy
 
-Everything stays in your browser. The extension stores your prompts and settings in Chrome's local extension
-storage, does not collect data, and does not send anything anywhere except the prompts you choose to send to the chat
-sites.
+Nothing leaves your browser except what you send to the chat sites through the extension. This includes the goal, notes, project memory and task answers used in a step you start. Chat sites process those messages under their own policies. The extension has no separate server or analytics.
+
+## For developers
+
+Start with [`AGENTS.md`](AGENTS.md), [`doc/architecture.md`](doc/architecture.md) and [`test/README.md`](test/README.md).

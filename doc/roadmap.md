@@ -207,6 +207,7 @@ Replaces the old Phase 3–4 below, which stay on hold.
 - [x] UX pass round 3: unclipped step actions, factual Progress, viewport-bounded site picker (fake-chat layout checks), plain Styles intro and Markdown-free Notes previews.
 - [x] UX pass round 2: four-section concise memory (legacy compatible), hide empty placeholders, plain dialog titles, one primary Continue action, first-project onboarding.
 - [x] UX pass round 1: rendered answers + original/copy, readable memory changes, simpler wording/actions, tidy 380px/window layouts ([plan](plan/ux_pass_plan.md))
+- [x] v0.7.0 local demo preparation: bilingual README, three real-site GIFs, release notes, manifest version and runtime-only ZIP script (uncommitted; no tag or published release).
 - [ ] User tries the step line by hand
 - [ ] Phase 3.2 Library ([`doc/plan/phase_3.2_library_plan.md`](plan/phase_3.2_library_plan.md))
   - [ ] Step A: Styles (answer styles) + one `;;` picker everywhere (site overlay, inline tray in the panel),

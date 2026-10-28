@@ -201,7 +201,7 @@
         $('btn-note-discard').textContent = edit.status === 'running' ? 'Cancel' : (edit.status === 'error' ? 'Dismiss' : 'Discard');
         box.className = 'note-proposal' + (edit.status === 'error' ? ' is-error' : '');
         if (edit.status === 'running') {
-          head.textContent = `${ai} is working on ${what} for ${scope} (temporary chat)…`;
+          head.textContent = `${ai} is working on ${what} for ${scope}…`;
           return;
         }
         if (edit.status === 'error') {

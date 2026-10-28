@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Workspace Manager",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Use your saved prompts on any AI chat site, send one prompt to several chatbots at once, and get notified when answers are ready.",
   "icons": {
     "16": "icons/icon-16.png",
