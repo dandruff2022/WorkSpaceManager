@@ -45,6 +45,8 @@
       const R = window.NotesRegistry;   // pure helpers only; notes are read and written through the background
       const textEl = $('note-text');
       const titleEl = $('note-title');
+      const viewEl = $('note-view');
+      let editing = false;
 
       let notes = [];
       let current = null;          // the open note as last read from storage
@@ -96,10 +98,33 @@
         showEditor(true);
         titleEl.value = current.title || '';
         textEl.value = savedText = current.text;
+        setEditing(focus || !current.text.trim());
         updateScope();
         renderEditor();
         renderList();
         if (focus) textEl.focus();
+      }
+
+      function renderView() {
+        viewEl.replaceChildren(MarkdownView.render(textEl.value, { onToggle: async (lineIndex, checked) => {
+          if (!current) return;
+          textEl.value = R.toggleTask(textEl.value, lineIndex, checked);
+          renderView();
+          await saveNow();
+        } }));
+      }
+
+      function setEditing(on, focus = false) {
+        editing = on;
+        textEl.hidden = !on;
+        viewEl.hidden = on;
+        $('btn-note-edit').textContent = on ? 'Done' : 'Edit';
+        if (!on) { selection = null; renderView(); }
+        if (on && focus) {
+          textEl.focus();
+          textEl.setSelectionRange(textEl.value.length, textEl.value.length);
+        }
+        updateScope();
       }
 
       // A note left empty and untitled isn't worth keeping
@@ -133,6 +158,7 @@
 
       function renderEditor() {
         $('btn-note-undo').disabled = !current || current.versions.length < 2;
+        if (!editing) renderView();
         renderProposal();
         if (!$('note-history').hidden) renderHistory();
       }
@@ -140,6 +166,7 @@
       // ---------- Ask AI ----------
 
       function updateScope() {
+        if (!editing) { selection = null; $('note-ai-scope').textContent = 'AI · whole note:'; return; }
         const start = textEl.selectionStart;
         const end = textEl.selectionEnd;
         if (document.activeElement === textEl || selection === null) {
@@ -260,7 +287,21 @@
         saveTimer = setTimeout(() => { saveTimer = null; saveNow(); }, SAVE_DELAY_MS);
       });
       for (const ev of ['select', 'keyup', 'mouseup', 'focus']) textEl.addEventListener(ev, updateScope);
-      textEl.addEventListener('blur', () => flush());
+      viewEl.addEventListener('click', (e) => {
+        if (!e.target.closest('a, input')) setEditing(true, true);
+      });
+      $('btn-note-edit').addEventListener('click', () => {
+        if (editing) flush();
+        setEditing(!editing, !editing);
+      });
+      textEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); flush(); setEditing(false); }
+      });
+      textEl.addEventListener('blur', (e) => {
+        flush();
+        // Keep the textarea selection while the user asks the AI what to do with it.
+        if (!e.relatedTarget?.closest('.note-ai, #btn-note-edit')) setEditing(false);
+      });
       titleEl.addEventListener('input', () => {
         clearTimeout(titleTimer);
         titleTimer = setTimeout(() => { titleTimer = null; saveTitle(); }, SAVE_DELAY_MS);

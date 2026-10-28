@@ -35,5 +35,9 @@ panel send-picker-panel-dark 900 "#send-picker" dark
 shot notes-light 850 800 "_preview.html?mode=window#notes" light
 shot notes-proposal-dark 850 900 "_preview.html?mode=window#notes-proposal" dark
 panel notes-proposal-panel 1300 "#notes-proposal" light
+shot notes-view-light 850 900 "_preview.html?mode=window#notes-view" light
+shot notes-view-dark 850 900 "_preview.html?mode=window#notes-view" dark
+panel notes-view-panel 1200 "#notes-view" light
+panel notes-view-panel-dark 1200 "#notes-view" dark
 rm -f ui/_preview.html ui/_frame.html
 ls "$OUT"

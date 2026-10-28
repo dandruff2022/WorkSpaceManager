@@ -218,6 +218,8 @@ Replaces the old Phase 3–4 below, which stay on hold.
           Ask AI (Tidy / Rephrase / Structure / own words, selection or whole note) → diff → Apply/Discard,
           "Start a project" from a note, "Save to Notes" on Projects answers and via right-click on any page,
           notes in the `;;` picker; Node tests, screenshots
+    - [x] Notes Markdown read/edit view and clickable checklists; project-switch race / stale picker fixes,
+          duplicate Plan guard and clear Plan outcomes (Node + headless checks; real switch/checklist save verified)
     - [ ] Live test (AI edit on ChatGPT/Gemini, right-click save, `;;` insert on a site)
     - [ ] Later: answer buttons next to the site's copy button (not done: needs per-site selectors and live tuning;
           right-click covers saving for now)

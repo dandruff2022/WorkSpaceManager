@@ -146,6 +146,17 @@ async function runTests() {
     assert.deepStrictEqual(Library.query(data, { surface: 'site' }, 'museum').map(i => i.id), ['n1']);
   });
 
+  await test('10. toggleTask changes only the selected marker and preserves source lines', () => {
+    const text = '# List\r\n- [ ] **first**\r\n* [X] second\r\n  2. [ ] third\r\n- plain';
+    const done = N.toggleTask(text, 1, true);
+    assert.strictEqual(done, text.replace('- [ ]', '- [x]'));
+    assert.strictEqual(N.toggleTask(done, 1, false), text);
+    assert.strictEqual(N.toggleTask(text, 2), text.replace('[X]', '[ ]'));
+    assert.strictEqual(N.toggleTask(text, 3, true), text.replace('2. [ ]', '2. [x]'));
+    for (const i of [-1, 1.5, 99, 0, 4]) assert.strictEqual(N.toggleTask(text, i), text);
+    assert.strictEqual(N.toggleTask('- [ ] item', 0, true), '- [x] item');
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed) process.exit(1);
 }

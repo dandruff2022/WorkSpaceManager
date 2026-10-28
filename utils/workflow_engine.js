@@ -443,16 +443,26 @@
   }
 
   const claimedTasks = new Set();
+  const claimedPlans = new Set();
 
-  async function startStep(projectId, { kind, ai, message, taskId = null, parentId = null, baseAt = null }) {
+  async function startStep(projectId, options) {
+    if (options.kind !== 'split') return startClaimedStep(projectId, options);
+    // Two manager pages (or quick retries) can submit before either plan reaches storage.
+    if (claimedPlans.has(projectId)) throw new Error('A plan is already being started');
+    claimedPlans.add(projectId);
+    try { return await startClaimedStep(projectId, options); }
+    finally { claimedPlans.delete(projectId); }
+  }
+
+  async function startClaimedStep(projectId, { kind, ai, message, taskId = null, parentId = null, baseAt = null }) {
     if (!LABELS.hasOwnProperty(kind)) throw new Error(`Unknown step kind: ${kind}`);
     if (!SITES[ai]) throw new Error(`Unsupported AI: ${ai}`);
     if (!message || !message.trim()) throw new Error('Empty message');
     if (kind === 'split') {
-      // A new plan replaces the task list, so it can't run while tasks or a Combine are still working
+      // A new plan replaces the task list; don't race another plan or work using that list.
       const project = await self.ProjectStore.get(projectId);
-      if (project && (project.tasks.some(t => t.status === 'running') || project.steps.some(s => s.kind === 'combine' && ['sending', 'waiting', 'reading'].includes(s.status)))) {
-        throw new Error('Wait until the running tasks finish before planning again');
+      if (project && (project.tasks.some(t => t.status === 'running') || project.steps.some(s => ['split', 'combine'].includes(s.kind) && ['sending', 'waiting', 'reading'].includes(s.status)))) {
+        throw new Error('Wait until the running plan or tasks finish before planning again');
       }
     }
     if (taskId) {

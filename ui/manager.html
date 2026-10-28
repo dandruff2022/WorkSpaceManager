@@ -193,6 +193,7 @@
             </div>
             <div id="note-body" class="form" hidden>
               <input type="text" id="note-title" class="text-input note-title" placeholder="Title (optional)" aria-label="Title">
+              <div id="note-view" class="md-view note-view" hidden title="Click to edit"></div>
               <textarea id="note-text" class="text-input note-text" placeholder="Write anything…" aria-label="Note"></textarea>
               <div class="note-ai">
                 <span id="note-ai-scope" class="muted small">AI · whole note:</span>
@@ -215,6 +216,7 @@
               <div class="composer-footer">
                 <span id="note-status" class="status-line"></span>
                 <div class="mem-actions">
+                  <button type="button" id="btn-note-edit" class="btn-link">Edit</button>
                   <button type="button" id="btn-note-versions" class="btn-link">Versions</button>
                   <button type="button" id="btn-note-undo" class="btn-link">Undo</button>
                   <button type="button" id="btn-note-project" class="btn-link" title="A new project with this note as its goal">Start a project</button>

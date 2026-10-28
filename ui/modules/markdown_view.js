@@ -45,7 +45,7 @@
   }
 
   // Returns a DocumentFragment
-  function render(md) {
+  function render(md, { onToggle } = {}) {
     const frag = document.createDocumentFragment();
     const lines = String(md || '').replace(/\r\n?/g, '\n').split('\n');
     let para = null;
@@ -83,7 +83,22 @@
           list = frag.appendChild(el(tag.toLowerCase(), 'md-list'));
           target = list;
         }
-        target.appendChild(inline(el('li'), item[3]));
+        const task = item[3].match(/^\[([ xX])\]\s+(.*)$/);
+        const li = el('li', task ? 'md-task' : '');
+        if (task) {
+          const checked = task[1].toLowerCase() === 'x';
+          li.classList.toggle('md-task-done', checked);
+          const box = document.createElement('input');
+          box.type = 'checkbox';
+          box.checked = checked;
+          box.disabled = !onToggle;
+          box.setAttribute('aria-label', task[2]);
+          const lineIndex = i;
+          if (onToggle) box.addEventListener('change', () => onToggle(lineIndex, box.checked));
+          li.appendChild(box);
+          li.appendChild(inline(el('span', 'md-task-text'), task[2]));
+        } else inline(li, item[3]);
+        target.appendChild(li);
         continue;
       }
       list = null;

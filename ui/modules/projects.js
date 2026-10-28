@@ -111,11 +111,14 @@
       // Which flow step is open: null = the current one, 'none' = all folded
       let openKey = null;
       let lastCurrent = null;
+      let lastPlanKey = null;
       // Drafts: instructions the user typed, messages they edited, open message boxes
       let drafts = { instruction: {}, edited: {}, openBoxes: new Set() };
       // Answer styles for Projects messages (Answer button), as the ready "Output requirements:" line
       let styleLine = '';
       let renderHeld = false;
+      let loadVersion = 0;
+      let selectedId;
 
       function setStatus(text, kind = '') {
         $('proj-status').textContent = text;
@@ -128,21 +131,32 @@
       }
 
       async function load(projectId) {
+        const version = ++loadVersion;
+        if (projectId !== undefined) selectedId = projectId;
         const list = await call('wf_list');
+        if (version !== loadVersion) return;
         if (list.status !== 'success') {
           setStatus(`Could not load projects: ${list.error}`, 'error');
           return;
         }
         projects = list.projects;
-        if (projectId === undefined) projectId = (await call('wf_getCurrent')).projectId;
+        if (selectedId === undefined) selectedId = (await call('wf_getCurrent')).projectId;
+        if (version !== loadVersion) return;
+        projectId = selectedId;
         const previousId = project ? project.id : null;
         project = projects.find(p => p.id === projectId) || projects[0] || null;
+        selectedId = project ? project.id : null;
         if ((project ? project.id : null) !== previousId) {
+          // A picker from the old project must not hold the new project's flow on screen.
+          if (window.PickerTray) PickerTray.closeIn(flowEl);
+          flowEl.replaceChildren();
+          renderHeld = false;
           // Drafts belong to the project they were written for
           memoryDirty = false;
           memEditing = false;
           openKey = null;
           lastCurrent = null;
+          lastPlanKey = null;
           drafts = { instruction: {}, edited: {}, openBoxes: new Set() };
           setStatus('');
           setMemStatus('');
@@ -172,14 +186,18 @@
       }
 
       function renderFlow() {
-        // An open picker tray would be thrown away by a re-render; render when it closes
-        if (window.PickerTray && PickerTray.isOpenIn(flowEl)) { renderHeld = true; return; }
-        renderHeld = false;
         const flow = flowState(project);
-        if (flow.current !== lastCurrent) {
+        const planKey = flow.split ? `${flow.split.id}:${flow.split.status}` : null;
+        const planFinished = lastPlanKey && planKey !== lastPlanKey && ['done', 'needs-you', 'error'].includes(flow.split?.status);
+        lastPlanKey = planKey;
+        // Preserve a picker while typing, but never let it hide the next workflow step.
+        if (!planFinished && flow.current === lastCurrent && window.PickerTray && PickerTray.isOpenIn(flowEl)) { renderHeld = true; return; }
+        renderHeld = false;
+        if (planFinished || flow.current !== lastCurrent) {
+          if (window.PickerTray) PickerTray.closeIn(flowEl);
           // The project moved on: show the new current step
           lastCurrent = flow.current;
-          openKey = null;
+          openKey = planFinished && flow.split.status !== 'done' ? 'plan' : null;
         }
         // Keep focus and caret in the box the user is typing in across re-renders
         const active = document.activeElement;
@@ -260,6 +278,9 @@
       function planBody(state, flow) {
         const parts = [];
         if (flow.split) parts.push(stepLine(flow.split));
+        const failed = flow.split && ['needs-you', 'error'].includes(flow.split.status);
+        if (failed) parts.push(el('p', { class: 'small step-error' },
+          `Planning did not finish: ${flow.split.error || 'No usable task list was saved'}. Read the full answer, try again, or skip planning.`));
         if (state === 'running') return parts;
         if (state === 'skipped') {
           parts.push(el('p', { class: 'muted small' }, 'No plan: the work happens in one chat (Continue).'),
@@ -276,7 +297,7 @@
           el('span', { class: 'spacer' }),
           state === 'done' ? null : el('button', { class: 'btn', disabled: busy, onclick: () => setOptions({ planSkipped: true }) }, 'Skip — do it in one chat'),
           el('button', { class: 'btn btn-primary', disabled: busy || working, onclick: () => send('split') },
-            `${state === 'done' ? 'Plan again' : 'Plan'} with ${AI_NAMES[mainAi()]}`)));
+            `${failed ? 'Try again' : state === 'done' ? 'Plan again' : 'Plan'} with ${AI_NAMES[mainAi()]}`)));
         return parts;
       }
 
@@ -675,8 +696,12 @@
       // ---------- Events ----------
 
       selectEl.addEventListener('change', async () => {
-        await call('wf_setCurrent', { projectId: selectEl.value });
-        load(selectEl.value);
+        const id = selectEl.value;
+        selectedId = id;
+        const res = await call('wf_setCurrent', { projectId: id });
+        if (selectedId !== id) return;
+        if (res.status !== 'success') return setStatus(res.error, 'error');
+        load(id);
       });
 
       $('proj-main-ai').addEventListener('change', (e) => setOptions({ mainAi: e.target.value }));
@@ -779,7 +804,7 @@
 
       // The engine reports progress; reload the shown project
       chromeAPI.runtime.onMessage.addListener((message) => {
-        if (message.action === 'workflowUpdate' && project && message.payload?.projectId === project.id) load(project.id);
+        if (message.action === 'workflowUpdate' && project && message.payload?.projectId === project.id) load(selectedId);
       });
 
       load();

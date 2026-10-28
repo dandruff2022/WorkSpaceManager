@@ -249,9 +249,11 @@
 
     async function openTray() {
       const data = await loadData();
+      const ticks = await choice(opts.place);
+      if (!btn.isConnected) return;
       const before = opts.trayBefore || btn.closest('.composer-footer, .flow-actions') || btn.parentElement;
       tray = makeTray(before, {
-        ticks: await choice(opts.place),
+        ticks,
         doneButton: true,
         onApplyStyles: (ids) => setChoice(opts.place, ids),
         onClose: closeTray
@@ -289,6 +291,10 @@
     choice,
     setChoice,
     line,
+    // Workflow navigation replaces the old controls, including any picker listeners they own.
+    closeIn(root) {
+      for (const t of [...openTrays]) if (root.contains(t.tray)) t.remove();
+    },
     // True while a tray is open inside `root` (pages hold re-renders so the tray isn't thrown away)
     isOpenIn(root) {
       return [...openTrays].some(t => root.contains(t.tray));

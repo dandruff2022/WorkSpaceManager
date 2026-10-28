@@ -25,6 +25,16 @@
     return line ? (line.length > 60 ? line.slice(0, 59) + '…' : line) : 'Untitled note';
   }
 
+  // Change only the checklist marker on a source line (the renderer supplies its zero-based index).
+  function toggleTask(text, lineIndex, checked) {
+    const lines = String(text || '').split(/(\r\n|\r|\n)/);
+    if (!Number.isInteger(lineIndex) || lineIndex < 0 || lineIndex * 2 >= lines.length) return text;
+    const at = lineIndex * 2;
+    lines[at] = lines[at].replace(/^(\s*(?:[-*•]|\d+[.)])\s+\[)([ xX])(\]\s+)/, (_, before, mark, after) =>
+      before + ((checked === undefined ? mark === ' ' : checked) ? 'x' : ' ') + after);
+    return lines.join('');
+  }
+
   // Line diff (LCS) for showing an AI proposal: [{ type: 'same' | 'add' | 'del', text }]
   function diffLines(oldText, newText) {
     const a = String(oldText || '').split('\n');
@@ -202,7 +212,7 @@
     };
   }
 
-  const NotesRegistry = { createNotesStore, titleOf, diffLines, replacePart, TYPING_MERGE_MS };
+  const NotesRegistry = { createNotesStore, titleOf, diffLines, replacePart, toggleTask, TYPING_MERGE_MS };
   // Only the background makes the store (background.js: self.NotesStore); pages write through wf_note* messages
   global.NotesRegistry = NotesRegistry;
   if (typeof module !== 'undefined' && module.exports) {

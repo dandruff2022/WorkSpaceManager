@@ -7,16 +7,27 @@
   };
   const store = createProjectStore(area);
   const noop = { addListener() {} };
+  const listeners = [];
+  const notify = (message) => listeners.forEach(fn => fn(message));
+  const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
   const handlers = {
     wf_list: async () => ({ projects: await store.list() }),
     wf_getCurrent: async () => ({ projectId: await store.getCurrentId() }),
+    wf_setCurrent: async (p) => {
+      // Reproduce a progress reload while the current-project write is still pending.
+      notify({ action: 'workflowUpdate', payload: { projectId: await store.getCurrentId() } });
+      await pause(60);
+      await store.setCurrentId(p.projectId);
+      return {};
+    },
     wf_getArchive: async () => ({ text: 'Full answer text…' }),
     wf_setOptions: async (p) => ({ project: await store.setOptions(p.projectId, p.patch) }),
-    wf_notesList: async () => ({ notes: await notes().list() })
+    wf_notesList: async () => ({ notes: await notes().list() }),
+    wf_noteSaveText: async (p) => ({ note: await notes().saveText(p.noteId, p.text) })
   };
   // Notes store on the same fake storage (utils/notes_store.js loads after this file)
   let notesStore = null;
-  const notes = () => notesStore || (notesStore = NotesRegistry.createNotesStore(area));
+  const notes = () => notesStore || (notesStore = NotesRegistry.createNotesStore(area, { onChange: () => notify({ action: 'notesUpdate' }) }));
   window.chrome = {
     runtime: {
       lastError: null,
@@ -26,7 +37,7 @@
         if (cb) p.then(cb);
         return p;
       },
-      onMessage: noop, getURL: (s) => s
+      onMessage: { addListener(fn) { listeners.push(fn); } }, getURL: (s) => s
     },
     storage: {
       local: {
@@ -53,7 +64,8 @@
     },
     'send-answer': () => { click('.nav-item[data-target="send"]'); setTimeout(() => click('#view-send .answer-btn'), 100); },
     notes: () => click('.nav-item[data-target="notes"]'),
-    'notes-proposal': () => click('.nav-item[data-target="notes"]')
+    'notes-proposal': () => click('.nav-item[data-target="notes"]'),
+    'notes-view': () => click('.nav-item[data-target="notes"]')
   };
 
   // Notes for #notes (plain) and #notes-proposal (an AI proposal waiting to be applied)
@@ -61,9 +73,11 @@
     const now = Date.now();
     const v = (text, by, ago, note) => ({ text, by, at: now - ago, note });
     const trip = 'weekend in hangzhou\n- west lake early, before crowds\n- try longjing tea at meijiawu\n- budget about 1500 yuan, train both ways\nmaybe skip lingyin if it rains';
+    const markdown = '# Weekend in Hangzhou\n\n- West Lake before the crowds\n- Try Longjing tea\n\n[Train times](https://example.com/trains)\n\n- [ ] Book the train tickets\n- [x] Check the weekend weather\n* [ ] Pack a raincoat';
+    const text = location.hash === '#notes-view' ? markdown : trip;
     const tidy = 'Weekend in Hangzhou\n- West Lake early, before the crowds\n- Try Longjing tea at Meijiawu\n- Budget about 1500 yuan, train both ways\n- Maybe skip Lingyin Temple if it rains';
     data.notes = {
-      n1: { id: 'n1', title: '', text: trip, versions: [v(trip, 'you', 3600e3, 'created')], createdAt: now - 3600e3, updatedAt: now - 60e3,
+      n1: { id: 'n1', title: '', text, versions: [v(text, 'you', 3600e3, 'created')], createdAt: now - 3600e3, updatedAt: now - 60e3,
         edit: withProposal ? { status: 'ready', instruction: 'tidy', part: null, base: trip, ai: 'chatgpt', at: now - 30e3, proposal: tidy, replacement: tidy } : null },
       n2: { id: 'n2', title: 'Reading list', text: 'Designing Data-Intensive Applications\nhttps://example.com/paper.pdf', versions: [v('x', 'you', 86400e3, 'created')], createdAt: now - 86400e3, updatedAt: now - 86400e3, edit: null },
       n3: { id: 'n3', title: 'Kept from Projects', text: 'Final answer: day 1 West Lake, day 2 Grand Canal…', versions: [v('x', 'you', 172800e3, 'saved from Projects')], createdAt: now - 172800e3, updatedAt: now - 172800e3, edit: null }
@@ -77,6 +91,12 @@
     const state = hash.replace(/-mem$/, '');
     if (hash.endsWith('-mem')) window.addEventListener('load', () => setTimeout(() => click('#btn-proj-mem-toggle'), 400));
     if (state === 'empty') return;
+    if (state === 'checks') {
+      seedNotes(false);
+      await store.create('Second project', WorkflowPrompts.emptyMemory('Second project', 'Different goal'));
+      window.__previewStore = store;
+      window.__previewUpdate = notify;
+    }
     if (state.startsWith('notes')) seedNotes(state === 'notes-proposal');
     if (PAGES[state]) {
       data.styles = { custom: [{ id: 'my-formal', name: 'Formal tone', group: 'approach', text: 'Use a formal, polite tone.' }], edits: { short: { name: 'Short', text: 'Keep it short: under 100 words.' } } };
